@@ -16,7 +16,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-1
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 1 (span styles)
+    Demo 1 (span styles)
 
 #  ### TapirMD Source
    ### Render Result
@@ -49,7 +49,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-2
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 2 (line leading marks)
+    Demo 2 (line leading marks)
 
 #  ### TapirMD Source
    ### Render Result
@@ -77,7 +77,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-3
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 3 (link definitions)
+    Demo 3 (link definitions)
 
 #  ### TapirMD Source
    ### Render Result
@@ -104,7 +104,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-4
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 4 (built-in containers)
+    Demo 4 (built-in containers)
 
 #  ### TapirMD Source
    ### Render Result
@@ -178,7 +178,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-5
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 5 (table)
+    Demo 5 (table)
 
 #  ### TapirMD Source
    ### Render Result
@@ -245,7 +245,7 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-6
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 6 (atom blocks)
+    Demo 6 (atom blocks)
 
 #  ### TapirMD Source
    ### Render Result
@@ -288,7 +288,7 @@ pub fn main() void {
 
 @@@ #section-demo-7
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 7 (line end spacing)
+    Demo 7 (line end spacing)
 
 #  ### TapirMD Source
    ### Render Result
@@ -325,7 +325,7 @@ pub fn main() void {
 
 @@@ #section-demo-8
 ###+++++++++++++++++++++++++++++++++++++++++
-   Demo 8 (character escaping)
+    Demo 8 (character escaping)
 
 #  ### TapirMD Source
    ### Render Result

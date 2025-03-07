@@ -6,12 +6,12 @@ pub fn build(b: *std.Build) !void {
 
     const config = collectConfig(b, optimize);
 
-    // lib (ToDo: something not right here, the output is only 4.4k?
-    //     Need to export the pub elements?)
+    // lib (for C users)
+    // ToDo: Need many exported functions, including field setter/getter.
     //
     //const tmdLib = b.addStaticLibrary(.{
     //    .name = "tmd",
-    //    .root_source_file = b.path("lib/tmd.zig"),
+    //    .root_source_file = b.path("lib/tmd-for-c.zig"),
     //    .target = target,
     //    .optimize = optimize,
     //});
@@ -73,9 +73,11 @@ pub fn build(b: *std.Build) !void {
 
     const tmdCommand = b.addExecutable(.{
         .name = "tmd",
-        .root_source_file = b.path("cmd/tmd.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("cmd/cmd.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     tmdCommand.root_module.addImport("tmd", tmdLibModule);
     b.installArtifact(tmdCommand);
@@ -94,12 +96,15 @@ pub fn build(b: *std.Build) !void {
         .cpu_arch = .wasm32,
         .os_tag = .freestanding,
     });
+    const wasmOptimize: std.builtin.OptimizeMode = .ReleaseSmall;
 
     const wasm = b.addExecutable(.{
         .name = "tmd",
-        .root_source_file = b.path("wasm/tmd.zig"),
-        .target = wasmTarget,
-        .optimize = .ReleaseSmall,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("wasm/wasm.zig"),
+            .target = wasmTarget,
+            .optimize = wasmOptimize,
+        }),
     });
 
     // <https://github.com/ziglang/zig/issues/8633>
@@ -112,24 +117,76 @@ pub fn build(b: *std.Build) !void {
     wasm.max_memory = (1 << 24) + (1 << 21); // 18M
 
     wasm.root_module.addImport("tmd", tmdLibModule);
-    const installWasm = b.addInstallArtifact(wasm, .{});
+    const installWasm = b.addInstallArtifact(wasm, .{ .dest_dir = .{ .override = .lib } });
 
     const wasmStep = b.step("wasm", "Install wasm");
     wasmStep.dependOn(&installWasm.step);
 
+    // js
+
+    const GenerateJsLib = struct {
+        step: std.Build.Step,
+        jsLibPath: std.fs.Dir,
+        dest_sub_path: []const u8 = "tmd-with-wasm.js",
+        wasmInstallArtifact: *std.Build.Step.InstallArtifact,
+
+        pub fn create(theBuild: *std.Build, jsLibPath: std.fs.Dir, wasmInstall: *std.Build.Step.InstallArtifact) !*@This() {
+            const self = try theBuild.allocator.create(@This());
+            self.* = .{
+                .step = std.Build.Step.init(.{
+                    .id = .custom,
+                    .name = "generate JavaScript lib",
+                    .owner = theBuild,
+                    .makeFn = make,
+                }),
+                .jsLibPath = jsLibPath,
+                .wasmInstallArtifact = wasmInstall,
+            };
+            return self;
+        }
+
+        fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
+            const self: *@This() = @fieldParentPtr("step", step);
+
+            const needle = "<wasm-file-as-base64-string>";
+
+            const theBuild = step.owner;
+            const oldContent = try self.jsLibPath.readFileAlloc(theBuild.allocator, "tmd-with-wasm-template.js", 1 << 19);
+            if (std.mem.indexOf(u8, oldContent, needle)) |k| {
+                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
+                const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
+                const wasmContent = try libDir.readFileAlloc(theBuild.allocator, wasmFileName, 1 << 19);
+                const file = try libDir.createFile(self.dest_sub_path, .{ .truncate = true });
+                defer file.close();
+                try file.writeAll(oldContent[0..k]);
+                try std.base64.standard.Encoder.encodeWriter(file.writer(), wasmContent);
+                try file.writeAll(oldContent[k + needle.len ..]);
+            } else return error.WasmNeedleNotFound;
+        }
+    };
+
+    const jsLibPath = b.path("js");
+    const jsLibDir = try jsLibPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+
+    const installJsLib = try GenerateJsLib.create(b, jsLibDir, installWasm);
+    installJsLib.step.dependOn(&installWasm.step);
+
+    const jsLibStep = b.step("js", "Install JavaScript lib");
+    jsLibStep.dependOn(&installJsLib.step);
+
     // doc
 
     const buildWebsiteCommand = b.addRunArtifact(tmdCommand);
-    buildWebsiteCommand.step.dependOn(&installWasm.step);
+    buildWebsiteCommand.step.dependOn(&installJsLib.step);
 
     const websitePagesPath = b.path("doc/pages");
 
     buildWebsiteCommand.setCwd(websitePagesPath);
     buildWebsiteCommand.addArg("gen");
-    buildWebsiteCommand.addArg("--full-html");
-    buildWebsiteCommand.addArg("--support-custom-blocks");
+    buildWebsiteCommand.addArg("--trial-page-css=@");
+    buildWebsiteCommand.addArg("--enabled-custom-apps=html");
 
-    var websitePagesDir = try std.fs.openDirAbsolute(websitePagesPath.getPath(b), .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+    const websitePagesDir = try websitePagesPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
     var walker = try websitePagesDir.walk(b.allocator);
     defer walker.deinit();
     while (try walker.next()) |entry| {
@@ -143,9 +200,9 @@ pub fn build(b: *std.Build) !void {
     const CompletePlayPage = struct {
         step: std.Build.Step,
         docPagesPath: std.fs.Dir,
-        wasmInstallArtifact: *std.Build.Step.InstallArtifact,
+        jsLibInstallArtifact: *GenerateJsLib,
 
-        pub fn create(theBuild: *std.Build, docPath: std.fs.Dir, wasmInstall: *std.Build.Step.InstallArtifact) !*@This() {
+        pub fn create(theBuild: *std.Build, docPath: std.fs.Dir, jsLibInstall: *GenerateJsLib) !*@This() {
             const self = try theBuild.allocator.create(@This());
             self.* = .{
                 .step = std.Build.Step.init(.{
@@ -155,7 +212,7 @@ pub fn build(b: *std.Build) !void {
                     .makeFn = make,
                 }),
                 .docPagesPath = docPath,
-                .wasmInstallArtifact = wasmInstall,
+                .jsLibInstallArtifact = jsLibInstall,
             };
             return self;
         }
@@ -163,26 +220,24 @@ pub fn build(b: *std.Build) !void {
         fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
             const self: *@This() = @fieldParentPtr("step", step);
 
-            const needle = "<wasm-file-as-base64-string>";
+            const needle = "[js-lib-file]";
 
-            const binPathName = @tagName(self.wasmInstallArtifact.dest_dir.?);
-            const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
+            const jsLibFileName = self.jsLibInstallArtifact.dest_sub_path;
             const theBuild = step.owner;
             const oldContent = try self.docPagesPath.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const installDir = try std.fs.openDirAbsolute(theBuild.install_path, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
-                const binDir = try installDir.openDir(binPathName, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
-                const wasmContent = try binDir.readFileAlloc(theBuild.allocator, wasmFileName, 1 << 19);
+                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
+                const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
                 const file = try self.docPagesPath.createFile("play.html", .{ .truncate = true });
                 defer file.close();
                 try file.writeAll(oldContent[0..k]);
-                try std.base64.standard.Encoder.encodeWriter(file.writer(), wasmContent);
+                try file.writeAll(jsLibContent);
                 try file.writeAll(oldContent[k + needle.len ..]);
-            } else return error.WasmNeedleNotFound;
+            } else return error.JsLibNeedleNotFound;
         }
     };
 
-    const completePlayPage = try CompletePlayPage.create(b, websitePagesDir, installWasm);
+    const completePlayPage = try CompletePlayPage.create(b, websitePagesDir, installJsLib);
     completePlayPage.step.dependOn(&buildWebsiteCommand.step);
 
     const buildDoc = b.step("doc", "Build doc");

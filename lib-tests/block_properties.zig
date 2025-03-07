@@ -32,9 +32,55 @@ test "block attributes" {
     }.check));
 
     try std.testing.expect(try all.DocChecker.check(
+        \\ @@@ #foo
+        \\ hello world!
+        \\ @@@ #bar
+        \\ ### title
+        \\ @@@ #footer
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(try BlockTypeChecker.check(doc, "foo", .usual));
+            try std.testing.expect(try BlockTypeChecker.check(doc, "bar", .header));
+            try std.testing.expect(try BlockIsFooterChecker.check(doc, "foo") == false);
+            try std.testing.expect(try BlockIsFooterChecker.check(doc, "bar"));
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ @@@ #foo
+        \\ hello world!
+        \\ @@@ #bar
+        \\ ### title
+        \\ @@@
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(try BlockTypeChecker.check(doc, "foo", .usual));
+            try std.testing.expect(try BlockTypeChecker.check(doc, "bar", .header));
+            try std.testing.expect(try BlockIsFooterChecker.check(doc, "foo") == false);
+            try std.testing.expect(try BlockIsFooterChecker.check(doc, "bar"));
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
         \\ @@@ #plain-container
         \\ . a footer block
         \\   @@@ #footer
+        \\
+        \\
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(doc.blockByID("plain-container").?.nextSibling().?.footerAttibutes() == null);
+            try std.testing.expect(doc.blockByID("plain-container").?.next().?.footerAttibutes() != null);
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ @@@ #plain-container
+        \\ . a footer block
+        \\   @@@
         \\
         \\
     , struct {
@@ -54,6 +100,20 @@ test "block attributes" {
     , struct {
         fn check(doc: *const tmd.Doc) !bool {
             try std.testing.expect(try BlockTypeChecker.check(doc, "footer", .attributes));
+            try std.testing.expect(doc.blockByID("list").?.nextSibling().?.footerAttibutes() == null);
+            try std.testing.expect(doc.blockByID("list").?.next().?.next().?.footerAttibutes() != null);
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ @@@ #list
+        \\ + a footer block
+        \\   @@@
+        \\
+        \\
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
             try std.testing.expect(doc.blockByID("list").?.nextSibling().?.footerAttibutes() == null);
             try std.testing.expect(doc.blockByID("list").?.next().?.next().?.footerAttibutes() != null);
             return true;

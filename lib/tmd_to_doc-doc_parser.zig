@@ -75,7 +75,9 @@ fn tryToAttributeTheLastBlock(parser: *DocParser) !void {
         .attributes => if (parser.nextElementAttributes) |as| {
             try parser.setBlockAttributes(parser.lastBlock, as); // a footer attributes
         },
-        else => try parser.tryToAttributeBlock(parser.lastBlock),
+        else => {
+            try parser.tryToAttributeBlock(parser.lastBlock);
+        },
     }
 }
 
@@ -111,13 +113,17 @@ fn setBlockAttributes(parser: *DocParser, block: *tmd.Block, as: tmd.ElementAtti
 //fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line, forBulletContainer: bool) !void {
 fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
     std.debug.assert(line.lineType == .attributes);
-    //const tokens = line.lineType.attributes.tokens;
-    //const commentElement = tokens.head orelse return;
+
+    var modified = false;
+    // !!! Important for footer blocks.
+    defer if (!modified and parser.nextElementAttributes == null) {
+        parser.nextElementAttributes = .{};
+    };
+
     const lineTypeToken = line.lineTypeMarkToken() orelse unreachable;
     const commentToken = lineTypeToken.next() orelse return;
     if (commentToken.* != .commentText) return;
     std.debug.assert(commentToken.next() == null);
-    //const commentToken = &commentElement.value;
     const comment = parser.tmdDoc.rangeData(commentToken.range());
     const attrs = AttributeParser.parse_element_attributes(comment);
 
@@ -136,6 +142,7 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
         } else {
             parser.nextElementAttributes = .{ .id = attrs.id };
         }
+        modified = true;
     }
     if (attrs.classes.len > 0) {
         if (parser.nextElementAttributes) |*as| {
@@ -143,6 +150,7 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
         } else {
             parser.nextElementAttributes = .{ .classes = attrs.classes };
         }
+        modified = true;
     }
 }
 
@@ -917,17 +925,17 @@ fn parse(parser: *DocParser) !void {
                         const realOldLast = parser.lastBlock;
 
                         // ...
-                        const commentBlock = try parser.createAndPushBlockElement();
-                        commentBlock.blockType = .{
+                        const attributesBlock = try parser.createAndPushBlockElement();
+                        attributesBlock.blockType = .{
                             .attributes = .{
                                 .startLine = line,
                             },
                         };
 
-                        try blockArranger.stackAtomBlock(commentBlock, hasContainerMark);
+                        try blockArranger.stackAtomBlock(attributesBlock, hasContainerMark);
 
                         try parser.setEndLineForAtomBlock(currentAtomBlock);
-                        currentAtomBlock = commentBlock;
+                        currentAtomBlock = attributesBlock;
                         atomBlockCount += 1;
 
                         // !! important
@@ -938,18 +946,19 @@ fn parse(parser: *DocParser) !void {
                     contentParser.on_new_atom_block(currentAtomBlock);
                     //defer contentParser.on_new_atom_block(); // ToDo: might be unnecessary
 
-                    if (lineScanner.lineEnd != null) {
+                    if (lineScanner.lineEnd == null) {
+                        const contentEnd = try contentParser.parse_attributes_line_tokens(line, lineScanner.cursor);
+
+                        suffixBlankStart = contentEnd;
+                        std.debug.assert(lineScanner.lineEnd != null);
+                    } else {
                         // suffixBlankStart has been determined.
                         // And no data for parsing tokens.
-                        break :handle;
+
+                        // This is the bare @@@ lien case, which still needs
+                        // to call onNewAttributesLine.
                     }
 
-                    const contentEnd = try contentParser.parse_attributes_line_tokens(line, lineScanner.cursor);
-
-                    suffixBlankStart = contentEnd;
-                    std.debug.assert(lineScanner.lineEnd != null);
-
-                    //try parser.onNewAttributesLine(line, forBulletContainer);
                     try parser.onNewAttributesLine(line);
                 },
                 else => {},
@@ -961,7 +970,7 @@ fn parse(parser: *DocParser) !void {
 
                 if (hasContainerMark or
                     currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header
-                //and currentAtomBlock.blockType != .footer
+                        //and currentAtomBlock.blockType != .footer
                 ) {
                     const usualBlock = try parser.createAndPushBlockElement();
                     usualBlock.blockType = .{

@@ -3,13 +3,15 @@
 
 pub const version = @import("version.zig").version;
 
+pub const exampleCSS = @embedFile("example.css");
+
+pub const GenOptions = @import("doc_to_html.zig").Options;
+pub const htmlCustomDefaultGenFn = @import("doc_to_html.zig").htmlCustomGenFn;
+
 const std = @import("std");
 const builtin = @import("builtin");
 const list = @import("list.zig");
 const tree = @import("tree.zig");
-
-pub const DocSize = u28; // max 256M (in practice, most TMD doc sizes < 1M)
-pub const MaxDocSize: u32 = 1 << @bitSizeOf(DocSize) - 1;
 
 pub const Doc = struct {
     allocator: std.mem.Allocator = undefined,
@@ -74,11 +76,15 @@ pub const Doc = struct {
         doc.* = .{ .data = "" };
     }
 
-    pub fn toHTML(doc: *const Doc, writer: anytype, completeHTML: bool, supportCustomBlocks: bool, suffixForIdsAndNames: []const u8, allocator: std.mem.Allocator) !void {
-        try @import("doc_to_html.zig").doc_to_html(writer, doc, completeHTML, supportCustomBlocks, suffixForIdsAndNames, allocator);
+    pub fn writePageTitle(doc: *const Doc, writer: anytype) !bool {
+        return try @import("doc_to_html.zig").write_doc_title(writer, doc);
     }
 
-    pub fn toTMD(doc: *const Doc, writer: anytype, comptime format: bool) !void {
+    pub fn writeHTML(doc: *const Doc, writer: anytype, genOptions: GenOptions, allocator: std.mem.Allocator) !void {
+        try @import("doc_to_html.zig").doc_to_html(writer, doc, genOptions, allocator);
+    }
+
+    pub fn writeTMD(doc: *const Doc, writer: anytype, comptime format: bool) !void {
         try @import("doc_to_tmd.zig").doc_to_tmd(writer, doc, format);
     }
 
@@ -115,10 +121,17 @@ pub const Doc = struct {
         std.debug.assert(1 <= level and level <= MaxHeaderLevel);
         return self._headerLevelNeedAdjusted[level - 1];
     }
+
+    pub fn asConfig(self: *const @This()) @import("tmd_config.zig").Config {
+        return .{ .doc = self };
+    }
 };
 
+pub const DocSize = u28; // max 256M (in practice, most TMD doc sizes < 1M)
+pub const MaxDocSize: u32 = 1 << @bitSizeOf(DocSize) - 1;
+
 pub const Range = struct {
-    start: u32,
+    start: u32, // ToDo: use DocSize instead?
     end: u32,
 };
 
@@ -234,7 +247,7 @@ pub const ContentStreamAttributes = struct {
 pub const CustomBlockAttibutes = struct {
     commentedOut: bool = false, // ToDo: use Range
     app: []const u8 = "", // ToDo: use Range
-    //arguments: []const u8 = "", // ToDo: use Range
+    //arguments: []const u8 = "", // ToDo: use Range. Should be [][]const u8? Bad idea, try to keep lib smaller.
     // The argument is the content in the following custom block.
     // It might be a file path.
 };
@@ -325,7 +338,7 @@ pub const Block = struct {
     }
 
     // For atom blocks only (for tests purpose).
-    // ToDo: maybe it is best to sypport a token iterator which also
+    // ToDo: maybe it is best to support a token iterator which also
     //       iterates block/line mark and line start/end tokens.
     pub fn inlineTokens(self: *const @This()) InlineTokenIterator {
         std.debug.assert(self.isAtom());
@@ -464,9 +477,10 @@ pub const ListType = enum {
 };
 
 pub const BlockType = union(enum) {
-    // container block types
+    pub const Custom = std.meta.FieldType(BlockType, .custom);
+    // ToDo: others ..., when needed.
 
-    // ToDo: add .firstBlock and .lastBlock fileds for container blocks?
+    // container block types
 
     item: struct {
         //isFirst: bool, // ToDo: can be saved
@@ -664,6 +678,21 @@ pub const BlockType = union(enum) {
                 else => null,
             };
         }
+
+        pub fn startDataLine(self: @This()) ?*const Line {
+            if (self.startLine.next()) |nextLine| {
+                if (nextLine.lineType == .code) return nextLine;
+            }
+            return null;
+        }
+
+        pub fn endDataLine(self: @This()) ?*const Line {
+            if (self.endLine.lineType == .code) return self.endLine;
+            if (self.endLine.prev()) |prevLine| {
+                if (prevLine.lineType == .code) return prevLine;
+            }
+            return null;
+        }
     },
 
     custom: struct {
@@ -693,6 +722,21 @@ pub const BlockType = union(enum) {
                 .customBlockEnd => |_| self.endLine.playloadRange(),
                 else => null,
             };
+        }
+
+        pub fn startDataLine(self: @This()) ?*const Line {
+            if (self.startLine.next()) |nextLine| {
+                if (nextLine.lineType == .data) return nextLine;
+            }
+            return null;
+        }
+
+        pub fn endDataLine(self: @This()) ?*const Line {
+            if (self.endLine.lineType == .data) return self.endLine;
+            if (self.endLine.prev()) |prevLine| {
+                if (prevLine.lineType == .data) return prevLine;
+            }
+            return null;
         }
     },
 

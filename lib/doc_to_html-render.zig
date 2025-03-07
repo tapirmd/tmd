@@ -32,8 +32,18 @@ const TabListInfo = struct {
 pub const TmdRender = struct {
     doc: *const tmd.Doc,
 
-    supportCustomBlocks: bool = false,
-    suffixForIdsAndNames: []const u8 = "",
+    allocator: std.mem.Allocator,
+
+    // options
+
+    customFn: *const fn (w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void,
+    // codeFn // ToDo: user code block render fn. Or support all atom blocks?
+    identSuffix: []const u8 = "", // to avoid ident duplications
+    autoIdentSuffix: []const u8 = "", // same as identSuffix if blank
+    renderRoot: bool = true,
+    //ignoreClasses: bool = false, // for forum posts etc.
+
+    // intermediate data
 
     toRenderSubtitles: bool = false,
 
@@ -43,8 +53,6 @@ pub const TmdRender = struct {
 
     footnotesByID: FootnoteRedBlack.Tree = .{}, // ToDo: use PatriciaTree to get a better performance
     footnoteNodes: list.List(FootnoteRedBlack.Node) = .{}, // for destroying
-
-    allocator: std.mem.Allocator,
 
     fn cleanup(self: *TmdRender) void {
         const T = struct {
@@ -83,15 +91,17 @@ pub const TmdRender = struct {
         return footnote;
     }
 
-    pub fn writeTitleInHtmlHeader(self: *TmdRender, w: anytype) !void {
+    pub fn writeTitleInHtmlHeader(self: *TmdRender, w: anytype) !bool {
         if (self.doc.titleHeader) |titleHeader| {
-            try self.writeUsualContentBlockLinesForTitleInHtmlHeader(w, titleHeader);
+            try self.writeUsualContentBlockLinesForTitleInPageHeader(w, titleHeader);
+            return true;
         } else {
-            _ = try w.write("Tapir's Markdown Format");
+            _ = try w.write("");
+            return false;
         }
     }
 
-    pub fn render(self: *TmdRender, w: anytype, comptime renderRoot: bool) !void {
+    pub fn render(self: *TmdRender, w: anytype) !void {
         defer self.cleanup();
 
         var nilFootnoteTreeNode = FootnoteRedBlack.Node{
@@ -101,7 +111,7 @@ pub const TmdRender = struct {
         self.footnotesByID.init(&nilFootnoteTreeNode);
 
         const rootBlock = self.doc.rootBlock();
-        if (renderRoot) {
+        if (self.renderRoot) {
             try self.renderBlock(w, rootBlock); // will call writeFootnotes
         } else {
             try self.renderBlockChildren(w, rootBlock.firstChild());
@@ -114,7 +124,7 @@ pub const TmdRender = struct {
             const tag = "footer";
             const classes = "tmd-footer";
 
-            try fns.writeOpenTag(w, tag, classes, footerAttrs, self.suffixForIdsAndNames, true);
+            try fns.writeOpenTag(w, tag, classes, footerAttrs, self.identSuffix, true);
             break :blk tag;
         } else "";
 
@@ -125,7 +135,7 @@ pub const TmdRender = struct {
                 const tag = "div";
                 const classes = "tmd-doc";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
                 try self.renderBlockChildren(w, block.firstChild());
                 try self.writeFootnotes(w);
                 try fns.writeCloseTag(w, tag, true);
@@ -143,7 +153,7 @@ pub const TmdRender = struct {
                     .right => "tmd-base tmd-align-right",
                 };
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
                 try self.renderBlockChildren(w, block.firstChild());
                 try fns.writeCloseTag(w, tag, true);
             },
@@ -156,7 +166,7 @@ pub const TmdRender = struct {
                         const tag = if (itemList.secondMode) "ol" else "ul";
                         const classes = "tmd-list";
 
-                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
                         try self.renderBlockChildren(w, block.firstChild());
                         try fns.writeCloseTag(w, tag, true);
                     },
@@ -164,7 +174,7 @@ pub const TmdRender = struct {
                         const tag = "dl";
                         const classes = if (itemList.secondMode) "tmd-list tmd-defs-oneline" else "tmd-list tmd-defs";
 
-                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
                         try self.renderBlockChildren(w, block.firstChild());
                         try fns.writeCloseTag(w, tag, true);
                     },
@@ -172,7 +182,7 @@ pub const TmdRender = struct {
                         const tag = "div";
                         const classes = "tmd-tab";
 
-                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                         {
                             const orderId = self.nextTabListOrderId;
@@ -205,7 +215,7 @@ pub const TmdRender = struct {
                         const tag = "li";
                         const classes = "tmd-list-item";
 
-                        try fns.writeOpenTag(w, tag, classes, null, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, null, self.identSuffix, true);
                         try self.renderBlockChildren(w, block.firstChild());
                         try fns.writeCloseTag(w, tag, true);
                     },
@@ -214,7 +224,7 @@ pub const TmdRender = struct {
                             const tag = "dt";
                             const classes = "";
 
-                            try fns.writeOpenTag(w, tag, classes, headerBlock.attributes, self.suffixForIdsAndNames, true);
+                            try fns.writeOpenTag(w, tag, classes, headerBlock.attributes, self.identSuffix, true);
                             try self.writeUsualContentBlockLines(w, headerBlock);
                             try fns.writeCloseTag(w, tag, true);
 
@@ -224,7 +234,7 @@ pub const TmdRender = struct {
                         const tag = "dd";
                         const classes = "";
 
-                        try fns.writeOpenTag(w, tag, classes, null, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, null, self.identSuffix, true);
                         try self.renderBlockChildren(w, forDdBlock);
                         try fns.writeCloseTag(w, tag, true);
                     },
@@ -237,7 +247,7 @@ pub const TmdRender = struct {
                         _ = try w.print(
                             \\<input type="radio" class="tmd-tab-radio" name="tmd-tab-{d}{s}" id="tmd-tab-{d}-input-{d}{s}"
                         ,
-                            .{ tabInfo.orderId, self.suffixForIdsAndNames, tabInfo.orderId, tabInfo.nextItemOrderId, self.suffixForIdsAndNames },
+                            .{ tabInfo.orderId, self.autoIdentSuffix, tabInfo.orderId, tabInfo.nextItemOrderId, self.autoIdentSuffix },
                         );
 
                         if (listItem.isFirst()) _ = try w.write(" checked");
@@ -248,11 +258,11 @@ pub const TmdRender = struct {
                         _ = try w.print(
                             \\<{s} for="tmd-tab-{d}-input-{d}{s}"
                         ,
-                            .{ headerTag, tabInfo.orderId, tabInfo.nextItemOrderId, self.suffixForIdsAndNames },
+                            .{ headerTag, tabInfo.orderId, tabInfo.nextItemOrderId, self.autoIdentSuffix },
                         );
 
                         const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
-                            try fns.writeBlockAttributes(w, headerClasses, headerBlock.attributes, self.suffixForIdsAndNames);
+                            try fns.writeBlockAttributes(w, headerClasses, headerBlock.attributes, self.identSuffix);
                             _ = try w.write(">");
 
                             if (listItem.list.blockType.list.secondMode) {
@@ -262,7 +272,7 @@ pub const TmdRender = struct {
 
                             break :blk headerBlock.nextSibling();
                         } else blk: {
-                            try fns.writeBlockAttributes(w, headerClasses, null, self.suffixForIdsAndNames);
+                            try fns.writeBlockAttributes(w, headerClasses, null, self.identSuffix);
                             _ = try w.write(">");
 
                             if (listItem.list.blockType.list.secondMode) {
@@ -276,7 +286,7 @@ pub const TmdRender = struct {
                         const tag = "div";
                         const classes = "tmd-tab-content";
 
-                        try fns.writeOpenTag(w, tag, classes, null, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, classes, null, self.identSuffix, true);
 
                         try self.renderBlockChildren(w, firstContentBlock);
                         try fns.writeCloseTag(w, tag, true);
@@ -291,13 +301,13 @@ pub const TmdRender = struct {
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     const classes = "tmd-quotation-large";
-                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                     {
                         const headerTag = "div";
                         const headerClasses = "tmd-usual";
 
-                        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.identSuffix, true);
                         try self.writeUsualContentBlockLines(w, headerBlock);
                         try fns.writeCloseTag(w, headerTag, true);
                     }
@@ -305,7 +315,7 @@ pub const TmdRender = struct {
                     break :blk headerBlock.nextSibling();
                 } else blk: {
                     const classes = "tmd-quotation";
-                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                     break :blk block.firstChild();
                 };
@@ -317,14 +327,14 @@ pub const TmdRender = struct {
                 const tag = "div";
                 const classes = "tmd-notice";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     {
                         const headerTag = "div";
                         const headerClasses = "tmd-notice-header";
 
-                        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.identSuffix, true);
                         try self.writeUsualContentBlockLines(w, headerBlock);
                         try fns.writeCloseTag(w, headerTag, true);
                     }
@@ -336,7 +346,7 @@ pub const TmdRender = struct {
                     const contentTag = "div";
                     const contentClasses = "tmd-notice-content";
 
-                    try fns.writeOpenTag(w, contentTag, contentClasses, null, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, contentTag, contentClasses, null, self.identSuffix, true);
                     try self.renderBlockChildren(w, firstContentBlock);
                     try fns.writeCloseTag(w, contentTag, true);
                 }
@@ -347,17 +357,17 @@ pub const TmdRender = struct {
                 const tag = "details";
                 const classes = "tmd-reveal";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                 const headerTag = "summary";
                 const headerClasses = "tmd-reveal-header tmd-usual";
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
-                    try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.identSuffix, true);
                     try self.writeUsualContentBlockLines(w, headerBlock);
 
                     break :blk headerBlock.nextSibling();
                 } else blk: {
-                    try fns.writeOpenTag(w, headerTag, headerClasses, null, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, headerTag, headerClasses, null, self.identSuffix, true);
 
                     break :blk block.firstChild();
                 };
@@ -367,7 +377,7 @@ pub const TmdRender = struct {
                     const contentTag = "div";
                     const contentClasses = "tmd-reveal-content";
 
-                    try fns.writeOpenTag(w, contentTag, contentClasses, null, self.suffixForIdsAndNames, true);
+                    try fns.writeOpenTag(w, contentTag, contentClasses, null, self.identSuffix, true);
                     try self.renderBlockChildren(w, firstContentBlock);
                     try fns.writeCloseTag(w, contentTag, true);
                 }
@@ -378,14 +388,14 @@ pub const TmdRender = struct {
                 const tag = "div";
                 const classes = "tmd-plain";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     {
                         const headerTag = "div";
                         const headerClasses = "tmd-plain-header";
 
-                        try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.identSuffix, true);
                         try self.writeUsualContentBlockLines(w, headerBlock);
                         try fns.writeCloseTag(w, headerTag, true);
                     }
@@ -403,7 +413,7 @@ pub const TmdRender = struct {
                 const tag = "p";
                 const classes = "";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, false);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, false);
                 try fns.writeCloseTag(w, tag, true);
             },
             .attributes => {},
@@ -411,7 +421,7 @@ pub const TmdRender = struct {
                 const tag = "hr";
                 const classes = "tmd-seperator";
 
-                try fns.writeBareTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeBareTag(w, tag, classes, block.attributes, self.identSuffix, true);
             },
             .header => |*header| {
                 const level = header.level(self.doc.data);
@@ -428,11 +438,11 @@ pub const TmdRender = struct {
                     if (self.toRenderSubtitles) {
                         const headerTag = "header";
                         const headerClasses = "tmd-with-subtitle";
-                        try fns.writeOpenTag(w, headerTag, headerClasses, null, self.suffixForIdsAndNames, true);
+                        try fns.writeOpenTag(w, headerTag, headerClasses, null, self.identSuffix, true);
                     }
 
                     _ = try w.print("<h{}", .{realLevel});
-                    try fns.writeBlockAttributes(w, tmdHeaderClass(realLevel), block.attributes, self.suffixForIdsAndNames);
+                    try fns.writeBlockAttributes(w, tmdHeaderClass(realLevel), block.attributes, self.identSuffix);
                     _ = try w.write(">\n");
 
                     try self.writeUsualContentBlockLines(w, block);
@@ -451,13 +461,13 @@ pub const TmdRender = struct {
                     const blankTag = "p";
                     const blankClasses = "";
 
-                    try fns.writeBareTag(w, blankTag, blankClasses, null, self.suffixForIdsAndNames, true);
+                    try fns.writeBareTag(w, blankTag, blankClasses, null, self.identSuffix, true);
                 }
 
                 const tag = "div";
                 const classes = if (self.toRenderSubtitles) "tmd-usual tmd-subtitle" else "tmd-usual";
 
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
                 try self.writeUsualContentBlockLines(w, block);
                 try fns.writeCloseTag(w, tag, true);
 
@@ -475,11 +485,9 @@ pub const TmdRender = struct {
                 }
             },
             .custom => |*custom| {
-                if (self.supportCustomBlocks) {
-                    const attrs = custom.attributes();
-                    if (!attrs.commentedOut) {
-                        try self.writeCustomBlock(w, block, attrs);
-                    }
+                const attrs = custom.attributes();
+                if (attrs.app.len > 0 and !attrs.commentedOut) {
+                    try self.writeCustomBlock(w, block, attrs);
                 }
             },
         }
@@ -719,7 +727,7 @@ pub const TmdRender = struct {
 
         const tag = "td";
 
-        try fns.writeOpenTag(w, tag, tdClass, null, self.suffixForIdsAndNames, null);
+        try fns.writeOpenTag(w, tag, tdClass, null, self.identSuffix, null);
         try writeTableCellSpans(w, spans);
         _ = try w.write(">\n");
         try self.renderBlock(w, tableCellBlock);
@@ -737,7 +745,7 @@ pub const TmdRender = struct {
         const tag = "table";
         const classes = "tmd-table";
 
-        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.suffixForIdsAndNames, true);
+        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.identSuffix, true);
 
         _ = try w.write("<tr>\n");
         var lastRow: u32 = 0;
@@ -769,7 +777,7 @@ pub const TmdRender = struct {
         const tag = "table";
         const classes = "tmd-table";
 
-        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.suffixForIdsAndNames, true);
+        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.identSuffix, true);
 
         _ = try w.write("<tr>\n");
         var lastCol: u32 = 0;
@@ -792,7 +800,7 @@ pub const TmdRender = struct {
         const tag = "div";
         const classes = "tmd-table-no-cells";
 
-        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.suffixForIdsAndNames, true);
+        try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.identSuffix, true);
         try fns.writeCloseTag(w, tag, true);
     }
 
@@ -827,46 +835,20 @@ pub const TmdRender = struct {
     //======================== custom
 
     fn writeCustomBlock(self: *TmdRender, w: anytype, block: *const tmd.Block, attrs: tmd.CustomBlockAttibutes) !void {
-        // Not a good idea to wrapping the content.
-        //_ = try w.write("<div");
-        //try writeBlockAttributes(w, "tmd-custom", block.attributes, self.suffixForIdsAndNames);
-        //_ = try w.write("\">");
-
-        if (attrs.app.len == 0) {
-            _ = try w.write("[...]");
-        } else if (std.ascii.eqlIgnoreCase(attrs.app, "html")) blk: {
-            const endLine = block.endLine();
-            const startLine = block.startLine();
-            std.debug.assert(startLine.lineType == .customBlockStart);
-
-            var line = startLine.next() orelse break :blk;
-            while (true) {
-                switch (line.lineType) {
-                    .customBlockEnd => break,
-                    .data => {
-                        std.debug.assert(std.meta.eql(line.range(.trimLineEnd), line.range(.trimSpaces)));
-                        _ = try w.write(self.doc.rangeData(line.range(.trimLineEnd)));
-                    },
-                    else => unreachable,
-                }
-
-                // ToDo: should handle line-end spacing?
-                std.debug.assert(!line.treatEndAsSpace);
-                _ = try w.write("\n");
-
-                if (line == endLine) break;
-
-                line = line.next() orelse unreachable;
-            }
-        } else {
-            _ = try w.print("[{s} ...]", .{attrs.app}); // ToDo
-
-            // Common MIME types:
-            //    https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-        }
+        std.debug.assert(attrs.app.len > 0);
 
         // Not a good idea to wrapping the content.
-        //_ = try w.write("</div>\n");
+        // For example, the wrapper will break some
+        // "html" custom code.
+
+        //const tag = "div";
+        //const classes = "tmd-custom";
+
+        //try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
+
+        try self.customFn(w.any(), self.doc, &block.blockType.custom);
+
+        //try fns.writeCloseTag(w, tag, true);
     }
 
     //============================== code
@@ -882,7 +864,7 @@ pub const TmdRender = struct {
         const tag = "pre";
         const classes = "tmd-code";
 
-        try fns.writeOpenTag(w, tag, classes, block.attributes, self.suffixForIdsAndNames, true);
+        try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
         if (attrs.language.len > 0) {
             _ = try w.write("<code class=\"language-");
@@ -990,7 +972,7 @@ pub const TmdRender = struct {
         mark: ?*tmd.Token.SpanMark = null,
     };
     const MarkStatusesTracker = struct {
-        markStatusElements: [MarkCount]list.Element(MarkStatus) = .{.{}} ** MarkCount,
+        markStatusElements: [MarkCount]list.Element(MarkStatus) = .{list.Element(MarkStatus){}} ** MarkCount,
         marksStack: list.List(MarkStatus) = .{},
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
@@ -1004,25 +986,30 @@ pub const TmdRender = struct {
         }
     };
 
-    fn writeUsualContentBlockLinesForTitleInHtmlHeader(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
-        try self.writeContentBlockLines(w, block, false);
+    fn writeUsualContentBlockLinesForTitleInPageHeader(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+        try self.writeContentBlockLines(w, block, .titleInPageHeader);
+    }
+
+    fn writeUsualContentBlockLinesForTocItem(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+        try self.writeContentBlockLines(w, block, .tocItem);
     }
 
     fn writeUsualContentBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
-        try self.writeContentBlockLines(w, block, true);
+        try self.writeContentBlockLines(w, block, .general);
     }
 
-    fn writeContentBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block, writeTags: bool) !void {
+    const contentUsage = enum {
+        general,
+        tocItem,
+        titleInPageHeader,
+    };
+
+    fn writeContentBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block, usage: contentUsage) !void {
         const inHeader = block.blockType == .header;
         var tracker: MarkStatusesTracker = .{};
 
         const endLine = block.endLine();
         var line = block.startLine();
-
-        // Just to check all possible types. Don't remove.
-        switch (line.lineType) {
-            .blank, .usual, .header, .seperator, .attributes, .baseBlockOpen, .baseBlockClose, .codeBlockStart, .codeBlockEnd, .code, .customBlockStart, .customBlockEnd, .data => {},
-        }
 
         while (true) {
             //var element = line.tokens().?.head;
@@ -1045,10 +1032,12 @@ pub const TmdRender = struct {
                                 tracker.firstPlainTextInLink = false;
 
                                 if (linkInfo.isFootnote()) {
-                                    if (tracker.linkFootnote.block) |_| {
-                                        _ = try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
-                                    } else {
-                                        _ = try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                    if (usage == .general) {
+                                        if (tracker.linkFootnote.block) |_| {
+                                            _ = try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
+                                        } else {
+                                            _ = try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                        }
                                     }
                                     break :blk;
                                 }
@@ -1067,8 +1056,14 @@ pub const TmdRender = struct {
                             for (0..m.pairCount) |_| {
                                 _ = try w.write("`");
                             }
-                        } else for (1..m.pairCount) |_| {
-                            _ = try w.write("&nbsp");
+                        } else if (usage == .titleInPageHeader) {
+                            if (m.pairCount > 1) {
+                                _ = try w.write(" ");
+                            }
+                        } else {
+                            for (1..m.pairCount) |_| {
+                                _ = try w.write("&nbsp");
+                            }
                         }
                     },
                     .spanMark => |*m| {
@@ -1083,10 +1078,10 @@ pub const TmdRender = struct {
                                 std.debug.assert(tracker.activeLinkInfo != null);
 
                                 tracker.marksStack.pushHead(markElement);
-                                try writeCloseMarks(w, markElement, writeTags);
+                                try writeCloseMarks(w, markElement, usage);
 
                                 const linkInfo = tracker.activeLinkInfo orelse unreachable;
-                                blk: {
+                                if (usage == .general) blk: {
                                     if (linkInfo.urlConfirmed()) {
                                         std.debug.assert(linkInfo.urlConfirmed());
                                         std.debug.assert(linkInfo.info.urlSourceText != null);
@@ -1099,24 +1094,22 @@ pub const TmdRender = struct {
                                             const footnote = try self.onFootnoteReference(footnote_id);
                                             tracker.linkFootnote = footnote;
 
-                                            if (writeTags) _ = try w.print(
+                                            _ = try w.print(
                                                 \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
-                                            , .{ footnote_id, self.suffixForIdsAndNames, footnote.refCount, footnote_id, self.suffixForIdsAndNames });
+                                            , .{ footnote_id, self.identSuffix, footnote.refCount, footnote_id, self.identSuffix });
                                             break :blk;
                                         }
 
-                                        if (writeTags) {
-                                            _ = try w.print(
-                                                \\<a href="{s}">
-                                            , .{linkURL});
-                                        }
+                                        _ = try w.print(
+                                            \\<a href="{s}">
+                                        , .{linkURL});
                                     } else {
                                         std.debug.assert(!linkInfo.urlConfirmed());
                                         std.debug.assert(!linkInfo.isFootnote());
 
                                         // ToDo: call custom callback to try to generate a url.
 
-                                        if (writeTags) _ = try w.write(
+                                        _ = try w.write(
                                             \\<span class="tmd-broken-link">
                                         );
 
@@ -1124,21 +1117,21 @@ pub const TmdRender = struct {
                                     }
                                 }
 
-                                try writeOpenMarks(w, markElement, writeTags);
+                                try writeOpenMarks(w, markElement, usage);
                             } else {
                                 tracker.marksStack.pushTail(markElement);
-                                try writeOpenMark(w, markElement.value.mark.?, writeTags);
+                                try writeOpenMark(w, markElement.value.mark.?, usage);
                             }
-                        } else try closeMark(w, m, &tracker, writeTags);
+                        } else try closeMark(w, m, &tracker, usage);
                     },
                     .leadingSpanMark => |m| {
                         switch (m.more.markType) {
                             .lineBreak => {
-                                if (writeTags) _ = try w.write("<br/>");
+                                if (usage != .titleInPageHeader) _ = try w.write("<br/>");
                             },
                             .escape => {},
                             .spoiler => if (tokenElement.next) |_| {
-                                if (writeTags) _ = try w.write(
+                                if (usage != .titleInPageHeader) _ = try w.write(
                                     \\<span class="tmd-spoiler">
                                 );
                                 isNonBareSpoilerLine = true;
@@ -1152,7 +1145,7 @@ pub const TmdRender = struct {
                                     _ = try w.write(" ");
                                     break :blk;
                                 }
-                                if (!writeTags) break :blk;
+                                if (usage != .titleInPageHeader) break :blk;
 
                                 const mediaInfoElement = tokenElement.next.?;
                                 const isInline = inHeader or block.more.hasNonMediaTokens;
@@ -1160,12 +1153,6 @@ pub const TmdRender = struct {
                                 writeMedia: {
                                     const mediaInfoToken = mediaInfoElement.value;
                                     std.debug.assert(mediaInfoToken == .content);
-
-                                    //const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
-                                    //var it = mem.splitAny(u8, mediaInfo, " \t");
-                                    //const src = it.first();
-                                    //if (!std.mem.startsWith(u8, src, "./") and !std.mem.startsWith(u8, src, "../") and !std.mem.startsWith(u8, src, "https://") and !std.mem.startsWith(u8, src, "http://")) break :writeMedia;
-                                    //if (!std.mem.endsWith(u8, src, ".png") and !std.mem.endsWith(u8, src, ".gif") and !std.mem.endsWith(u8, src, ".jpg") and !std.mem.endsWith(u8, src, ".jpeg")) break :writeMedia;
 
                                     const src = self.doc.rangeData(mediaInfoToken.range());
                                     if (!AttributeParser.isValidMediaURL(src)) break :writeMedia;
@@ -1189,7 +1176,7 @@ pub const TmdRender = struct {
                 element = tokenElement.next;
             }
 
-            if (writeTags) {
+            if (usage != .titleInPageHeader) {
                 if (isNonBareSpoilerLine) _ = try w.write("</span>");
             }
 
@@ -1206,7 +1193,7 @@ pub const TmdRender = struct {
             var markElement = element;
             while (true) {
                 if (markElement.value.mark) |m| {
-                    try closeMark(w, m, &tracker, writeTags);
+                    try closeMark(w, m, &tracker, usage);
                 } else unreachable;
 
                 if (markElement.prev) |prev| {
@@ -1215,12 +1202,12 @@ pub const TmdRender = struct {
             }
         }
 
-        if (writeTags) _ = try w.write("\n");
+        if (usage == .general) _ = try w.write("\n");
     }
 
     // Genreally, m is a close mark. But for missing close marks in the end,
     // their open counterparts are passed in here.
-    fn closeMark(w: anytype, m: *tmd.Token.SpanMark, tracker: *MarkStatusesTracker, writeTags: bool) !void {
+    fn closeMark(w: anytype, m: *tmd.Token.SpanMark, tracker: *MarkStatusesTracker, usage: contentUsage) !void {
         const markElement = &tracker.markStatusElements[m.markType.asInt()];
         std.debug.assert(markElement.value.mark != null);
 
@@ -1230,9 +1217,9 @@ pub const TmdRender = struct {
                     const linkInfo = tracker.activeLinkInfo orelse break :blk;
                     tracker.activeLinkInfo = null;
 
-                    try writeCloseMarks(w, markElement, writeTags);
+                    try writeCloseMarks(w, markElement, usage);
 
-                    if (writeTags) {
+                    if (usage == .general) {
                         if (linkInfo.urlConfirmed()) {
                             _ = try w.write("</a>");
                             if (linkInfo.isFootnote()) {
@@ -1243,7 +1230,7 @@ pub const TmdRender = struct {
                         }
                     }
 
-                    try writeOpenMarks(w, markElement, writeTags);
+                    try writeOpenMarks(w, markElement, usage);
 
                     if (tracker.marksStack.popHead()) |head| {
                         std.debug.assert(head == markElement);
@@ -1257,7 +1244,7 @@ pub const TmdRender = struct {
                             std.debug.assert(tail == markElement);
                         } else unreachable;
 
-                        try writeCloseMark(w, markElement.value.mark.?, writeTags);
+                        try writeCloseMark(w, markElement.value.mark.?, usage);
 
                         break :done;
                     }
@@ -1267,9 +1254,9 @@ pub const TmdRender = struct {
 
             // else ...
 
-            try writeCloseMarks(w, markElement, writeTags);
-            try writeCloseMark(w, markElement.value.mark.?, writeTags);
-            try writeOpenMarks(w, markElement, writeTags);
+            try writeCloseMarks(w, markElement, usage);
+            try writeCloseMark(w, markElement.value.mark.?, usage);
+            try writeOpenMarks(w, markElement, usage);
 
             tracker.marksStack.delete(markElement);
         }
@@ -1277,25 +1264,25 @@ pub const TmdRender = struct {
         markElement.value.mark = null;
     }
 
-    fn writeOpenMarks(w: anytype, bottomElement: *list.Element(MarkStatus), writeTags: bool) !void {
+    fn writeOpenMarks(w: anytype, bottomElement: *list.Element(MarkStatus), usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
-            try writeOpenMark(w, element.value.mark.?, writeTags);
+            try writeOpenMark(w, element.value.mark.?, usage);
             next = element.next;
         }
     }
 
-    fn writeCloseMarks(w: anytype, bottomElement: *list.Element(MarkStatus), writeTags: bool) !void {
+    fn writeCloseMarks(w: anytype, bottomElement: *list.Element(MarkStatus), usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
-            try writeCloseMark(w, element.value.mark.?, writeTags);
+            try writeCloseMark(w, element.value.mark.?, usage);
             next = element.next;
         }
     }
 
     // ToDo: to optimize by using a table.
-    fn writeOpenMark(w: anytype, spanMark: *tmd.Token.SpanMark, writeTags: bool) !void {
-        if (!writeTags) return;
+    fn writeOpenMark(w: anytype, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
+        if (usage == .titleInPageHeader) return;
 
         switch (spanMark.markType) {
             .link => {
@@ -1381,8 +1368,8 @@ pub const TmdRender = struct {
     }
 
     // ToDo: to optimize
-    fn writeCloseMark(w: anytype, spanMark: *tmd.Token.SpanMark, writeTags: bool) !void {
-        if (!writeTags) return;
+    fn writeCloseMark(w: anytype, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
+        if (usage == .titleInPageHeader) return;
 
         switch (spanMark.markType) {
             .link, .fontWeight, .fontStyle, .fontSize, .deleted => {
@@ -1448,11 +1435,11 @@ pub const TmdRender = struct {
             if (id.len == 0) _ = try w.write("<span class=\"tmd-broken-link\"") else {
                 _ = try w.write("<a href=\"#");
                 _ = try w.write(id);
-                _ = try w.write(self.suffixForIdsAndNames);
+                _ = try w.write(self.identSuffix);
             }
             _ = try w.write("\">");
 
-            try self.writeUsualContentBlockLines(w, headerBlock);
+            try self.writeUsualContentBlockLinesForTocItem(w, headerBlock);
 
             if (id.len == 0) _ = try w.write("</span>\n") else _ = try w.write("</a>\n");
 
@@ -1476,7 +1463,7 @@ pub const TmdRender = struct {
             defer listElement = element.next;
             const footnote = element.value.value;
 
-            _ = try w.print("<li id=\"fn:{s}{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ footnote.id, self.suffixForIdsAndNames });
+            _ = try w.print("<li id=\"fn:{s}{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ footnote.id, self.identSuffix });
             const missing_flag = if (footnote.block) |block| blk: {
                 switch (block.blockType) {
                     // .item can't have ID now.
@@ -1488,7 +1475,7 @@ pub const TmdRender = struct {
             } else "?";
 
             for (1..footnote.refCount + 1) |n| {
-                _ = try w.print(" <a href=\"#fn:{s}{s}:ref-{}\">↩︎{s}</a>", .{ footnote.id, self.suffixForIdsAndNames, n, missing_flag });
+                _ = try w.print(" <a href=\"#fn:{s}{s}:ref-{}\">↩︎{s}</a>", .{ footnote.id, self.identSuffix, n, missing_flag });
             }
             _ = try w.write("</li>\n");
         }

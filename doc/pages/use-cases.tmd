@@ -20,6 +20,11 @@ This page lists some use cases of __TapirMD__.
       __ %%::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/blog
       __)
+   +  __ Go (Fundamentals) 101
+      ``https://go101.org/article/101.html
+      __ %%::(__ source code
+      ``https://github.com/go101/go101/tree/master/pages/fundamentals
+      __)
    +  __ Go Optimizations 101
       ``https://go101.org/optimizations/101.html
       __ %%::(__ source code

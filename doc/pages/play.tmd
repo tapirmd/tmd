@@ -30,33 +30,35 @@ __the specification``specification.html__.
 
 """ html
 <script>
-let buffer_offset = null;
-let get_version = null;
-let tmd_to_html = null;
-let tmd_format = null;
-let memory = null;
-
-let lastTmdData = "";
+let tmdLibInstance = undefined;
+let lastTmdText = "";
 
 document.addEventListener("DOMContentLoaded", function() {
-	document.getElementById("note-enable-js").style.display = 'none';
+	initTmdLib().then(instance => {
+		tmdLibInstance = instance;
+		console.log("TMD lib (v" + instance.version() + ") inited.");
 
-	loadWasm();
-	
-	const effectLabel = document.getElementById("effect-tab");
-	const effectRatio = effectLabel.previousElementSibling;
-	effectRatio.addEventListener('change', (event) => {
-		if (event.target.checked) {
-			tmdToHTML();
-		}
-	});
-	
-	const htmlLabel = document.getElementById("html-tab");
-	const htmlRatio = htmlLabel.previousElementSibling;
-	htmlRatio.addEventListener('change', (event) => {
-		if (event.target.checked) {
-			tmdToHTML();
-		}
+		document.getElementById("note-enable-js").style.display = 'none';
+
+		const effectLabel = document.getElementById("effect-tab");
+		const effectRatio = effectLabel.previousElementSibling;
+		effectRatio.addEventListener('change', (event) => {
+			if (event.target.checked) {
+				tmdToHTML();
+			}
+		});
+
+		const htmlLabel = document.getElementById("html-tab");
+		const htmlRatio = htmlLabel.previousElementSibling;
+		htmlRatio.addEventListener('change', (event) => {
+			if (event.target.checked) {
+				tmdToHTML();
+			}
+		});
+	}).catch(err => {
+		console.log("TMD lib init error:", err);
+		const inputTextArea = document.getElementById('tmd-source');
+		inputTextArea.value = "(TMD lib init error.)";
 	});
 });
 
@@ -73,180 +75,42 @@ function setRenderEffect(output, isHTML) {
 }
 
 function tmdToHTML() {
-	if (memory == null) {
+	if (!tmdLibInstance) {
 		//console.log("wasm is not initialized yet");
-		setRenderEffect("wasm is not initialized yet", false);
+		setRenderEffect("TmdLib is not initialized yet", false);
 		return;
 	}
 
-	//let startTime = new Date();
+	try {
+		// set input TMD
+		const inputTextArea = document.getElementById('tmd-source');
+		const tmdText = inputTextArea.value;
+		if (tmdText == lastTmdText) {
+			//console.log("no change");
+			return;
+		}
+		tmdLibInstance.setInputTmd(tmdText)
 
-	// get buffer information
+		// format TMD
+		const formattedText = tmdLibInstance.format();
+		if (formattedText != null) {
+			inputTextArea.value = formattedText;
+		}
+
+		// generate HTML
+		const html = tmdLibInstance.generateHtml({autoIdentSuffix: "__---demo"});
+		setRenderEffect(html, true);
 	
-	const bufferOffset = buffer_offset();
-	//console.log("bufferOffset:", bufferOffset);
-	if (bufferOffset < 0) {
-		//console.log("bad bufferOffset:", bufferOffset);
-		setRenderEffect("bad bufferOffset: " + bufferOffset, false);
-		return;
-	}
-	const inputView = new DataView(memory.buffer, bufferOffset);
-	const maxInputLength = inputView.getUint32(0, true);
-	//console.log("maxInputLength:", maxInputLength);
-
-	// get the lib version
-	const versionOffset = get_version(false, false);
-	if (versionOffset < 0) {
-		//console.log("bad versionOffset:", versionOffset);
-		setRenderEffect("bad versionOffset: " + versionOffset, false);
-		return;
-	}
-	
-	const versionView = new DataView(memory.buffer, versionOffset);
-	
-	const versionLength = versionView.getUint32(0, true);
-	//console.log("versionLength:", versionLength);
-	
-	const versionBytes = new Uint8Array(memory.buffer, versionOffset+4, versionLength);
-	const version = new TextDecoder().decode(versionBytes);
-	//console.log("version:", version);
-
-	// write input data and get output data
-	
-	const inputTextArea = document.getElementById('tmd-source');
-	const tmdData = inputTextArea.value;
-	if (tmdData == lastTmdData) {
-		//console.log("no change");
-		return;
-	}
-
-	var inputLength = new TextEncoder().encode(tmdData).length;
-	if (inputLength > maxInputLength) {
-		//console.log(`inputLength (${inputLength}) is too large (larger than ${maxInputLength})`);
-		setRenderEffect("inputLength  (" + inputLength + ") is too large (larger than " + maxInputLength + ").", false);
-		return;
-	}
-	//console.log("inputLength:", inputLength);
-	
-	let offset = 0;
-	const demoSuffix = "__demo";
-	inputView.setUint8(offset, demoSuffix.length);
-	offset += 1;
-	const suffixBytes = new Uint8Array(memory.buffer, bufferOffset + offset);
-	const { } = new TextEncoder().encodeInto(demoSuffix, suffixBytes);
-	offset += demoSuffix.length;
-
-	inputView.setInt32(offset, inputLength, true);
-	offset += 4;
-	const inputBytes = new Uint8Array(memory.buffer, bufferOffset + offset);
-	const { written } = new TextEncoder().encodeInto(tmdData, inputBytes);
-	//console.log("written:", written);
-
-	//console.log("elapsed time (prepare input): ", new Date() - startTime); startTime = new Date();
-	
-	// format TMD
-
-	const formatOffset = tmd_format();
-	//console.log("formatOffset=", formatOffset);
-	if (formatOffset < 0) {
-		//console.log("bad formatOffset:", formatOffset);
-		setRenderEffect("bad formatOffset: " + formatOffset, false);
-		return;
-	}
-
-	//console.log("elapsed time (tmd_format):", new Date() - startTime); startTime = new Date();
-
-	const formatView = new DataView(memory.buffer, formatOffset);
-	const formatLength = formatView.getUint32(0, true);
-	//console.log("formatLength:", formatLength);
-	if (formatLength > 0) {
-		const formatBytes = new Uint8Array(memory.buffer, formatOffset+4, formatLength);
-		const format = new TextDecoder().decode(formatBytes);
-		//console.log("format:", format);
-		inputTextArea.value = format;
-	}
-
-	//console.log("elapsed time (decode format):", new Date() - startTime); startTime = new Date();
-
-	// generate HTML
-
-	const outputOffset = tmd_to_html(false, false);
-	if (outputOffset < 0) {
-		//console.log("bad outputOffset:", outputOffset);
-		setRenderEffect("bad outputOffset: " + outputOffset, false);
-		return;
-	}
-
-	//console.log("elapsed time (tmd_to_html):", new Date() - startTime); startTime = new Date();
-	
-	const outputView = new DataView(memory.buffer, outputOffset);
-	const outputLength = outputView.getUint32(0, true);
-	//console.log("outputLength:", outputLength);
-	
-	const outputBytes = new Uint8Array(memory.buffer, outputOffset+4, outputLength);
-	const output = new TextDecoder().decode(outputBytes);
-	//console.log("output:", output);
-
-	//console.log("elapsed time (decode output):", new Date() - startTime);
-
-	setRenderEffect(output, true);
-	lastTmdData = tmdData;
-}
-
-function loadWasm() {
-	if (window.Worker) {
-		const worker = new Worker(URL.createObjectURL(new Blob([`
-			onmessage = async function(e) {
-				const wasmBase64 = e.data;
-				const wasmBinary = Uint8Array.from(atob(wasmBase64), c => c.charCodeAt(0));
-				//console.log(WebAssembly.validate(wasmBinary));
-				try {
-					const wasmModule = await WebAssembly.compile(wasmBinary);
-					self.postMessage({ type: 'wasmModule', module: wasmModule }); 
-					//console.log("compile wasm done.");
-				} catch (err) {
-					console.error("compile wasm error: ", err.message);
-				}
-			}
-		`], { type: 'application/javascript' })));
-
-		worker.postMessage(wasmBase64);
-
-		worker.onmessage = function (event) {
-			if (event.data.type === 'wasmModule') {
-				const wasmModule = event.data.module;
-				const imports = {env: {
-					print(addr, len, addr2, len2, extraInt32) {
-						try {
-							const buff = memory.buffer.slice(addr, addr + len);
-							const message = new TextDecoder().decode(buff);
-							const buff2 = memory.buffer.slice(addr2, addr2 + len2);
-							const message2 = new TextDecoder().decode(buff2);
-							console.log(message, message2, extraInt32);
-						} catch (err) {
-							console.error("log error.");
-						}
-					}
-				}};
-				WebAssembly.instantiate(wasmModule, imports).then(instance => {
-					//console.log("instance wasm done: ", instance);
-					memory = instance.exports.memory;
-					buffer_offset = instance.exports.buffer_offset;
-					get_version = instance.exports.get_version;
-					tmd_to_html = instance.exports.tmd_to_html;
-					tmd_format = instance.exports.tmd_format;
-				});
-			}
-		};
-		
-		worker.onerror = function (error) {
-			console.error("Worker error: ", error);
-		};
-	} else {
-		console.log('Web Workers are not supported in this browser.');
+		lastTmdText = tmdText;
+	} catch (err) {
+		console.log("TMD lib gen error:", err);
+		setRenderEffect("(TMD lib gen error.)", false);
 	}
 }
 
-const wasmBase64 = "<wasm-file-as-base64-string>";
+// inline js lib
+
+[js-lib-file]
+
 </script>
 """

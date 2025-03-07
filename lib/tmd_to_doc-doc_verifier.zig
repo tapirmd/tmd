@@ -3,6 +3,11 @@ const builtin = @import("builtin");
 
 const tmd = @import("tmd.zig");
 
+// ToDo: verify line fields.
+//       such as for .data lines:
+//       - std.debug.assert(std.meta.eql(line.range(.trimLineEnd), line.range(.trimSpaces)));
+//       - std.debug.assert(!line.treatEndAsSpace);
+
 fn verifyNextSibling(block: *const tmd.Block, nextSibling: ?*const tmd.Block) void {
     switch (block.blockType) {
         .list => {

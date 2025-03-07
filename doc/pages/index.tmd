@@ -2,21 +2,17 @@
 ##### The Homepage of TapirMD
 ;;; A powerful, next-generation markup language that simplifies content creation.
 
----
-{
-::
-``- __Specification`` specification.html __
-| __Demos`` demos.html __
-| __Try It Online`` play.html __
-\\
-// ``- __Ecosystem`` ecosystem.html __
-``- __Official Tools`` installation.html __
-| __Use Cases`` use-cases.html __
-\\
-``- __Source Code`` https://github.com/tapirmd/tmd __
-| __@zigo_101`` https://x.com/zigo_101 __
-}
----
+
+Ecosystem:
+
+*  __The official toolset`` installation.html __ and __online playfield`` play.html __
+*  ^** Libraries (%% coming ... %%)
+   // (__Zig`` lib-zig.html __, __WASM`` lib-wasm.html __, __JavaScript`` lib-js-wasm.html __, __Go`` lib-go-wasm.html __)
+*  References:
+   +  __Specification`` specification.html __
+   +  __Demos`` demos.html __ and __use cases`` use-cases.html __
+   +  __Source code`` https://github.com/tapirmd __
+   +  __@zigo_101`` https://x.com/zigo_101 __
 
 Features:
 

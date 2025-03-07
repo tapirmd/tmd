@@ -7,6 +7,7 @@ test {
     _ = @import("span_marks.zig");
     _ = @import("block_properties.zig");
     _ = @import("link_matching.zig");
+    _ = @import("tmd_config.zig");
 }
 
 const std = @import("std");
@@ -97,34 +98,44 @@ test "DocChecker" {
 }
 
 pub const RenderChecker = struct {
-    pub fn check(data: []const u8, completeHTML: bool, v: anytype) !bool {
+    pub fn check(data: []const u8, v: anytype) !bool {
         var doc = try tmd.Doc.parse(data, std.testing.allocator);
         defer doc.destroy();
 
         var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
         defer buf.deinit();
 
-        try doc.toHTML(buf.writer(), completeHTML, true, "", std.testing.allocator);
-        const html = buf.items;
+        const options = tmd.GenOptions{
+            .customFn = customFn,
+        };
 
+        try doc.writeHTML(buf.writer(), options, std.testing.allocator);
+        const html = buf.items;
         return v.checkFn(html);
+    }
+
+    fn customFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
+        const attrs = custom.attributes();
+        if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
+            return tmd.htmlCustomDefaultGenFn(w, doc, custom);
+        }
     }
 };
 
 test "RenderChecker" {
-    try std.testing.expect(try RenderChecker.check("", true, struct {
+    try std.testing.expect(try RenderChecker.check("", struct {
         fn checkFn(_: []const u8) !bool {
             return true;
         }
     }));
 
-    try std.testing.expect(try RenderChecker.check("", true, struct {
+    try std.testing.expect(try RenderChecker.check("", struct {
         fn checkFn(_: []const u8) !bool {
             return false;
         }
     }) == false);
 
-    try std.testing.expect(RenderChecker.check("", true, struct {
+    try std.testing.expect(RenderChecker.check("", struct {
         fn checkFn(_: []const u8) !bool {
             return error.Nothing;
         }

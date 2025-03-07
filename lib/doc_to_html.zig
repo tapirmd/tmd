@@ -1,57 +1,55 @@
 const std = @import("std");
 
 const tmd = @import("tmd.zig");
+const render = @import("doc_to_html-render.zig");
+const fns = @import("doc_to_html-fns.zig");
 
-pub fn doc_to_html(writer: anytype, tmdDoc: *const tmd.Doc, completeHTML: bool, supportCustomBlocks: bool, suffixForIdsAndNames: []const u8, allocator: std.mem.Allocator) !void {
-    var r = @import("doc_to_html-render.zig").TmdRender{
+pub const Options = struct {
+    customFn: ?*const fn (w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void = null,
+    identSuffix: []const u8 = "", // for forum posts etc. To avoid id duplications.
+    autoIdentSuffix: []const u8 = "", // to avoid some auto id duplication. Should only be used when identPrefix is blank.
+    renderRoot: bool = true,
+};
+
+fn dummayCustomFn(_: std.io.AnyWriter, _: *const tmd.Doc, _: *const tmd.BlockType.Custom) anyerror!void {}
+
+pub fn doc_to_html(writer: anytype, tmdDoc: *const tmd.Doc, options: Options, allocator: std.mem.Allocator) !void {
+    var r = render.TmdRender{
         .doc = tmdDoc,
         .allocator = allocator,
 
-        .supportCustomBlocks = supportCustomBlocks,
-        .suffixForIdsAndNames = suffixForIdsAndNames,
+        .customFn = options.customFn orelse dummayCustomFn,
+        .identSuffix = options.identSuffix,
+        .autoIdentSuffix = if (options.autoIdentSuffix.len > 0) options.autoIdentSuffix else options.identSuffix,
+        .renderRoot = options.renderRoot,
     };
 
-    if (completeHTML) {
-        try writeHead1(writer);
-        try r.writeTitleInHtmlHeader(writer);
-        try writeHead2(writer);
-        try r.render(writer, true);
-        try writeFoot(writer);
-    } else {
-        try r.render(writer, false);
+    try r.render(writer);
+}
+
+pub fn write_doc_title(writer: anytype, tmdDoc: *const tmd.Doc) !bool {
+    var r = render.TmdRender{
+        .doc = tmdDoc,
+        .allocator = undefined,
+
+        .customFn = undefined,
+    };
+
+    return try r.writeTitleInHtmlHeader(writer);
+}
+
+pub fn htmlCustomGenFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
+    var line = custom.startDataLine() orelse return;
+    const endDataLine = custom.endDataLine().?;
+    std.debug.assert(endDataLine.lineType == .data);
+
+    while (true) {
+        std.debug.assert(line.lineType == .data);
+
+        _ = try w.write(doc.rangeData(line.range(.trimLineEnd)));
+        _ = try w.write("\n");
+
+        if (line == endDataLine) break;
+        line = line.next() orelse unreachable;
     }
-}
-
-const css_style = @embedFile("example.css");
-
-fn writeHead1(w: anytype) !void {
-    _ = try w.write(
-        \\<!DOCTYPE html>
-        \\<head>
-        \\<meta name="viewport" content="width=device-width, initial-scale=1.0">
-        \\<meta charset="utf-8">
-        \\<title>
-    );
-}
-
-fn writeHead2(w: anytype) !void {
-    _ = try w.write(
-        \\</title>
-        \\<style>
-    );
-    _ = try w.write(css_style);
-    _ = try w.write(
-        \\</style>
-        \\</head>
-        \\<body>
-        \\
-    );
-}
-
-fn writeFoot(w: anytype) !void {
-    _ = try w.write(
-        \\
-        \\</body>
-        \\</html>
-    );
 }

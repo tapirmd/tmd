@@ -5,7 +5,7 @@ const all = @import("all.zig");
 test "line end type" {
     const LinkChecker = struct {
         fn check(data: []const u8, expectedURIs: []const []const u8) !bool {
-            return all.RenderChecker.check(data, true, struct {
+            return all.RenderChecker.check(data, struct {
                 expectedURIs: []const []const u8,
 
                 const openNeedle = "href=\"";

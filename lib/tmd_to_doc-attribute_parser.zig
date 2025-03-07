@@ -12,6 +12,7 @@ const tmd = @import("tmd.zig");
 // * They must start with a letter (a-z or A-Z) or underscore (_).
 // * They can include letters, digits (0-9), hyphens (-), underscores (_), and periods (.).
 // * They cannot contain spaces or special characters.
+// (However, Grok says colom (:) is allowed in ID.
 //
 // Class names:
 // * They can start with a letter (a-z or A-Z) or an underscore (_).
