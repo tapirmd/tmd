@@ -1,5 +1,10 @@
 ### The Official TapirMD Libraries
 
+!  { ><
+   :: The page is written in TapirMD (source is available __here__).
+   }
+   // __here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
+
 __TapirMD__ official provides libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
 
 The Zig library is fully featured, while the others currently support only
@@ -17,7 +22,7 @@ The repository containing the Zig library is hosted at __ https://github.com/tap
 To use the library, the TapirMD dependency entry should be put in
 the `build.zig.zon` file of your Zig project.
 It is recommended to choose a tagged version as the dependency.
-The following example uses the `v0.0.4` version tag.
+The following example uses the `v0.0.5` version tag.
 
 . ### build.zig.zon
 '''
