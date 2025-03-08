@@ -22,24 +22,24 @@ const bufferSize = 7 * maxTmdDataSize;
 
 var buffer: []u8 = "";
 
+export fn lib_version() isize {
+    return @intCast(@intFromPtr(tmd.version.ptr));
+}
+
 export fn buffer_offset() isize {
     const bufferWithHeader = tryToInit() catch |err| {
         logMessage("init error: ", @errorName(err), @intFromError(err));
         const addr: isize = @intCast(@intFromPtr(@errorName(err).ptr));
-        return -addr; // assume address space < 2G
+        return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
     };
     return @intCast(@intFromPtr(bufferWithHeader.ptr));
-}
-
-export fn lib_version() isize {
-    return @intCast(@intFromPtr(tmd.version.ptr));
 }
 
 export fn tmd_to_html() isize {
     const htmlWithLengthHeader = generateHTML() catch |err| {
         logMessage("generate HTML error: ", @errorName(err), @intFromError(err));
         const addr: isize = @intCast(@intFromPtr(@errorName(err).ptr));
-        return -addr; // assume address space < 2G
+        return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
     };
     return @intCast(@intFromPtr(htmlWithLengthHeader.ptr));
 }
@@ -48,7 +48,7 @@ export fn tmd_format() isize {
     const tmdWithLengthHeader = formatTMD() catch |err| {
         logMessage("format TMD error: ", @errorName(err), @intFromError(err));
         const addr: isize = @intCast(@intFromPtr(@errorName(err).ptr));
-        return -addr; // assume address space < 2G
+        return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
     };
     return @intCast(@intFromPtr(tmdWithLengthHeader.ptr));
 }

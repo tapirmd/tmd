@@ -51,16 +51,13 @@ class TmdLib {
 	#bufferOffset() {
 		const offset = this.wasm.buffer_offset();
 		if (offset < 0) {
-			throw new Error(this.#readCString(-offset));
+			throw new Error(this.#readCString(-offset-1));
 		}
 		return offset;
 	}
 
 	version() {
 		const offset = this.wasm.lib_version();
-		if (offset < 0) {
-			throw new Error(this.#readCString(-offset));
-		}
 		return this.#readCString(offset);
 	}
 
@@ -101,7 +98,7 @@ ${renderRoot}
 
 		const offset = this.wasm.tmd_to_html();
 		if (offset < 0) {
-			throw new Error(this.#readCString(-offset));
+			throw new Error(this.#readCString(-offset-1));
 		}
 		return this.#readTextData(offset);
 	}
@@ -117,7 +114,7 @@ ${renderRoot}
 
 		const offset = this.wasm.tmd_format();
 		if (offset < 0) {
-			throw new Error(this.#readCString(-offset));
+			throw new Error(this.#readCString(-offset-1));
 		}
 		return this.#readTextData(offset);
 	}

@@ -1,0 +1,137 @@
+### The Official TapirMD Libraries
+
+__TapirMD__ official provides libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
+
+The Zig library is fully featured, while the others currently support only
+HTML generation (from TapirMD documents) and TapirMD document formatting.
+
+// __TapirMD:: index.html
+
+###---
+
+@@@ #zig-lib
+###-------- The Zig library
+
+The repository containing the Zig library is hosted at __ https://github.com/tapirmd/tmd __.
+
+To use the library, the TapirMD dependency entry should be put in
+the `build.zig.zon` file of your Zig project.
+It is recommended to choose a tagged version as the dependency.
+The following example uses the `v0.0.4` version tag.
+
+. ### build.zig.zon
+'''
+...
+        .tmd = .{
+            .url = "https://github.com/tapirmd/tmd/archive/refs/tags/v0.0.5.zip",
+        },
+...
+'''
+
+The library provides a `tmd` module which can be imported into the modules of your Zig project.
+
+. ### build.zig
+'''
+...
+    const tmdModule = b.dependency("tmd", .{
+		.target = target,
+		.optimize = optimize,
+	}).module("tmd");
+...
+    myModule.addImport("tmd", tmdModule);
+...
+'''
+
+Here is __an example Zig project__ which uses the TapirMD Zig library.
+
+// __ an example Zig project :: https://github.com/tapirmd/lib-use-examples/tree/master/zig
+
+@@@ #wasm-lib
+###-------- The WASM library
+
+// __Git :: https://git-scm.com/downloads
+// __Zig :: https://ziglang.org/download/
+// __the TapirMD project :: https://github.com/tapirmd/tmd
+// __download its source code :: https://github.com/tapirmd/tmd/tags
+
+The steps to build the TapirMD WASM library:
+
+*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+
+*. Get the source code of __the TapirMD project__.
+   You can clone it (install __Git__ if needed) or __download its source code__.
+
+*. Open your terminal or command prompt, and change directory to the TapirMD project folder,
+   then run
+   '''
+   zig build -Doptimize=ReleaseSmall wasm
+   '''
+   If the build is successful, the output `tmd.wasm` binary file will be located in
+   the `lib` folder under the project local `zig-out` folder.
+
+The output `tmd.wasm` binary file can be used in various languages.
+The official TapirMD __JavaScript__ and __Go__ libraries are both built upon WASM.
+
+// __ JavaScript :: #js-lib
+// __ Go :: #go-lib
+
+The WASM binary file exports several APIs:
+* `lib_version` returns the memory offset of the version string of the library.
+  The version string is C-style string which ends with 0.
+* `buffer_offset` returns the memory offset of the buffer for communicating between WASM and host apps.
+  The input TapirMD document content with a length header should be placed at the beginning of the buffer.
+* `tmd_to_html` generates HTML content from the input TapirMD document content
+  and returns the memory offset of the output HTML content.
+  A HTML generation options content should be placed closely after the input TapirMD document content
+  before calling this API.
+* `tmd_format` formats the input TapirMD document and returns the memory offset
+  of the output formatted result.
+
+Every memory offset return result is a `int32` value.
+A negative offset means an error and the memory offset
+of the error string (a C-style string) is
+the absolute value of the negative offset minus one.
+
+Host apps should provide an `env` module which contains a `print` function.
+The `print` function takes 4 `uint32` and one `int32` parameters.
+*. the 1st `uint32` parameter means the memory offset of the first string.
+*. the 2nd `uint32` parameter means the length (in bytes) of the first string.
+*. the 3rd `uint32` parameter means the memory offset of the second string.
+*. the 4th `uint32` parameter means the length (in bytes) of the second string.
+*. the final `int32` parameter is just a plain integer value.
+
+For implementation details, please reference the official TapirMD
+JavaScript and Go libraries (see below).
+
+@@@ #js-lib
+###-------- The JavaScript library
+
+Currently, the official TapirMD JavaScript library can be only used in browser environments.
+
+The steps to build the TapirMD JavaScript library:
+
+*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+
+*. Get the source code of __the TapirMD project__.
+   You can clone it (install __Git__ if needed) or __download its source code__.
+
+*. Open your terminal or command prompt, and change directory to the TapirMD project folder,
+   then run
+   '''
+   zig build -Doptimize=ReleaseSmall js
+   '''
+   If the build is successful, the output `tmd-with-wasm.js` file will be located in
+   the `lib` folder under the project local `zig-out` folder.
+
+Please read the source code of the __online play page__ to get how to use the JavaScript library.
+
+// __ online play page :: play.html
+
+@@@ #go-lib
+###-------- The Go library
+
+The TapirMD official Go library is hosted at __ https://github.com/go101/tmd.go __.
+
+The library repository includes an example demonstrating its usage.
+
+The API documentation is available at __ https://pkg.go.dev/go101.org/tmd.go __.
