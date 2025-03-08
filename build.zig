@@ -32,7 +32,11 @@ pub fn build(b: *std.Build) !void {
     libOptions.addOption(bool, "dump_ast", config.dumpAST);
     tmdLibModule.addOptions("config", libOptions);
 
+    // return early if this is used as a dependency.
+    _ = b.path("lib-tests").getPath3(b, null).statFile("alla.zig") catch return;
+
     // test
+
 
     const libTest = b.addTest(.{
         .name = "lib unit test",
