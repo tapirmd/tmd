@@ -68,19 +68,19 @@ body {
   border: solid 1px #e5b05b;
 }
 
-.tmd-defs-oneline dt {
+.tmd-defs-oneline > dt {
   grid-column-start: 1;
   background: #e5b05b;
   padding: 2px 12px;
 }
 
-.tmd-defs-oneline dd {
+.tmd-defs-oneline > dd {
   grid-column-start: 2;
   margin-left: 0;
   padding: 2px 6px;
 }
 
-.tmd-defs-oneline :nth-child(n+3) {
+.tmd-defs-oneline > :nth-child(n+3) {
   border-top: solid 1px #c7923c;
 }
 
