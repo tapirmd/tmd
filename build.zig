@@ -129,11 +129,11 @@ pub fn build(b: *std.Build) !void {
 
     const GenerateJsLib = struct {
         step: std.Build.Step,
-        jsLibPath: std.fs.Dir,
+        jsLibPath: std.Build.LazyPath,
         dest_sub_path: []const u8 = "tmd-with-wasm.js",
         wasmInstallArtifact: *std.Build.Step.InstallArtifact,
 
-        pub fn create(theBuild: *std.Build, jsLibPath: std.fs.Dir, wasmInstall: *std.Build.Step.InstallArtifact) !*@This() {
+        pub fn create(theBuild: *std.Build, jsLibPath: std.Build.LazyPath, wasmInstall: *std.Build.Step.InstallArtifact) !*@This() {
             const self = try theBuild.allocator.create(@This());
             self.* = .{
                 .step = std.Build.Step.init(.{
@@ -154,7 +154,9 @@ pub fn build(b: *std.Build) !void {
             const needle = "<wasm-file-as-base64-string>";
 
             const theBuild = step.owner;
-            const oldContent = try self.jsLibPath.readFileAlloc(theBuild.allocator, "tmd-with-wasm-template.js", 1 << 19);
+            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+            defer dir.close();
+            const oldContent = try dir.readFileAlloc(theBuild.allocator, "tmd-with-wasm-template.js", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
                 const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
                 const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
@@ -168,10 +170,7 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const jsLibPath = b.path("lib/js");
-    const jsLibDir = try jsLibPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
-
-    const installJsLib = try GenerateJsLib.create(b, jsLibDir, installWasm);
+    const installJsLib = try GenerateJsLib.create(b, b.path("lib/js"), installWasm);
     installJsLib.step.dependOn(&installWasm.step);
 
     const jsLibStep = b.step("js", "Install JavaScript lib");
@@ -189,23 +188,26 @@ pub fn build(b: *std.Build) !void {
     buildWebsiteCommand.addArg("--trial-page-css=@");
     buildWebsiteCommand.addArg("--enabled-custom-apps=html");
 
-    const websitePagesDir = try websitePagesPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
-    var walker = try websitePagesDir.walk(b.allocator);
-    defer walker.deinit();
-    while (try walker.next()) |entry| {
-        if (entry.kind != .file) continue;
-        const ext = std.fs.path.extension(entry.basename);
-        if (!std.mem.eql(u8, ext, ".tmd")) continue;
+    {
+        var websitePagesDir = try websitePagesPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+        defer websitePagesDir.close();
+        var walker = try websitePagesDir.walk(b.allocator);
+        defer walker.deinit();
+        while (try walker.next()) |entry| {
+            if (entry.kind != .file) continue;
+            const ext = std.fs.path.extension(entry.basename);
+            if (!std.mem.eql(u8, ext, ".tmd")) continue;
 
-        buildWebsiteCommand.addArg(entry.basename);
+            buildWebsiteCommand.addArg(entry.basename);
+        }
     }
 
     const CompletePlayPage = struct {
         step: std.Build.Step,
-        docPagesPath: std.fs.Dir,
+        docPagesPath: std.Build.LazyPath,
         jsLibInstallArtifact: *GenerateJsLib,
 
-        pub fn create(theBuild: *std.Build, docPath: std.fs.Dir, jsLibInstall: *GenerateJsLib) !*@This() {
+        pub fn create(theBuild: *std.Build, docPath: std.Build.LazyPath, jsLibInstall: *GenerateJsLib) !*@This() {
             const self = try theBuild.allocator.create(@This());
             self.* = .{
                 .step = std.Build.Step.init(.{
@@ -227,11 +229,13 @@ pub fn build(b: *std.Build) !void {
 
             const jsLibFileName = self.jsLibInstallArtifact.dest_sub_path;
             const theBuild = step.owner;
-            const oldContent = try self.docPagesPath.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
+            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+            defer dir.close();
+            const oldContent = try dir.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
                 const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
-                const file = try self.docPagesPath.createFile("play.html", .{ .truncate = true });
+                const file = try dir.createFile("play.html", .{ .truncate = true });
                 defer file.close();
                 try file.writeAll(oldContent[0..k]);
                 try file.writeAll(jsLibContent);
@@ -240,7 +244,7 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const completePlayPage = try CompletePlayPage.create(b, websitePagesDir, installJsLib);
+    const completePlayPage = try CompletePlayPage.create(b, websitePagesPath, installJsLib);
     completePlayPage.step.dependOn(&buildWebsiteCommand.step);
 
     const buildDoc = b.step("doc", "Build doc");
