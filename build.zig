@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) !void {
     //
     //const tmdLib = b.addStaticLibrary(.{
     //    .name = "tmd",
-    //    .root_source_file = b.path("lib/tmd-for-c.zig"),
+    //    .root_source_file = b.path("lib/core/tmd-for-c.zig"),
     //    .target = target,
     //    .optimize = optimize,
     //});
@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) !void {
     // tmd module
 
     const tmdLibModule = b.addModule("tmd", .{
-        .root_source_file = b.path("lib/tmd.zig"),
+        .root_source_file = b.path("lib/core/tmd.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -33,13 +33,13 @@ pub fn build(b: *std.Build) !void {
     tmdLibModule.addOptions("config", libOptions);
 
     // return early if this is used as a dependency.
-    _ = b.path("lib-tests").getPath3(b, null).statFile("all.zig") catch return;
+    _ = b.path("doc").getPath3(b, null).statFile("") catch return;
 
     // test
 
     const libTest = b.addTest(.{
         .name = "lib unit test",
-        .root_source_file = b.path("lib-tests/all.zig"),
+        .root_source_file = b.path("lib/core-tests/all.zig"),
         .target = target,
     });
     libTest.root_module.addImport("tmd", tmdLibModule); // just use file imports instead of module import
@@ -47,21 +47,21 @@ pub fn build(b: *std.Build) !void {
 
     const libInternalTest = b.addTest(.{
         .name = "lib internal unit test",
-        .root_source_file = b.path("lib/tests.zig"),
+        .root_source_file = b.path("lib/core/tests.zig"),
         .target = target,
     });
     const runLibInternalTest = b.addRunArtifact(libInternalTest);
 
     const cmdTest = b.addTest(.{
         .name = "cmd unit test",
-        .root_source_file = b.path("cmd/tests.zig"),
+        .root_source_file = b.path("cmd/tmd/tests.zig"),
         .target = target,
     });
     const runCmdTest = b.addRunArtifact(cmdTest);
 
     const wasmTest = b.addTest(.{
         .name = "wasm unit test",
-        .root_source_file = b.path("wasm/tests.zig"),
+        .root_source_file = b.path("lib/wasm/tests.zig"),
         .target = target, // ToDo: related to wasmTarget?
     });
     const runWasmTest = b.addRunArtifact(wasmTest);
@@ -77,7 +77,7 @@ pub fn build(b: *std.Build) !void {
     const tmdCommand = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("cmd/cmd.zig"),
+            .root_source_file = b.path("cmd/tmd/cmd.zig"),
             .target = target,
             .optimize = optimize,
         }),
@@ -104,7 +104,7 @@ pub fn build(b: *std.Build) !void {
     const wasm = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("wasm/wasm.zig"),
+            .root_source_file = b.path("lib/wasm/wasm.zig"),
             .target = wasmTarget,
             .optimize = wasmOptimize,
         }),
@@ -168,7 +168,7 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const jsLibPath = b.path("js");
+    const jsLibPath = b.path("lib/js");
     const jsLibDir = try jsLibPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
 
     const installJsLib = try GenerateJsLib.create(b, jsLibDir, installWasm);
