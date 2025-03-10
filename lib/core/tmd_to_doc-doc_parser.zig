@@ -751,12 +751,12 @@ fn parse(parser: *DocParser) !void {
                     if (lineScanner.peekNext() != '#') {
                         lineScanner.setCursor(contentStart);
                         break :handle;
-                    } else {
-                        lineScanner.advance(1);
-                        if (lineScanner.peekNext() != '#') {
-                            lineScanner.setCursor(contentStart);
-                            break :handle;
-                        }
+                    }
+
+                    lineScanner.advance(1);
+                    if (lineScanner.peekNext() != '#') {
+                        lineScanner.setCursor(contentStart);
+                        break :handle;
                     }
 
                     var isFirstLevel = true;
@@ -773,22 +773,25 @@ fn parse(parser: *DocParser) !void {
                         }
                     } else 3;
 
-                    const markEnd = lineScanner.cursor;
-                    if (lineScanner.lineEnd) |_| {
-                        suffixBlankStart = markEnd;
-                    } else {
+                    const markEndWithtoutBlanks = lineScanner.cursor;
+                    const markEndWithBlanks = if (lineScanner.lineEnd) |_| blk: {
+                        suffixBlankStart = markEndWithtoutBlanks;
+                        break :blk markEndWithtoutBlanks;
+                    } else blk: {
                         _ = lineScanner.readUntilNotBlank();
                         if (lineScanner.lineEnd) |_| {
-                            suffixBlankStart = markEnd;
+                            suffixBlankStart = markEndWithtoutBlanks;
+                            break :blk markEndWithtoutBlanks;
                         }
-                    }
+                        break :blk lineScanner.cursor;
+                    };
 
                     line.lineType = .header;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
                             .markLen = @intCast(markLen),
-                            .blankLen = @intCast(lineScanner.cursor - markEnd),
+                            .blankLen = @intCast(markEndWithBlanks - markEndWithtoutBlanks),
                         },
                     };
 
@@ -834,22 +837,25 @@ fn parse(parser: *DocParser) !void {
                         break :handle;
                     }
 
-                    const markEnd = lineScanner.cursor;
-                    if (lineScanner.lineEnd) |_| {
-                        suffixBlankStart = markEnd;
-                    } else {
+                    const markEndWithtoutBlanks = lineScanner.cursor;
+                    const markEndWithBlanks = if (lineScanner.lineEnd) |_| blk: {
+                        suffixBlankStart = markEndWithtoutBlanks;
+                        break :blk markEndWithtoutBlanks;
+                    } else blk: {
                         _ = lineScanner.readUntilNotBlank();
                         if (lineScanner.lineEnd) |_| {
-                            suffixBlankStart = markEnd;
+                            suffixBlankStart = markEndWithtoutBlanks;
+                            break :blk markEndWithtoutBlanks;
                         }
-                    }
+                        break :blk lineScanner.cursor;
+                    };
 
                     line.lineType = .usual;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
                             .markLen = @intCast(markLen),
-                            .blankLen = @intCast(lineScanner.cursor - markEnd),
+                            .blankLen = @intCast(markEndWithBlanks - markEndWithtoutBlanks),
                         },
                     };
 

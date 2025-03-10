@@ -3,15 +3,8 @@ const std = @import("std");
 const tmd = @import("tmd.zig");
 const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 
-// ToDo:
-// * test 1: data -> parse -> to_tmd(not format): should not change.
-// * test 2: to_tmd(format) -> re-parse -> to_tmd(format): should not change.
-// * test 3: to_html() and to_html(parse(to_tmd(format))) should be identical.
-//
-// May be more such tests should be put in an external project.
-
 // doc_to_tmd is the inverse of parsing tmd files.
-// Not-format is mainly used in tests.
+// format==false is mainly used in tests.
 pub fn doc_to_tmd(writer: anytype, tmdDoc: *const tmd.Doc, comptime format: bool) !void {
     if (format) try doc_to_tmd_with_formatting(writer, tmdDoc) else try doc_to_tmd_without_formatting(writer, tmdDoc);
 }
@@ -29,8 +22,8 @@ const UnchangeWriter = struct {
         return uw.tmdDoc.rangeData(.{ .start = start, .end = end });
     }
 
-    fn writeAll(uw: *const UnchangeWriter, writer: anytype, tmdDoc: *const tmd.Doc) !void {
-        var line = &(tmdDoc.lines.head orelse return).value;
+    fn writeAll(uw: *const UnchangeWriter, writer: anytype) !void {
+        var line = &(uw.tmdDoc.lines.head orelse return).value;
         var lineStartAt: tmd.DocSize = 0;
         while (true) {
             std.debug.assert(line.start(.none) == lineStartAt);
