@@ -3,6 +3,19 @@
 ;;; A powerful, next-generation markup language that simplifies content creation.
 
 
+-  ### Ecosystem
+
+   *  Docs and references
+      +  __The specification`` specification.html __
+      +  __Demos`` demos.html __
+      +  __Use cases`` use-cases.html __
+   *  Tools and libraries
+      +  __The official toolset`` installation.html __
+      +  __An online playfield`` play.html __
+      +  __Official libraries`` libraries.html__ (%% Zig, WASM, JavaScript, Go %%)
+   *  Social
+      +  __Source code`` https://github.com/tapirmd __
+      +  __@zigo_101`` https://x.com/zigo_101 __
 
 -  ### Features
 
@@ -12,7 +25,7 @@
       +  Atom blocks, predefined container blocks, and base blocks.
    *  Simple Syntax:
       +  All marks consist of ASCII punctuation characters.
-      +  Minimizes non-content text to enhance readibilty.
+      +  Minimizes non-content text to enhance readibilty in source mode.
       +  **Semantics vary based on composition**, reducing unnecessary syntax complexity.
       +  **Indentations have no semantic meaning.
    *  Consistent Syntax:
@@ -63,21 +76,6 @@
       +  **Line-end spacing control**.
       +  **Source streaming (to code blocks)**.
       +  **May be used as a configuration file format.**
-
-
--  ### Ecosystem (docs, libs, ...)
-
-   *  Docs and references
-      +  __The specification`` specification.html __
-      +  __Demos`` demos.html __
-      +  __Use cases`` use-cases.html __
-   *  Tools and libraries
-      +  __The official toolset`` installation.html __
-      +  __An online playfield`` play.html __
-      +  __Official libraries`` libraries.html__ (%% Zig, WASM, JavaScript, Go %%)
-   *  Social
-      +  __Source code`` https://github.com/tapirmd __
-      +  __@zigo_101`` https://x.com/zigo_101 __
 
 ---
 {

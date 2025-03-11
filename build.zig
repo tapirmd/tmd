@@ -32,8 +32,8 @@ pub fn build(b: *std.Build) !void {
     libOptions.addOption(bool, "dump_ast", config.dumpAST);
     tmdLibModule.addOptions("config", libOptions);
 
-    // return early if this is used as a dependency.
-    _ = b.path("doc").getPath3(b, null).statFile("") catch return;
+    // return early when used as a dependency.
+    _ = b.path("doc").getPath3(b, null).statFile(".") catch return;
 
     // test
 
@@ -72,26 +72,59 @@ pub fn build(b: *std.Build) !void {
     testStep.dependOn(&runCmdTest.step);
     testStep.dependOn(&runWasmTest.step);
 
-    // cmd (the default target)
+    // cmd module (as lib for commands)
 
-    const tmdCommand = b.addExecutable(.{
+    const cmdLibModule = b.addModule("cmd", .{
+        .root_source_file = b.path("cmd/cmd.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // toolset cmd
+
+    const toolsetCommand = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("cmd/tmd/cmd.zig"),
+            .root_source_file = b.path("cmd/tmd/main.zig"),
             .target = target,
             .optimize = optimize,
         }),
     });
-    tmdCommand.root_module.addImport("tmd", tmdLibModule);
-    b.installArtifact(tmdCommand);
+    toolsetCommand.root_module.addImport("tmd", tmdLibModule);
+    toolsetCommand.root_module.addImport("cmd", cmdLibModule);
+    const installToolset = b.addInstallArtifact(toolsetCommand, .{});
+    b.getInstallStep().dependOn(&installToolset.step);
 
-    // run cmd
+    // run toolset cmd
 
-    const runTmdCommand = b.addRunArtifact(tmdCommand);
+    const runTmdCommand = b.addRunArtifact(toolsetCommand);
     if (b.args) |args| runTmdCommand.addArgs(args);
 
     const runStep = b.step("run", "Run tmd command");
     runStep.dependOn(&runTmdCommand.step);
+
+    // fmt-test cmd
+
+    const tmdFmtTestCommand = b.addExecutable(.{
+        .name = "tmd-fmt-test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("cmd/tmd-fmt-test/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
+    });
+    tmdFmtTestCommand.root_module.addImport("tmd", tmdLibModule);
+    tmdFmtTestCommand.root_module.addImport("cmd", cmdLibModule);
+    const installFmtTest = b.addInstallArtifact(tmdFmtTestCommand, .{});
+    b.getInstallStep().dependOn(&installFmtTest.step);
+
+    b.installArtifact(tmdFmtTestCommand);
+
+    // cmd
+
+    const cmdStep = b.step("cmd", "Build commands");
+    cmdStep.dependOn(&installToolset.step);
+    cmdStep.dependOn(&installFmtTest.step);
 
     // wasm
 
@@ -122,7 +155,7 @@ pub fn build(b: *std.Build) !void {
     wasm.root_module.addImport("tmd", tmdLibModule);
     const installWasm = b.addInstallArtifact(wasm, .{ .dest_dir = .{ .override = .lib } });
 
-    const wasmStep = b.step("wasm", "Install wasm");
+    const wasmStep = b.step("wasm", "Build wasm lib");
     wasmStep.dependOn(&installWasm.step);
 
     // js
@@ -173,34 +206,25 @@ pub fn build(b: *std.Build) !void {
     const installJsLib = try GenerateJsLib.create(b, b.path("lib/js"), installWasm);
     installJsLib.step.dependOn(&installWasm.step);
 
-    const jsLibStep = b.step("js", "Install JavaScript lib");
+    const jsLibStep = b.step("js", "Build JavaScript lib");
     jsLibStep.dependOn(&installJsLib.step);
 
-    // doc
+    // doc fmt
 
-    const buildWebsiteCommand = b.addRunArtifact(tmdCommand);
-    buildWebsiteCommand.step.dependOn(&installJsLib.step);
+    const fmtDoc = b.addRunArtifact(toolsetCommand);
+    fmtDoc.setCwd(b.path("."));
+    fmtDoc.addArg("fmt");
+    fmtDoc.addArg("doc/pages");
 
-    const websitePagesPath = b.path("doc/pages");
+    // doc gen
 
-    buildWebsiteCommand.setCwd(websitePagesPath);
-    buildWebsiteCommand.addArg("gen");
-    buildWebsiteCommand.addArg("--trial-page-css=@");
-    buildWebsiteCommand.addArg("--enabled-custom-apps=html");
-
-    {
-        var websitePagesDir = try websitePagesPath.getPath3(b, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
-        defer websitePagesDir.close();
-        var walker = try websitePagesDir.walk(b.allocator);
-        defer walker.deinit();
-        while (try walker.next()) |entry| {
-            if (entry.kind != .file) continue;
-            const ext = std.fs.path.extension(entry.basename);
-            if (!std.mem.eql(u8, ext, ".tmd")) continue;
-
-            buildWebsiteCommand.addArg(entry.basename);
-        }
-    }
+    const buildWebsite = b.addRunArtifact(toolsetCommand);
+    buildWebsite.step.dependOn(&installJsLib.step);
+    buildWebsite.setCwd(b.path("."));
+    buildWebsite.addArg("gen");
+    buildWebsite.addArg("--trial-page-css=@");
+    buildWebsite.addArg("--enabled-custom-apps=html");
+    buildWebsite.addArg("doc/pages");
 
     const CompletePlayPage = struct {
         step: std.Build.Step,
@@ -244,8 +268,9 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
+    const websitePagesPath = b.path("doc/pages");
     const completePlayPage = try CompletePlayPage.create(b, websitePagesPath, installJsLib);
-    completePlayPage.step.dependOn(&buildWebsiteCommand.step);
+    completePlayPage.step.dependOn(&buildWebsite.step);
 
     const buildDoc = b.step("doc", "Build doc");
     buildDoc.dependOn(&completePlayPage.step);
@@ -262,13 +287,14 @@ pub fn build(b: *std.Build) !void {
 
     // fmt
 
-    const fmt = b.addFmt(.{
+    const fmtCode = b.addFmt(.{
         .paths = &.{
             ".",
         },
     });
-    const fmtCode = b.step("fmt", "Format code");
-    fmtCode.dependOn(&fmt.step);
+    const fmtCodeAndDoc = b.step("fmt", "Format code and doc");
+    fmtCodeAndDoc.dependOn(&fmtCode.step);
+    fmtCodeAndDoc.dependOn(&fmtDoc.step);
 }
 
 const Config = struct {

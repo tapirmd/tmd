@@ -5,7 +5,7 @@
    }
    // __here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
 
-__TapirMD__ official provides libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
+__TapirMD__ official maintains libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
 
 The Zig library is fully featured, while the others currently support only
 HTML generation (from TapirMD documents) and TapirMD document formatting.
@@ -24,19 +24,19 @@ the `build.zig.zon` file of your Zig project.
 It is recommended to choose a tagged version as the dependency.
 The following example uses the `v0.0.5` version tag.
 
-. ### build.zig.zon
-'''
+.  ### build.zig.zon
+   '''
 ...
         .tmd = .{
             .url = "https://github.com/tapirmd/tmd/archive/refs/tags/v0.0.5.zip",
         },
 ...
-'''
+   '''
 
 The library provides a `tmd` module which can be imported into the modules of your Zig project.
 
-. ### build.zig
-'''
+.  ### build.zig
+   '''
 ...
     const tmdModule = b.dependency("tmd", .{
 		.target = target,
@@ -45,7 +45,7 @@ The library provides a `tmd` module which can be imported into the modules of yo
 ...
     myModule.addImport("tmd", tmdModule);
 ...
-'''
+   '''
 
 Here is __an example Zig project__ which uses the TapirMD Zig library.
 
@@ -81,16 +81,16 @@ The official TapirMD __JavaScript__ and __Go__ libraries are both built upon WAS
 // __ Go :: #go-lib
 
 The WASM binary file exports several APIs:
-* `lib_version` returns the memory offset of the version string of the library.
-  The version string is C-style string which ends with 0.
-* `buffer_offset` returns the memory offset of the buffer for communicating between WASM and host apps.
-  The input TapirMD document content with a length header should be placed at the beginning of the buffer.
-* `tmd_to_html` generates HTML content from the input TapirMD document content
-  and returns the memory offset of the output HTML content.
-  A HTML generation options content should be placed closely after the input TapirMD document content
-  before calling this API.
-* `tmd_format` formats the input TapirMD document and returns the memory offset
-  of the output formatted result.
+*  `lib_version` returns the memory offset of the version string of the library.
+   The version string is C-style string which ends with 0.
+*  `buffer_offset` returns the memory offset of the buffer for communicating between WASM and host apps.
+   The input TapirMD document content with a length header should be placed at the beginning of the buffer.
+*  `tmd_to_html` generates HTML content from the input TapirMD document content
+   and returns the memory offset of the output HTML content.
+   A HTML generation options content should be placed closely after the input TapirMD document content
+   before calling this API.
+*  `tmd_format` formats the input TapirMD document and returns the memory offset
+   of the output formatted result.
 
 Every memory offset return result is a `int32` value.
 A negative offset means an error and the memory offset

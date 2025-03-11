@@ -2,6 +2,8 @@ const std = @import("std");
 
 const tmd = @import("tmd");
 
+const cmd = @import("cmd");
+
 const stdout = std.io.getStdOut().writer();
 const stderr = std.io.getStdErr().writer();
 
@@ -27,53 +29,25 @@ pub fn main() !void {
         unreachable;
     }
 
-    std.process.exit(try fmtTest(args[1..], buffer, gpaAllocator));
-    unreachable;
+    try fmtTest(args[1..], buffer, gpaAllocator);
+    return;
 }
 
-fn fmtTest(args: []const []u8, buffer: []u8, allocator: std.mem.Allocator) !u8 {
-    const dir = std.fs.cwd();
+fn fmtTest(paths: []const []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
+    var fi = cmd.FileIterator.init(paths, allocator);
+    while (try fi.next()) |entry| {
+        if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
-    for (args) |path| {
-        const stat = try dir.statFile(path);
-        switch (stat.kind) {
-            .file => try fmtTestFile(dir, path, buffer, allocator),
-            .directory => try fmtTestDir(dir, path, buffer, allocator),
-            else => {},
-        }
-    }
+        //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
 
-    return 1;
-}
-
-fn fmtTestDir(dir: std.fs.Dir, path: []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
-    var subDir = try dir.openDir(path, .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
-    defer subDir.close();
-
-    var walker = try subDir.walk(allocator);
-    defer walker.deinit();
-    while (try walker.next()) |entry| {
-        switch (entry.kind) {
-            .file => try fmtTestFile(subDir, entry.path, buffer, allocator),
-            // walker will iterate recusively, so this line is needless.
-            //.directory => try fmtTestDir(subDir, entry.path, allocator),
-            else => {},
-        }
+        try fmtTestFile(entry, buffer, allocator);
     }
 }
 
-fn fmtTestFile(dir: std.fs.Dir, path: []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
-    const ext = std.fs.path.extension(path);
-    if (!std.mem.eql(u8, ext, ".tmd")) return;
-
-    //std.debug.print("> {s}\n", .{path});
-
-    var file = try dir.openFile(path, .{});
-    defer file.close();
-
+fn fmtTestFile(entry: cmd.FileIterator.Entry, buffer: []u8, allocator: std.mem.Allocator) !void {
     // load file
 
-    const tmdContent = try readFileIntoBuffer(dir, path, buffer[0..maxTmdFileSize]);
+    const tmdContent = try cmd.readFileIntoBuffer(entry.dir, entry.filePath, buffer[0..maxTmdFileSize], stderr);
     var remainingBuffer = buffer[tmdContent.len..];
 
     // parse file
@@ -91,7 +65,7 @@ fn fmtTestFile(dir: std.fs.Dir, path: []const u8, buffer: []u8, allocator: std.m
         try tmdDoc.writeTMD(fbs.writer(), false);
         const newContent = fbs.getWritten();
         if (!std.mem.eql(u8, tmdContent, newContent)) {
-            std.debug.print("test 1 failed: {s}\n", .{path});
+            std.debug.print("test 1 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
             return;
         }
     }
@@ -119,7 +93,7 @@ fn fmtTestFile(dir: std.fs.Dir, path: []const u8, buffer: []u8, allocator: std.m
         try newTmdDoc.writeTMD(fbs.writer(), true);
         const newNewTmdContent = fbs.getWritten();
         if (!std.mem.eql(u8, newNewTmdContent, newTmdContent)) {
-            std.debug.print("test 2 failed: {s}\n", .{path});
+            std.debug.print("test 2 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
             return;
         }
         //remainingBuffer = remainingBuffer[newNewTmdContent.len..];
@@ -140,7 +114,7 @@ fn fmtTestFile(dir: std.fs.Dir, path: []const u8, buffer: []u8, allocator: std.m
         //remainingBuffer = remainingBuffer[newHtml.len..];
 
         if (!std.mem.eql(u8, html, newHtml)) {
-            std.debug.print("test 3 failed: {s}\n", .{path});
+            std.debug.print("test 3 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
             return;
         }
     }
@@ -156,32 +130,4 @@ fn printUsages() !void {
         \\  tmd-fmt-test TMD-paths...
         \\
     , .{tmd.version});
-}
-
-fn validatePath(path: []u8) void {
-    if (std.fs.path.sep != '/') std.mem.replaceScalar(u8, path, '/', std.fs.path.sep);
-    if (std.fs.path.sep != '\\') std.mem.replaceScalar(u8, path, '\\', std.fs.path.sep);
-}
-
-fn readFileIntoBuffer(dir: std.fs.Dir, path: []const u8, buffer: []u8) ![]u8 {
-    const tmdFile = dir.openFile(path, .{}) catch |err| {
-        if (err == error.FileNotFound) {
-            try stderr.print("File ({s}) is not found.\n", .{path});
-        }
-        return err;
-    };
-    defer tmdFile.close();
-
-    const stat = try tmdFile.stat();
-    if (stat.size > buffer.len) {
-        try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ path, stat.size, buffer.len });
-        return error.FileSizeTooLarge;
-    }
-
-    const readSize = try tmdFile.readAll(buffer[0..stat.size]);
-    if (stat.size != readSize) {
-        try stderr.print("[{s}] read size not match ({} != {}).\n", .{ path, stat.size, readSize });
-        return error.FileSizeNotMatch;
-    }
-    return buffer[0..readSize];
 }

@@ -47,17 +47,17 @@ the offcial TapirMD commands locally.
 
 *  Run the following command to format TapirMD files:
    '''
-    tmd fmt foo.tmd bar.tmd
+    tmd fmt foo.tmd path-to-a-tmd-folder
    '''
 
 *  Run the following command to geneate incomplete HTML files for embedding purpose.
    '''
-    tmd gen foo.tmd bar.tmd
+    tmd gen foo.tmd path-to-a-tmd-folder
    '''
 
    -  Custom blocks can be enabled with the `--enabled-custom-apps` option:
       '''
-    tmd gen --enabled-custom-apps=html foo.tmd bar.tmd
+    tmd gen --enabled-custom-apps=html foo.tmd path-to-a-tmd-folder
       '''
       Now, only `html` custom blocks can be enabled.
 

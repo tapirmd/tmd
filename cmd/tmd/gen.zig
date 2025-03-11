@@ -2,21 +2,22 @@ const std = @import("std");
 
 const tmd = @import("tmd");
 
+const cmd = @import("cmd");
 const custom = @import("gen-custom.zig");
-
-const cmd = @import("cmd.zig");
+const main = @import("main.zig");
 
 const maxTmdFileSize = 1 << 23; // 8M
 const bufferSize = maxTmdFileSize * 8;
 const maxCssFileSize = 1 << 20; // 1M
 
-pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
+pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !void {
     const buffer = try allocator.alloc(u8, bufferSize);
     defer allocator.free(buffer);
 
     if (inArgs.len == 0) {
-        try cmd.stderr.print("No tmd files specified.", .{});
+        try main.stderr.print("No tmd files specified.", .{});
         std.process.exit(1);
+        unreachable;
     }
 
     var args = inArgs;
@@ -29,11 +30,7 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
     // Blank means for embedding purpose (not full page).
     // Use / as seperator, even on Windows.
     const keyTrialPageCss: []const u8 = "trial-page-css";
-    var option_trial_page_css: union(enum) {
-        none: void,
-        url: []const u8,
-        data: []const u8,
-    } = .none;
+    var option_trial_page_css: CssOption = .none;
 
     // --enabled-custom-apps=html,phyard;foobar
     // Blank to disable all custom apps.
@@ -92,7 +89,7 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
                 path = path[1..];
                 cmd.validatePath(path);
                 const cssContent = if (path.len == 0) tmd.exampleCSS else blk: {
-                    const content = try cmd.readFileIntoBuffer(path, localBuffer[0..maxCssFileSize]);
+                    const content = try cmd.readFileIntoBuffer(std.fs.cwd(), path, localBuffer[0..maxCssFileSize], main.stderr);
                     localBuffer = localBuffer[content.len..];
                     break :blk content;
                 };
@@ -105,8 +102,9 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
             const value = argKeyValue[keyEnabledCustomApps.len..];
             if (value.len > 0 and value[0] == '=') option_enabled_custom_apps = value[1..];
         } else {
-            try cmd.stderr.print("Unrecognized option: {s}\n", .{argKeyValue});
+            try main.stderr.print("Unrecognized option: {s}\n", .{argKeyValue});
             std.process.exit(1);
+            unreachable;
         }
     }
 
@@ -116,22 +114,49 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
         while (true) {
             if (std.mem.eql(u8, item, "html")) break :blk true;
             if (item.len > 0) {
-                try cmd.stderr.print("Unrecognized custom app name: {s}\n", .{item});
+                try main.stderr.print("Unrecognized custom app name: {s}\n", .{item});
                 std.process.exit(1);
             }
             if (iter.next()) |next| item = next else break :blk false;
         }
     };
 
-    const options = tmd.GenOptions{
-        .customFn = if (supportHTML) custom.customFn else null,
+    const generator = Generator{
+        .trialPageCSS = option_trial_page_css,
+        .genOptions = tmd.GenOptions{
+            .customFn = if (supportHTML) custom.customFn else null,
+        },
     };
 
-    for (args) |arg| {
+    try generator.genHtmlFiles(args, localBuffer, allocator);
+}
+
+const CssOption = union(enum) {
+    none: void,
+    url: []const u8,
+    data: []const u8,
+};
+
+const Generator = struct {
+    trialPageCSS: CssOption,
+    genOptions: tmd.GenOptions,
+
+    fn genHtmlFiles(generator: Generator, paths: []const []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
+        var fi = cmd.FileIterator.init(paths, allocator);
+        while (try fi.next()) |entry| {
+            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+
+            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+
+            try generator.genHtmlFile(entry, buffer, allocator);
+        }
+    }
+
+    fn genHtmlFile(generator: Generator, entry: cmd.FileIterator.Entry, buffer: []u8, allocator: std.mem.Allocator) !void {
         // load file
 
-        const tmdContent = try cmd.readFileIntoBuffer(arg, localBuffer[0..maxTmdFileSize]);
-        const remainingBuffer = localBuffer[tmdContent.len..];
+        const tmdContent = try cmd.readFileIntoBuffer(entry.dir, entry.filePath, buffer[0..maxTmdFileSize], main.stderr);
+        const remainingBuffer = buffer[tmdContent.len..];
 
         // parse file
 
@@ -148,14 +173,14 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
         const tmdExt = ".tmd";
         var outputFilePath: [1024]u8 = undefined;
         var outputFilename: []const u8 = undefined;
-        if (std.ascii.endsWithIgnoreCase(arg, tmdExt)) {
-            if (arg.len - tmdExt.len + htmlExt.len > outputFilePath.len)
+        if (std.ascii.endsWithIgnoreCase(entry.filePath, tmdExt)) {
+            if (entry.filePath.len - tmdExt.len + htmlExt.len > outputFilePath.len)
                 return error.InputFileNameTooLong;
-            outputFilename = arg[0 .. arg.len - tmdExt.len];
+            outputFilename = entry.filePath[0 .. entry.filePath.len - tmdExt.len];
         } else {
-            if (arg.len + htmlExt.len > outputFilePath.len)
+            if (entry.filePath.len + htmlExt.len > outputFilePath.len)
                 return error.InputFileNameTooLong;
-            outputFilename = arg;
+            outputFilename = entry.filePath;
         }
         std.mem.copyBackwards(u8, outputFilePath[0..], outputFilename);
         std.mem.copyBackwards(u8, outputFilePath[outputFilename.len..], htmlExt);
@@ -165,8 +190,8 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
         //defer fbaAllocator.free(renderBuffer); // unnecessary
         var fbs = std.io.fixedBufferStream(renderBuffer);
 
-        switch (option_trial_page_css) {
-            .none => try tmdDoc.writeHTML(fbs.writer(), options, allocator),
+        switch (generator.trialPageCSS) {
+            .none => try tmdDoc.writeHTML(fbs.writer(), generator.genOptions, allocator),
             .url => |url| {
                 try writePageStartPart1(fbs.writer());
                 if (!try tmdDoc.writePageTitle(fbs.writer())) _ = try fbs.writer().write("Untitled");
@@ -178,7 +203,7 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
                     .{url},
                 );
                 try writePageStartPart3(fbs.writer());
-                try tmdDoc.writeHTML(fbs.writer(), options, allocator);
+                try tmdDoc.writeHTML(fbs.writer(), generator.genOptions, allocator);
                 try writePageEndPart(fbs.writer());
             },
             .data => |data| {
@@ -194,27 +219,25 @@ pub fn generate(inArgs: []const []u8, allocator: std.mem.Allocator) !u8 {
                     .{data},
                 );
                 try writePageStartPart3(fbs.writer());
-                try tmdDoc.writeHTML(fbs.writer(), options, allocator);
+                try tmdDoc.writeHTML(fbs.writer(), generator.genOptions, allocator);
                 try writePageEndPart(fbs.writer());
             },
         }
 
         // write file
 
-        const htmlFile = try std.fs.cwd().createFile(outputFilename, .{});
+        const htmlFile = try entry.dir.createFile(outputFilename, .{});
         defer htmlFile.close();
 
         try htmlFile.writeAll(fbs.getWritten());
 
-        try cmd.stdout.print(
-            \\{s} ({} bytes)
+        try main.stdout.print(
+            \\[{s}] {s} ({} bytes)
             \\   -> {s} ({} bytes)
             \\
-        , .{ arg, tmdContent.len, outputFilename, fbs.getWritten().len });
+        , .{ entry.dirPath, entry.filePath, tmdContent.len, outputFilename, fbs.getWritten().len });
     }
-
-    return 0;
-}
+};
 
 fn writePageStartPart1(w: anytype) !void {
     _ = try w.write(
