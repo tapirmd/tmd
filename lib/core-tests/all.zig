@@ -8,6 +8,7 @@ test {
     _ = @import("block_properties.zig");
     _ = @import("link_matching.zig");
     _ = @import("tmd_config.zig");
+    _ = @import("tmd_format.zig");
 }
 
 const std = @import("std");

@@ -132,7 +132,7 @@ const FormatWriter = struct {
         std.debug.assert(!parent.isAtom());
 
         var child = parent.firstChild() orelse {
-            std.debug.assert(parent.blockType == .base);
+            std.debug.assert(parent.blockType == .base or parent.blockType == .root);
             return;
         };
 
