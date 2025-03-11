@@ -9,6 +9,7 @@ test {
     _ = @import("link_matching.zig");
     _ = @import("tmd_config.zig");
     _ = @import("tmd_format.zig");
+    _ = @import("doc_headers.zig");
 }
 
 const std = @import("std");

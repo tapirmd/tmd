@@ -92,7 +92,7 @@ pub fn List(comptime Value: type) type {
             } else unreachable;
         }
 
-        pub fn iterate(self: *Self, comptime f: fn (Value) void) void {
+        pub fn iterate(self: Self, comptime f: fn (Value) void) void {
             if (self.head) |head| {
                 var element = head;
                 while (true) {
@@ -101,6 +101,19 @@ pub fn List(comptime Value: type) type {
                     if (next) |n| element = n else break;
                 }
             }
+        }
+
+        // For testing purpose.
+        pub fn size(self: Self) usize {
+            var k: usize = 0;
+            if (self.head) |head| {
+                var element = head;
+                while (true) {
+                    k += 1;
+                    if (element.next) |n| element = n else break;
+                }
+            }
+            return k;
         }
     };
 }
