@@ -14,7 +14,7 @@ const DocParser = @import("tmd_to_doc-doc_parser.zig");
 pub const trim_blanks = LineScanner.trim_blanks;
 pub const parse_custom_block_open_playload = AttributeParser.parse_custom_block_open_playload;
 
-pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator) !tmd.Doc {
+pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator, comptime canDump: bool) !tmd.Doc {
     if (tmdData.len > tmd.MaxDocSize) return error.DocSizeTooLarge;
 
     var tmdDoc = tmd.Doc{ .allocator = allocator, .data = tmdData };
@@ -32,7 +32,7 @@ pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator) !tmd.Doc {
     };
     try docParser.parseAll();
 
-    DocDumper.dumpTmdDoc(&tmdDoc);
+    if (canDump) DocDumper.dumpTmdDoc(&tmdDoc);
     DocVerifier.verifyTmdDoc(&tmdDoc);
 
     return tmdDoc;

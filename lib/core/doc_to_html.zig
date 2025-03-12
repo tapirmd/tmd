@@ -11,14 +11,12 @@ pub const Options = struct {
     renderRoot: bool = true,
 };
 
-fn dummayCustomFn(_: std.io.AnyWriter, _: *const tmd.Doc, _: *const tmd.BlockType.Custom) anyerror!void {}
-
 pub fn doc_to_html(writer: anytype, tmdDoc: *const tmd.Doc, options: Options, allocator: std.mem.Allocator) !void {
     var r = render.TmdRender{
         .doc = tmdDoc,
         .allocator = allocator,
 
-        .customFn = options.customFn orelse dummayCustomFn,
+        .customFn = options.customFn orelse render.dummayCustomFn,
         .identSuffix = options.identSuffix,
         .autoIdentSuffix = if (options.autoIdentSuffix.len > 0) options.autoIdentSuffix else options.identSuffix,
         .renderRoot = options.renderRoot,

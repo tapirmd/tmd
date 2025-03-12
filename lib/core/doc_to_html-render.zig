@@ -13,6 +13,7 @@ const Footnote = struct {
     id: []const u8,
     orderIndex: u32 = undefined,
     refCount: u32 = undefined,
+    refWrittenCount: u32 = undefined,
     block: ?*tmd.Block = undefined,
 
     pub fn compare(x: *const @This(), y: *const @This()) isize {
@@ -28,6 +29,8 @@ const TabListInfo = struct {
     orderId: u32,
     nextItemOrderId: u32 = 0,
 };
+
+pub fn dummayCustomFn(_: std.io.AnyWriter, _: *const tmd.Doc, _: *const tmd.BlockType.Custom) anyerror!void {}
 
 pub const TmdRender = struct {
     doc: *const tmd.Doc,
@@ -46,6 +49,8 @@ pub const TmdRender = struct {
     // intermediate data
 
     toRenderSubtitles: bool = false,
+    incFootnoteRefCounts: bool = true,
+    incFootnoteRefWrittenCounts: bool = true,
 
     tabListInfos: [tmd.MaxBlockNestingDepth]TabListInfo = undefined,
     currentTabListDepth: i32 = -1,
@@ -69,15 +74,18 @@ pub const TmdRender = struct {
         });
         if (self.footnotesByID.search(footnote)) |node| {
             footnote = node.value;
-            footnote.refCount += 1;
+            if (self.incFootnoteRefCounts) footnote.refCount += 1;
             return footnote;
         }
+
+        std.debug.assert(self.incFootnoteRefCounts);
 
         footnote = try self.allocator.create(Footnote);
         footnote.* = .{
             .id = id,
             .orderIndex = @intCast(self.footnotesByID.count + 1),
             .refCount = 1,
+            .refWrittenCount = 0,
             .block = self.doc.blockByID(id),
         };
 
@@ -1094,9 +1102,11 @@ pub const TmdRender = struct {
                                             const footnote = try self.onFootnoteReference(footnote_id);
                                             tracker.linkFootnote = footnote;
 
+                                            if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+
                                             _ = try w.print(
                                                 \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
-                                            , .{ footnote_id, self.identSuffix, footnote.refCount, footnote_id, self.identSuffix });
+                                            , .{ footnote_id, self.identSuffix, footnote.refWrittenCount, footnote_id, self.identSuffix });
                                             break :blk;
                                         }
 
@@ -1454,6 +1464,15 @@ pub const TmdRender = struct {
     }
 
     fn writeFootnotes(self: *TmdRender, w: anytype) !void {
+        self.incFootnoteRefWrittenCounts = false;
+        try self._writeFootnotes(std.io.null_writer);
+        self.incFootnoteRefWrittenCounts = true;
+        self.incFootnoteRefCounts = false;
+        try self._writeFootnotes(w);
+        self.incFootnoteRefCounts = true; // needless?
+    }
+
+    fn _writeFootnotes(self: *TmdRender, w: anytype) !void {
         if (self.footnoteNodes.empty()) return;
 
         _ = try w.write("\n<ol class=\"tmd-list tmd-footnotes\">\n");
@@ -1496,3 +1515,55 @@ pub const TmdRender = struct {
         };
     }
 };
+
+test "footnotes" {
+    {
+        const example1 =
+            \\
+            \\### Title
+            \\
+            \\This is a footnode __#foo__
+            \\
+            \\{//
+            \\
+            \\@@@ #foo
+            \\bla bla bla __#foo__.
+            \\bla bla __#bar__.
+            \\
+            \\@@@ #bar
+            \\bla bla bla __#foo__.
+            \\bla bla __#bar__.
+            \\
+            \\}
+            \\
+        ;
+
+        var doc = try @import("tmd_to_doc.zig").parse_tmd(example1, std.testing.allocator, false);
+        defer doc.destroy();
+
+        var r = TmdRender{
+            .doc = &doc,
+            .allocator = std.testing.allocator,
+
+            .customFn = dummayCustomFn,
+            .identSuffix = "",
+            .autoIdentSuffix = "",
+            .renderRoot = true,
+        };
+
+        try r.render(std.io.null_writer);
+
+        const footnotes = &r.footnoteNodes;
+        try std.testing.expect(!footnotes.empty());
+
+        if (footnotes.head) |head| {
+            var element = head;
+            while (true) {
+                const next = element.next;
+                const footnote = element.value.value;
+                try std.testing.expect(footnote.refCount == footnote.refWrittenCount);
+                if (next) |n| element = n else break;
+            }
+        }
+    }
+}

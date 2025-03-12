@@ -5,5 +5,5 @@ test {
     _ = @import("tmd_to_doc-attribute_parser.zig");
     _ = @import("tmd_to_doc-line_scanner.zig");
     //_ = @import("doc_to_html-fns.zig");
-    _ = @import("tmd_config.zig");
+    _ = @import("doc_to_html-render.zig");
 }

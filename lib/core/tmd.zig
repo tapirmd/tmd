@@ -45,7 +45,7 @@ pub const Doc = struct {
     const BlockRedBlack = tree.RedBlack(*Block, Block);
 
     pub fn parse(tmdData: []const u8, allocator: std.mem.Allocator) !Doc {
-        return try @import("tmd_to_doc.zig").parse_tmd(tmdData, allocator);
+        return try @import("tmd_to_doc.zig").parse_tmd(tmdData, allocator, true);
     }
 
     pub fn destroy(doc: *Doc) void {

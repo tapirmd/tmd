@@ -92,6 +92,8 @@ pub fn List(comptime Value: type) type {
             } else unreachable;
         }
 
+        // For lacking of closure support, the pattern of using callback functions
+        // is often not very useful. Try to only use this method in tests.
         pub fn iterate(self: Self, comptime f: fn (Value) void) void {
             if (self.head) |head| {
                 var element = head;
