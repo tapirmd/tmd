@@ -86,7 +86,7 @@ body {
 
 .tmd-quotation {
   border-left: solid 6px #c7923c;
-  margin-left: 6px;
+  margin: 1px auto 1px 6px;
   padding-left: 6px;
 }
 
