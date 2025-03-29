@@ -41,9 +41,10 @@ A %%**line end**%% in a TapirMD document is defined as one of the following:
 *  A single ASCII Line Feed character that doesn't follow an ASCII Carriage Return character.
 *  The end of the document if it doesn't end with either of the above two cases.
 
-A %%**whitespace character**%% is defined as either of the following:
-*  An ASCII Space character (Unicode: `U+0020`), or
+A %%**whitespace character**%% is defined as any of the following:
+*  An ASCII Space character (Unicode: `U+0020`).
 *  An ASCII Horizontal Tab character (Unicode: `U+0009`).
+*  A CJK Space character (Unicode: `U+3000`).
 
 A %%**blank character**%% is defined as any of the following:
 *  The ASCII DEL character (Unicode: `U+007F`).

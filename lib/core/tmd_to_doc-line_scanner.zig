@@ -16,12 +16,16 @@ lineEnd: ?tmd.Line.EndType = null,
 
 pub const bytesKindTable = blk: {
     var table = [1]union(enum) {
-        others: void,
+        lineEnd: void, // '\n'
         blank: struct {
-            isSpace: bool,
+            isSpace: bool = false,
         },
         leadingSpanMark: tmd.LineSpanMarkType,
         spanMark: tmd.SpanMarkType,
+        others: struct {
+            // The current implementation assumes that all TMD doc are UTF8 encoded.
+            isCjkSpaceStart: bool = false, // U+3000 (e3 80 80 in UTF8)
+        },
 
         const ByteKind = @This();
 
@@ -32,21 +36,17 @@ pub const bytesKindTable = blk: {
             std.debug.assert(@sizeOf(ByteKind) <= 2);
         }
 
-        pub fn isSpace(k: ByteKind) bool {
-            return switch (k) {
-                .blank => |b| b.isSpace,
-                else => false,
-            };
-        }
-
+        // This function doesn't check blanks which Unicode >= 256 (such as CJK space)
         pub fn isBlank(k: ByteKind) bool {
             return k == .blank;
         }
-    }{.others} ** 256;
+    }{.{ .others = .{} }} ** 256;
 
-    for (0..'\n') |i| table[i] = .{ .blank = .{ .isSpace = false } };
-    for ('\n' + 1..33) |i| table[i] = .{ .blank = .{ .isSpace = false } };
-    table[127] = .{ .blank = .{ .isSpace = false } };
+    // For parser implementation convenience, '\n' is not treated as blank.
+    table['\n'] = .lineEnd;
+    for (0..'\n') |i| table[i] = .{ .blank = .{} };
+    for ('\n' + 1..33) |i| table[i] = .{ .blank = .{} };
+    table[0x7F] = .{ .blank = .{} };
     table[' '] = .{ .blank = .{ .isSpace = true } };
     table['\t'] = .{ .blank = .{ .isSpace = true } };
 
@@ -65,17 +65,32 @@ pub const bytesKindTable = blk: {
     table['$'] = .{ .spanMark = .supsub };
     table['`'] = .{ .spanMark = .code };
 
+    table[0xE3] = .{ .others = .{ .isCjkSpaceStart = true } };
+
     break :blk table;
 };
 
+// For testing purpose only
+fn isSpace(c: u8) bool {
+    return switch (bytesKindTable[c]) {
+        .blank => |b| b.isSpace,
+        else => false,
+    };
+}
+
+// For testing purpose only
+fn isBlank(c: u8) bool {
+    return bytesKindTable[c] == .blank;
+}
+
 test "bytesKindTable" {
-    try std.testing.expect(bytesKindTable['\n'] == .others);
-    try std.testing.expect(!bytesKindTable['\n'].isSpace());
-    try std.testing.expect(!bytesKindTable['\n'].isBlank());
-    try std.testing.expect(bytesKindTable['\t'].isSpace());
-    try std.testing.expect(bytesKindTable['\t'].isBlank());
-    try std.testing.expect(bytesKindTable[' '].isSpace());
-    try std.testing.expect(bytesKindTable[' '].isBlank());
+    try std.testing.expect(bytesKindTable['\n'] == .lineEnd);
+    try std.testing.expect(!isSpace('\n'));
+    try std.testing.expect(!isBlank('\n'));
+    try std.testing.expect(isSpace('\t'));
+    try std.testing.expect(isBlank('\t'));
+    try std.testing.expect(isSpace(' '));
+    try std.testing.expect(isBlank(' '));
 }
 
 pub fn debugPrint(ls: *LineScanner, opName: []const u8, customValue: u32) void {
@@ -125,6 +140,7 @@ pub fn setCursor(ls: *LineScanner, cursor: u32) void {
     ls.lineEnd = null;
 }
 
+// The result should only be compared with ASCII chars.
 pub fn peekCursor(ls: *LineScanner) u8 {
     std.debug.assert(ls.lineEnd == null);
     std.debug.assert(ls.cursor < ls.data.len);
@@ -133,9 +149,15 @@ pub fn peekCursor(ls: *LineScanner) u8 {
     return c;
 }
 
+// The result should only be compared with ASCII chars.
 pub fn peekNext(ls: *LineScanner) ?u8 {
     const k = ls.cursor + 1;
     if (k < ls.data.len) return ls.data[k];
+    return null;
+}
+
+fn peekIndex(ls: *LineScanner, index: usize) ?u8 {
+    if (index < ls.data.len) return ls.data[index];
     return null;
 }
 
@@ -146,7 +168,7 @@ pub fn peekNext(ls: *LineScanner) ?u8 {
 //}
 
 // ToDo: return the blankStart instead?
-// Returns count of trailing blanks.
+// Returns count of trailing blanks (length in bytes).
 pub fn readUntilLineEnd(ls: *LineScanner) u32 {
     std.debug.assert(ls.lineEnd == null);
 
@@ -155,15 +177,24 @@ pub fn readUntilLineEnd(ls: *LineScanner) u32 {
     var blankStart = index;
     while (index < data.len) : (index += 1) {
         const c = data[index];
-        if (c == '\n') {
-            if (index > 0 and data[index - 1] == '\r') {
-                ls.lineEnd = .rn;
-                index -= 1;
-            } else ls.lineEnd = .n;
-            break;
-        } else if (!bytesKindTable[c].isBlank()) {
-            blankStart = index + 1;
+        switch (bytesKindTable[c]) {
+            .lineEnd => {
+                if (index > 0 and data[index - 1] == '\r') {
+                    ls.lineEnd = .rn;
+                    index -= 1;
+                } else ls.lineEnd = .n;
+                break;
+            },
+            .blank => continue,
+            .others => |others| {
+                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+                    index += 2;
+                    continue;
+                }
+            },
+            else => {},
         }
+        blankStart = index + 1;
     } else ls.lineEnd = .void;
 
     ls.cursor = index;
@@ -171,7 +202,7 @@ pub fn readUntilLineEnd(ls: *LineScanner) u32 {
 }
 
 // ToDo: return the blankStart instead?
-// Returns count of trailing blanks.
+// Returns count of trailing blanks (length in bytes).
 pub fn readUntilSpanMarkChar(ls: *LineScanner, specifiedChar: ?u8) u32 {
     std.debug.assert(ls.lineEnd == null);
     if (specifiedChar) |char| {
@@ -186,22 +217,26 @@ pub fn readUntilSpanMarkChar(ls: *LineScanner, specifiedChar: ?u8) u32 {
         switch (bytesKindTable[c]) {
             .spanMark => {
                 if (specifiedChar) |char| {
-                    if (c == char) break else blankStart = index + 1;
+                    if (c == char) break;
                 } else break;
             },
+            .lineEnd => {
+                if (index > 0 and data[index - 1] == '\r') {
+                    ls.lineEnd = .rn;
+                    index = index - 1;
+                } else ls.lineEnd = .n;
+                break;
+            },
             .blank => continue,
-            else => {
-                if (c == '\n') {
-                    if (index > 0 and data[index - 1] == '\r') {
-                        ls.lineEnd = .rn;
-                        index = index - 1;
-                    } else ls.lineEnd = .n;
-                    break;
-                } else {
-                    blankStart = index + 1;
+            .others => |others| {
+                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+                    index += 2;
+                    continue;
                 }
             },
+            else => {},
         }
+        blankStart = index + 1;
     } else ls.lineEnd = .void;
 
     ls.cursor = index;
@@ -220,18 +255,26 @@ pub fn readUntilNotBlank(ls: *LineScanner) u32 {
     var numSpaces: u32 = 0;
     while (index < data.len) : (index += 1) {
         const c = data[index];
-        if (bytesKindTable[c].isBlank()) {
-            if (bytesKindTable[c].isSpace()) numSpaces += 1;
-            continue;
+        switch (bytesKindTable[c]) {
+            .blank => |blank| {
+                if (blank.isSpace) numSpaces += 1;
+                continue;
+            },
+            .others => |others| {
+                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+                    numSpaces += 1;
+                    index += 2;
+                    continue;
+                }
+            },
+            .lineEnd => {
+                if (index > 0 and data[index - 1] == '\r') {
+                    ls.lineEnd = .rn;
+                    index = index - 1;
+                } else ls.lineEnd = .n;
+            },
+            else => {},
         }
-
-        if (c == '\n') {
-            if (index > 0 and data[index - 1] == '\r') {
-                ls.lineEnd = .rn;
-                index = index - 1;
-            } else ls.lineEnd = .n;
-        }
-
         break;
     } else ls.lineEnd = .void;
 
@@ -265,29 +308,6 @@ pub fn readUntilNotChar(ls: *LineScanner, char: u8) u32 {
     ls.cursor = index;
     return skipped;
 }
-
-// Return count of skipped bytes.
-//pub fn readUntilCondition(ls: *LineScanner, comptime condition: fn (u8) bool) u32 {
-//    const data = ls.data;
-//    var index = ls.cursor;
-//    while (index < data.len) : (index += 1) {
-//        const c = data[index];
-//        if (condition(c)) {
-//            if (c == '\n') {
-//                if (index > 0 and data[index - 1] == '\r') {
-//                    ls.lineEnd = .rn;
-//                    index = index - 1;
-//                } else ls.lineEnd = .n;
-//            }
-//
-//            break;
-//        }
-//    } else ls.lineEnd = .void;
-//
-//    const skipped = index - ls.cursor;
-//    ls.cursor = index;
-//    return skipped;
-//}
 
 test "LineScanner" {
     const data =

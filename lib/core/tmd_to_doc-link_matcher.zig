@@ -30,20 +30,6 @@ fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
 }
 
 const DummyLinkText = struct {
-    //lastIsSpace: bool = false,
-    //
-    //pub fn set(self: *DummyLinkText, _: u32, r: u8) bool {
-    //    if (LineScanner.bytesKindTable[r].isBlank()) {
-    //        if (!self.lastIsSpace and LineScanner.bytesKindTable[r].isSpace()) {
-    //            self.lastIsSpace = true;
-    //            return true;
-    //        }
-    //        return false;
-    //    }
-    //    self.lastIsSpace = false;
-    //    return true;
-    //}
-
     pub fn set(_: *DummyLinkText, _: u32, r: u8) bool {
         return !LineScanner.bytesKindTable[r].isBlank();
     }
