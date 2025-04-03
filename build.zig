@@ -33,6 +33,12 @@ pub fn build(b: *std.Build) !void {
     tmdLibModule.addOptions("config", libOptions);
 
     // return early when used as a dependency.
+    // ToDo: might be not a good idea.
+    //       It might be better to put all files in .zon
+    //       and add named lazy paths for output files (cmd and libs).
+    //       Or, split this project into several ones
+    //       (lib, toolset, wasm-lib, js-lib, doc).
+    // ToDo: need a lib-doc target (addInstallDirectory, getEmittedDocs)
     _ = b.path("doc").getPath3(b, null).statFile(".") catch return;
 
     // test
@@ -159,6 +165,10 @@ pub fn build(b: *std.Build) !void {
     wasmStep.dependOn(&installWasm.step);
 
     // js
+
+    // ToDo: write a replace-file-placeholder cmd
+    //       and use LazyPath, Build.Step.Run.captureStdOut and Build.addWriteFile
+    //       to unify/simplfy the GenerateJsLib and CompletePlayPage steps.
 
     const GenerateJsLib = struct {
         step: std.Build.Step,
@@ -295,6 +305,8 @@ pub fn build(b: *std.Build) !void {
     const fmtCodeAndDoc = b.step("fmt", "Format code and doc");
     fmtCodeAndDoc.dependOn(&fmtCode.step);
     fmtCodeAndDoc.dependOn(&fmtDoc.step);
+
+    // ToDo: write a "release" target to update version and git hash.
 }
 
 const Config = struct {

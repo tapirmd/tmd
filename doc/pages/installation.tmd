@@ -30,13 +30,19 @@ the offcial TapirMD commands locally.
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.
 
-*. Open your terminal or command prompt, and change directory to the TapirMD project folder,
-   then run
+*. Open your terminal or command prompt, navigate to the TapirMD project folder,
+   and run the following command to build the project:
    '''
    zig build -Doptimize=ReleaseSafe
    '''
-   If the build is successful, the `tmd` command binary file will be located in
-   the `bin` folder under the project local `zig-out` folder.
+   If the build is successful, the `tmd` command binary file will be generated
+   in the `bin` folder under the project local `zig-out` folder.
+   ;;;
+   The `ReleaseSafe` optimization mode produces a fast binary with safety checks.
+   For an even faster binary, use the `ReleaseFast` optimization mode instead:
+   '''
+   zig build -Doptimize=ReleaseFast
+   '''
 
 *. (Optional), copy the `tmd` binary file to a directory configured
    in the `PATH` enviroment variable, or add the path of

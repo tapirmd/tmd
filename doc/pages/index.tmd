@@ -2,7 +2,6 @@
 ##### The Homepage of TapirMD
 ;;; A powerful, next-generation markup language that simplifies content creation.
 
-
 -  ### Ecosystem
 
    *  Docs and references
@@ -11,7 +10,7 @@
       +  __Use cases`` use-cases.html __
    *  Tools and libraries
       +  __The official toolset`` installation.html __
-      +  __An online playfield`` play.html __
+      +  __An online playground`` play.html __
       +  __Official libraries`` libraries.html__ (%% Zig, WASM, JavaScript, Go %%)
    *  Social
       +  __Source code`` https://github.com/tapirmd __

@@ -32,6 +32,8 @@ pub const bytesKindTable = blk: {
         // ToDo: Now, for zig design limitaiton: https://ziggit.dev/t/6726,
         //       The best effort is make @sizeOf(ByteKind) == 2.
         //       It can be 1 in fact.
+        //       Maybe, change ByteKind to an enum (from union) can reduce the size.
+        //       enum {non_space_blank, space_blank, cjkSpaceStart, ...}
         comptime {
             std.debug.assert(@sizeOf(ByteKind) <= 2);
         }
