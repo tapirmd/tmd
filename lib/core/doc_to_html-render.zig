@@ -1028,6 +1028,7 @@ pub const TmdRender = struct {
                 switch (token.*) {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
                     .content => blk: {
+                        std.debug.print("000\n", .{});
                         if (tracker.activeLinkInfo) |linkInfo| {
                             if (!tracker.firstPlainTextInLink) {
                                 std.debug.assert(!linkInfo.isFootnote());
@@ -1155,7 +1156,7 @@ pub const TmdRender = struct {
                                     _ = try w.write(" ");
                                     break :blk;
                                 }
-                                if (usage != .titleInPageHeader) break :blk;
+                                if (usage == .titleInPageHeader) break :blk;
 
                                 const mediaInfoElement = tokenElement.next.?;
                                 const isInline = inHeader or block.more.hasNonMediaTokens;
