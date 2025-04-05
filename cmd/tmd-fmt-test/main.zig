@@ -120,8 +120,6 @@ fn fmtTestFile(entry: cmd.FileIterator.Entry, buffer: []u8, allocator: std.mem.A
     }
 }
 
-// "toolset" is better than "toolkit" here?
-// https://www.difference.wiki/toolset-vs-toolkit/
 fn printUsages() !void {
     try stdout.print(
         \\TapirMD fmt test tool v{s}

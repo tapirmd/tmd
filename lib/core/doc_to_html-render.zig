@@ -1020,7 +1020,6 @@ pub const TmdRender = struct {
         var line = block.startLine();
 
         while (true) {
-            //var element = line.tokens().?.head;
             var element = line.tokens.head;
             var isNonBareSpoilerLine = false;
             while (element) |tokenElement| {
@@ -1028,7 +1027,6 @@ pub const TmdRender = struct {
                 switch (token.*) {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
                     .content => blk: {
-                        std.debug.print("000\n", .{});
                         if (tracker.activeLinkInfo) |linkInfo| {
                             if (!tracker.firstPlainTextInLink) {
                                 std.debug.assert(!linkInfo.isFootnote());

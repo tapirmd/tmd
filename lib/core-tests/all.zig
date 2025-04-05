@@ -9,6 +9,8 @@ test {
     _ = @import("link_matching.zig");
     _ = @import("tmd_config.zig");
     _ = @import("tmd_format.zig");
+    _ = @import("tmd_render.zig");
+    _ = @import("tmd_render_title.zig");
     _ = @import("doc_headers.zig");
 }
 
@@ -139,6 +141,40 @@ test "RenderChecker" {
 
     try std.testing.expect(RenderChecker.check("", struct {
         fn checkFn(_: []const u8) !bool {
+            return error.Nothing;
+        }
+    }) == error.Nothing);
+}
+
+pub const TitleRenderChecker = struct {
+    pub fn check(data: []const u8, v: anytype) !bool {
+        var doc = try tmd.Doc.parse(data, std.testing.allocator);
+        defer doc.destroy();
+
+        var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
+        defer buf.deinit();
+
+        const hasTitle = try doc.writePageTitle(buf.writer());
+        const titleText = buf.items;
+        return v.checkFn(hasTitle, titleText);
+    }
+};
+
+test "TitleRenderChecker" {
+    try std.testing.expect(try TitleRenderChecker.check("", struct {
+        fn checkFn(_: bool, _: []const u8) !bool {
+            return true;
+        }
+    }));
+
+    try std.testing.expect(try TitleRenderChecker.check("", struct {
+        fn checkFn(_: bool, _: []const u8) !bool {
+            return false;
+        }
+    }) == false);
+
+    try std.testing.expect(TitleRenderChecker.check("", struct {
+        fn checkFn(_: bool, _: []const u8) !bool {
             return error.Nothing;
         }
     }) == error.Nothing);
