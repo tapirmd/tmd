@@ -273,6 +273,8 @@ pub const Block = struct {
         hasNonMediaTokens: bool = false,
     } = .{},
 
+    pub const default: Block = .{ .blockType = undefined };
+
     pub fn typeName(self: *const @This()) []const u8 {
         return @tagName(self.blockType);
     }
@@ -1045,11 +1047,8 @@ pub const InlineTokenIterator = struct {
                 self._currentToken = null;
                 return null;
             }
-            if (self._curentLine.next()) |nextLine| self._curentLine = nextLine;
-            unreachable;
+            if (self._curentLine.next()) |nextLine| self._curentLine = nextLine else unreachable;
         }
-
-        unreachable;
     }
 };
 

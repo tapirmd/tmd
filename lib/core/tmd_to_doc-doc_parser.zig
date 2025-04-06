@@ -32,7 +32,8 @@ fn createAndPushBlockElement(parser: *DocParser) !*tmd.Block {
     parser.tmdDoc.blockCount += 1;
 
     const block = &blockElement.value;
-    block.attributes = null; // !important
+    block.* = .default; // important
+
     parser.numBlocks += 1;
     block.index = parser.numBlocks;
 
