@@ -55,7 +55,7 @@ pub const FileIterator = struct {
         filePath: []const u8,
     };
 
-    pub fn next(fi: *FileIterator) !?Entry {
+    pub fn next(fi: *FileIterator, stderr: std.fs.File.Writer) !?Entry {
         if (fi.walkingDirPath) |dirPath| {
             while (try fi.dirWalker.next()) |entry| {
                 switch (entry.kind) {
@@ -71,14 +71,21 @@ pub const FileIterator = struct {
                 fi.dirWalker.deinit();
                 fi.walkingDir.close();
                 fi.walkingDirPath = null;
-                return fi.next();
+                return fi.next(stderr);
             }
         }
 
         const dir = std.fs.cwd();
         while (fi.curIndex < fi.paths.len) {
             const path = fi.paths[fi.curIndex];
-            const stat = try dir.statFile(path);
+            const stat = dir.statFile(path) catch |err| {
+                if (err == error.FileNotFound) {
+                    fi.curIndex += 1;
+                    try stderr.print("Path ({s}) is not found.\n", .{path});
+                    continue;
+                }
+                return err;
+            };
             switch (stat.kind) {
                 .file => {
                     fi.curIndex += 1;
@@ -98,7 +105,7 @@ pub const FileIterator = struct {
                     fi.dirWalker = walker;
                     fi.walkingDir = subDir;
                     fi.walkingDirPath = path;
-                    return fi.next();
+                    return fi.next(stderr);
                 },
                 else => fi.curIndex += 1,
             }

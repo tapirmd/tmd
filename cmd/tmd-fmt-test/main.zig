@@ -35,7 +35,7 @@ pub fn main() !void {
 
 fn fmtTest(paths: []const []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
     var fi = cmd.FileIterator.init(paths, allocator);
-    while (try fi.next()) |entry| {
+    while (try fi.next(stderr)) |entry| {
         if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
         //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});

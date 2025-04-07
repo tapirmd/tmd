@@ -143,7 +143,7 @@ const Generator = struct {
 
     fn genHtmlFiles(generator: Generator, paths: []const []const u8, buffer: []u8, allocator: std.mem.Allocator) !void {
         var fi = cmd.FileIterator.init(paths, allocator);
-        while (try fi.next()) |entry| {
+        while (try fi.next(main.stderr)) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
             //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
@@ -239,12 +239,20 @@ const Generator = struct {
     }
 };
 
+// generated from ../../doc/pages/static/image/tmd.jpg
+const tmdFavicon = "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";
+
 fn writePageStartPart1(w: anytype) !void {
     _ = try w.write(
         \\<!DOCTYPE html>
         \\<head>
-        \\<meta name="viewport" content="width=device-width, initial-scale=1.0">
         \\<meta charset="utf-8">
+        \\<link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,
+    );
+    _ = try w.write(tmdFavicon);
+    _ = try w.write(
+        \\">
+        \\<meta name="viewport" content="width=device-width, initial-scale=1.0">
         \\<title>
         \\
     );
