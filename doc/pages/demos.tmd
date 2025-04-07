@@ -72,7 +72,10 @@ For detailed explanations, please refer to __the specification__.
    ?? 997
    (visible when selected).
 
-   && ./static/image/sample-image.png
+   && ./static/image/tmd.png
+   
+   Line-height image: ``
+   && ./static/image/tmd.png
    }
 
 @@@ #section-demo-3

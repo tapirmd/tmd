@@ -2,6 +2,9 @@ runtime: python39
 
 default_expiration: "3650d"
 
+manual_scaling:
+  instances: 1
+  
 handlers:
 - url: /
   static_files: pages/index.html
