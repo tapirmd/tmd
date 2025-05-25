@@ -73,7 +73,7 @@ For detailed explanations, please refer to __the specification__.
    (visible when selected).
 
    && ./static/image/tmd.png
-   
+
    Line-height image: ``
    && ./static/image/tmd.png
    }
@@ -147,7 +147,7 @@ For detailed explanations, please refer to __the specification__.
    *  ### Tab 2
       ;;; Content of tab 2.
       ;;;
-      && ./static/image/sample-image.png
+      && ./static/image/tmd.png
 
 
    >  This is a quotation text.

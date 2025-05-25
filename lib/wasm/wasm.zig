@@ -16,11 +16,16 @@ fn logMessage(msg: []const u8, extraMsg: []const u8, extraInt: isize) void {
     print(@intFromPtr(msg.ptr), msg.len, @intFromPtr(extraMsg.ptr), extraMsg.len, extraInt);
 }
 
-const maxGenOptionsDataSize = 4096;
+const maxOptionsDataSize = 4096;
 const maxTmdDataSize = 2 << 20; // 2M // ToDo: add a max_tmd_size API?
 const bufferSize = 7 * maxTmdDataSize;
 
 var buffer: []u8 = "";
+var docInfo: ?struct {
+    tmdContent: []const u8,
+    tmdDoc: tmd.Doc,
+    remainingBuffer: []u8,
+} = null;
 
 export fn lib_version() isize {
     return @intCast(@intFromPtr(tmd.version.ptr));
@@ -33,6 +38,25 @@ export fn buffer_offset() isize {
         return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
     };
     return @intCast(@intFromPtr(bufferWithHeader.ptr));
+}
+
+// return the start of free buffer (the end of the tmd.Doc).
+export fn tmd_parse() isize {
+    const remainingBuffer = parseTMD() catch |err| {
+        logMessage("parse TMD error: ", @errorName(err), @intFromError(err));
+        const addr: isize = @intCast(@intFromPtr(@errorName(err).ptr));
+        return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
+    };
+    return @intCast(@intFromPtr(remainingBuffer.ptr));
+}
+
+export fn tmd_title() isize {
+    const titleWithLengthHeader = generatePageTitle() catch |err| {
+        logMessage("generate page title error: ", @errorName(err), @intFromError(err));
+        const addr: isize = @intCast(@intFromPtr(@errorName(err).ptr));
+        return -addr - 1; // assume address space < 2G. addr might be 0? so -1 here.
+    };
+    return @intCast(@intFromPtr(titleWithLengthHeader.ptr));
 }
 
 export fn tmd_to_html() isize {
@@ -56,6 +80,8 @@ export fn tmd_format() isize {
 fn tryToInit() ![]u8 {
     if (buffer.len == 0) {
         buffer = try std.heap.wasm_allocator.alloc(u8, bufferSize);
+        var fbs = std.io.fixedBufferStream(buffer);
+        try fbs.writer().writeInt(u32, 0, .little);
     }
 
     return buffer;
@@ -69,11 +95,6 @@ const DataWithLengthHeader = struct {
     }
 };
 
-fn writeBlankTmdData(dataBuffer: []const u8) !void {
-    var fbs = std.io.fixedBufferStream(dataBuffer);
-    try fbs.writer().writeInt(u32, 0, .little);
-}
-
 fn retrieveData(dataBuffer: []const u8, maxAllowedSize: usize) !DataWithLengthHeader {
     var fbs = std.io.fixedBufferStream(dataBuffer);
     const dataLen = try fbs.reader().readInt(u32, .little);
@@ -84,6 +105,71 @@ fn retrieveData(dataBuffer: []const u8, maxAllowedSize: usize) !DataWithLengthHe
     const dataStart = @sizeOf(u32);
     const dataEnd = dataStart + dataLen;
     return .{ .data = dataBuffer[dataStart..dataEnd] };
+}
+
+fn parseTMD() ![]const u8 {
+    if (buffer.len == 0) {
+        return error.BufferNotCreatedYet;
+    }
+
+    // retrieve input tmd data
+
+    const tmdInput = try retrieveData(buffer, maxTmdDataSize);
+    const tmdContent = tmdInput.data;
+
+    // parse tmd
+
+    const docBuffer = buffer[tmdInput.size()..];
+
+    var fba = std.heap.FixedBufferAllocator.init(docBuffer);
+    const fbaAllocator = fba.allocator();
+
+    const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
+
+    // ...
+
+    const remainingBuffer = docBuffer[fba.end_index..];
+
+    docInfo = .{
+        .tmdContent = tmdContent,
+        .tmdDoc = tmdDoc,
+        .remainingBuffer = remainingBuffer,
+    };
+
+    return remainingBuffer;
+}
+
+fn generatePageTitle() ![]const u8 {
+    const tmdDoc, const remainingBuffer = if (docInfo) |info| .{
+        info.tmdDoc,
+        info.remainingBuffer,
+    } else {
+        return error.DocNotParsedYet;
+    };
+
+    // retrieve input options data
+
+    const optionsInput = try retrieveData(remainingBuffer, maxOptionsDataSize);
+    const optionsContent = optionsInput.data;
+
+    _ = optionsContent; // not used now
+
+    // gen title
+
+    const titleBuffer = remainingBuffer[optionsInput.size()..];
+
+    var fbs = std.io.fixedBufferStream(titleBuffer);
+    try fbs.writer().writeInt(u32, 0, .little);
+
+    const hasTitle = try tmdDoc.writePageTitle(fbs.writer());
+    const titleWithLengthHeader = fbs.getWritten();
+
+    try fbs.seekTo(0);
+    try fbs.writer().writeInt(u32, if (hasTitle) titleWithLengthHeader.len - 4 else 0xFFFFFFFF, .little);
+
+    //logMessage("", "generatePageTitle: titleWithLengthHeader.len: ", @intCast(titleWithLengthHeader.len));
+
+    return titleWithLengthHeader;
 }
 
 fn customFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
@@ -112,29 +198,25 @@ const GenOptions = struct {
     renderRoot: bool = true,
 };
 
-fn generateHTML() ![]u8 {
-    if (buffer.len == 0) {
-        return error.BufferNotCreatedYet;
-    }
+fn generateHTML() ![]const u8 {
+    const tmdDoc, const remainingBuffer = if (docInfo) |info| .{
+        info.tmdDoc,
+        info.remainingBuffer,
+    } else {
+        return error.DocNotParsedYet;
+    };
 
-    var remainingBuffer = buffer;
+    // retrieve input options data
 
-    // retrieve inputs
-
-    const tmdInput = try retrieveData(remainingBuffer, maxTmdDataSize);
-    const tmdContent = tmdInput.data;
-    remainingBuffer = remainingBuffer[tmdInput.size()..];
-
-    const optionsInput = try retrieveData(remainingBuffer, maxGenOptionsDataSize);
+    const optionsInput = try retrieveData(remainingBuffer, maxOptionsDataSize);
     const optionsContent = optionsInput.data;
-    remainingBuffer = remainingBuffer[optionsInput.size()..];
 
-    // parse tmd
+    // parse options
 
-    var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
+    const optionsBuffer = remainingBuffer[optionsInput.size()..];
+
+    var fba = std.heap.FixedBufferAllocator.init(optionsBuffer);
     const fbaAllocator = fba.allocator();
-
-    const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
 
     const optionsConfig = (try tmd.Doc.parse(optionsContent, fbaAllocator)).asConfig();
 
@@ -161,10 +243,8 @@ fn generateHTML() ![]u8 {
 
     // render file
 
-    //logMessage("", "tmdDataLength: ", @intCast(tmdDataLength));
-    //logMessage("", "fba.end_index: ", @intCast(fba.end_index));
+    const renderBuffer = optionsBuffer[fba.end_index..];
 
-    const renderBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
     var fbs = std.io.fixedBufferStream(renderBuffer);
     try fbs.writer().writeInt(u32, 0, .little);
 
@@ -180,41 +260,31 @@ fn generateHTML() ![]u8 {
     try fbs.seekTo(0);
     try fbs.writer().writeInt(u32, htmlWithLengthHeader.len - 4, .little);
 
-    //logMessage("", "htmlWithLengthHeader.len: ", @intCast(htmlWithLengthHeader.len));
+    //logMessage("", "generateHTML: htmlWithLengthHeader.len: ", @intCast(htmlWithLengthHeader.len));
 
     return htmlWithLengthHeader;
 }
 
-fn formatTMD() ![]u8 {
-    if (buffer.len == 0) {
-        return error.BufferNotCreatedYet;
-    }
+fn formatTMD() ![]const u8 {
+    const tmdContent, const tmdDoc, const remainingBuffer = if (docInfo) |info| .{
+        info.tmdContent,
+        info.tmdDoc,
+        info.remainingBuffer,
+    } else {
+        return error.DocNotParsedYet;
+    };
 
-    var remainingBuffer = buffer;
+    // retrieve input options data
 
-    // retrieve inputs
-
-    const tmdInput = try retrieveData(remainingBuffer, maxTmdDataSize);
-    const tmdContent = tmdInput.data;
-    remainingBuffer = remainingBuffer[tmdInput.size()..];
-
-    const optionsInput = try retrieveData(remainingBuffer, maxGenOptionsDataSize);
+    const optionsInput = try retrieveData(remainingBuffer, maxOptionsDataSize);
     const optionsContent = optionsInput.data;
-    remainingBuffer = remainingBuffer[optionsInput.size()..];
-    if (optionsContent.len > 0) {
-        // ToDo: now, no options for fmt
-    }
 
-    // parse tmd
-
-    var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
-    const fbaAllocator = fba.allocator();
-
-    var tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
+    _ = optionsContent; // not used now
 
     // format file
 
-    const formatBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
+    const formatBuffer = remainingBuffer[optionsInput.size()..];
+
     var fbs = std.io.fixedBufferStream(formatBuffer);
     try fbs.writer().writeInt(u32, 0, .little);
 
@@ -222,10 +292,10 @@ fn formatTMD() ![]u8 {
 
     const tmdWithLengthHeader = fbs.getWritten();
     try fbs.seekTo(0);
-    const length = if (std.mem.eql(u8, tmdContent, tmdWithLengthHeader[4..])) 0 else tmdWithLengthHeader.len - 4;
+    const length = if (std.mem.eql(u8, tmdContent, tmdWithLengthHeader[4..])) 0xFFFFFFFF else tmdWithLengthHeader.len - 4;
     try fbs.writer().writeInt(u32, length, .little);
 
-    //logMessage("", "tmdWithLengthHeader.len: ", @intCast(tmdWithLengthHeader.len));
+    //logMessage("formatTMD: ", "tmdWithLengthHeader.len: ", @intCast(tmdWithLengthHeader.len));
 
     return tmdWithLengthHeader;
 }

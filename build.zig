@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) !void {
     const config = collectConfig(b, optimize);
 
     // lib (for C users)
-    // ToDo: Need many exported functions, including field setter/getter.
+    // ToDo: Need many exported functions, including field setter/getter?
     //
     //const tmdLib = b.addStaticLibrary(.{
     //    .name = "tmd",
@@ -31,15 +31,6 @@ pub fn build(b: *std.Build) !void {
     const libOptions = b.addOptions();
     libOptions.addOption(bool, "dump_ast", config.dumpAST);
     tmdLibModule.addOptions("config", libOptions);
-
-    // return early when used as a dependency.
-    // ToDo: might be not a good idea.
-    //       It might be better to put all files in .zon
-    //       and add named lazy paths for output files (cmd and libs).
-    //       Or, split this project into several ones
-    //       (lib, toolset, wasm-lib, js-lib, doc).
-    // ToDo: need a lib-doc target (addInstallDirectory, getEmittedDocs)
-    _ = b.path("doc").getPath3(b, null).statFile(".") catch return;
 
     // test
 
@@ -99,7 +90,8 @@ pub fn build(b: *std.Build) !void {
     toolsetCommand.root_module.addImport("tmd", tmdLibModule);
     toolsetCommand.root_module.addImport("cmd", cmdLibModule);
     const installToolset = b.addInstallArtifact(toolsetCommand, .{});
-    b.getInstallStep().dependOn(&installToolset.step);
+
+    b.installArtifact(toolsetCommand);
 
     // run toolset cmd
 
@@ -122,9 +114,6 @@ pub fn build(b: *std.Build) !void {
     tmdFmtTestCommand.root_module.addImport("tmd", tmdLibModule);
     tmdFmtTestCommand.root_module.addImport("cmd", cmdLibModule);
     const installFmtTest = b.addInstallArtifact(tmdFmtTestCommand, .{});
-    b.getInstallStep().dependOn(&installFmtTest.step);
-
-    b.installArtifact(tmdFmtTestCommand);
 
     // cmd
 

@@ -6,9 +6,6 @@
     .minimum_zig_version = "0.14.0",
 
     .paths = .{
-        "LICENSE",
-        "build.zig",
-        "build.zig.zon",
-        "lib/core",
+        "",
     },
 }

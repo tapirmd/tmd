@@ -89,7 +89,15 @@ function tmdToHTML() {
 			//console.log("no change");
 			return;
 		}
-		tmdLibInstance.setInputTmd(tmdText)
+		tmdLibInstance.setInputTmd(tmdText);
+
+		// get title
+		//const pageTitle = tmdLibInstance.generateTitle();
+		//if (pageTitle == null) {
+		//	console.log("(no title)");
+		//} else {
+		//	console.log("title: ", pageTitle);
+		//}
 
 		// format TMD
 		const formattedText = tmdLibInstance.format();
