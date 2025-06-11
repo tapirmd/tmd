@@ -85,12 +85,18 @@ The WASM binary file exports several APIs:
    The version string is C-style string which ends with 0.
 *  `buffer_offset` returns the memory offset of the buffer for communicating between WASM and host apps.
    The input TapirMD document content with a length header should be placed at the beginning of the buffer.
+*  `tmd_parse` parses the input TapirMD document and returns the memory offset of unused buffer
+   (for communicating between WASM and host apps). The following APIs should put their options data
+   at the returned memory offset.
+*  `tmd_title` generates the title (without any formatting elements) of the input TapirMD document
+   and returns the memory offset of the title with a length header.
+   If the title length is `0xFFFFFFFF`,  it means the input TapirMD document doesn't define a title.
 *  `tmd_to_html` generates HTML content from the input TapirMD document content
-   and returns the memory offset of the output HTML content.
-   A HTML generation options content should be placed closely after the input TapirMD document content
-   before calling this API.
+   and returns the memory offset of the output HTML content with a length header.
 *  `tmd_format` formats the input TapirMD document and returns the memory offset
-   of the output formatted result.
+   of the output formatted result with a length header.
+   If the result length is `0xFFFFFFFF`, 
+   it means the formatted result is identical to the input TapirMD document.
 
 Every memory offset return result is a `int32` value.
 A negative offset means an error and the memory offset

@@ -1416,6 +1416,13 @@ They should be escaped when they appear at usual line beginning.
 '''
 ===
 +++
+,,,
+...
+!!!
+???
+///
+\\\
+&&&
 [[[
 ]]]
 (((
@@ -1426,6 +1433,7 @@ The following punctuation character sequences are potential inline marks.
 They should be escaped in header and usual blocks.
 '''
 ,,
+==
 ^^
 <<
 >>
