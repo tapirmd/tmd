@@ -210,7 +210,50 @@ pub const Link = struct {
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
 
-    info: *Token.LinkInfo,
+    //info: *Token.LinkInfo,
+
+    textInfo: packed union {
+        // This is only used for link matching.
+        firstPlainText: ?*Token, // null for a blank link span
+
+        // This is a list, it is the head.
+        // Surely, if urlConfirmed, it is the only one in the list.
+        urlSourceText: ?*Token, // null for a blank link span
+    },
+
+    more: packed struct {
+        inLinkBlock: bool = false,
+        urlSourceSet: bool = false,
+        urlConfirmed: bool = false,
+        isFootnote: bool = false,
+    },
+
+    pub fn isFootnote(self: *const @This()) bool {
+        return self.more.isFootnote;
+    }
+
+    pub fn setFootnote(self: *@This(), is: bool) void {
+        self.more.isFootnote = is;
+    }
+
+    pub fn urlConfirmed(self: *const @This()) bool {
+        return self.more.urlConfirmed;
+    }
+
+    pub fn urlSourceSet(self: *@This()) bool {
+        return self.more.urlSourceSet;
+    }
+
+    pub fn setSourceOfURL(self: *@This(), urlSource: ?*Token, confirmed: bool) void {
+        std.debug.assert(!self.urlSourceSet());
+
+        self.more.urlConfirmed = confirmed;
+        self.textInfo = .{
+            .urlSourceText = urlSource,
+        };
+
+        self.more.urlSourceSet = true;
+    }
 };
 
 pub const BaseBlockAttibutes = struct {
@@ -632,6 +675,14 @@ pub const BlockType = union(enum) {
         const Atom = void;
     },
 
+    link: struct {
+        startLine: *Line = undefined,
+        endLine: *Line = undefined,
+
+        // traits:
+        const Atom = void;
+    },
+
     attributes: struct {
         startLine: *Line = undefined,
         endLine: *Line = undefined,
@@ -786,6 +837,7 @@ pub const Line = struct {
         usual,
         header,
         seperator,
+        link,
         attributes,
 
         baseBlockOpen,
@@ -1146,11 +1198,6 @@ pub const Token = union(enum) {
             open: bool,
             secondary: bool = false,
             blankSpan: bool, // enclose no texts (contents or evenBackticks or treatEndAsSpace)
-
-            inComment: bool, // for .linkInfo
-            urlSourceSet: bool = false, // for .linkInfo
-            urlConfirmed: bool = false, // for .linkInfo
-            isFootnote: bool = false, // for .linkInfo
         },
 
         pub fn typeName(self: @This()) []const u8 {
@@ -1158,53 +1205,16 @@ pub const Token = union(enum) {
         }
     },
     // A linkInfo token is always before an open .link SpanMarkType token.
+    // It is used to track the Link in rendering.
     linkInfo: struct {
-        info: packed union {
-            // This is only used for link matching.
-            firstPlainText: ?*Token, // null for a blank link span
+        link: *Link,
 
-            // This is a list, it is the head.
-            // Surely, if urlConfirmed, it is the only one in the list.
-            urlSourceText: ?*Token, // null for a blank link span
-        },
-
-        fn followingOpenLinkSpanMark(self: *const @This()) *SpanMark {
-            const token: *const Token = @alignCast(@fieldParentPtr("linkInfo", self));
-            const m = token.followingSpanMark();
-            std.debug.assert(m.markType == .link and m.more.open == true);
-            return m;
-        }
-
-        pub fn isFootnote(self: *const @This()) bool {
-            return self.followingOpenLinkSpanMark().more.isFootnote;
-        }
-
-        pub fn setFootnote(self: *const @This(), is: bool) void {
-            self.followingOpenLinkSpanMark().more.isFootnote = is;
-        }
-
-        pub fn inComment(self: *const @This()) bool {
-            return self.followingOpenLinkSpanMark().more.inComment;
-        }
-
-        pub fn urlConfirmed(self: *const @This()) bool {
-            return self.followingOpenLinkSpanMark().more.urlConfirmed;
-        }
-
-        pub fn urlSourceSet(self: *const @This()) bool {
-            return self.followingOpenLinkSpanMark().more.urlSourceSet;
-        }
-
-        pub fn setSourceOfURL(self: *@This(), urlSource: ?*Token, confirmed: bool) void {
-            std.debug.assert(!self.urlSourceSet());
-
-            self.followingOpenLinkSpanMark().more.urlConfirmed = confirmed;
-            self.info = .{
-                .urlSourceText = urlSource,
-            };
-
-            self.followingOpenLinkSpanMark().more.urlSourceSet = true;
-        }
+        //fn followingOpenLinkSpanMark(self: *const @This()) *SpanMark {
+        //    const token: *const Token = @alignCast(@fieldParentPtr("linkInfo", self));
+        //    const m = token.followingSpanMark();
+        //    std.debug.assert(m.markType == .link and m.more.open == true);
+        //    return m;
+        //}
     },
     leadingSpanMark: struct {
         start: DocSize,
@@ -1236,8 +1246,10 @@ pub const Token = union(enum) {
         blankLen: DocSize,
         markLen: DocSize,
 
-        // For containing line with certain lien types,
-        // an extra token is followed by this .lineTypeMark token.
+        // For containing line with certain line types,
+        // an .extra token is followed by this .lineTypeMark token.
+        // ToDo: let .extra token follow this? So that .extra_or_others
+        //       will not needed any more.
     },
     extra: struct {
         pub const Info = std.meta.FieldType(@This(), .info);
@@ -1349,16 +1361,16 @@ pub const Token = union(enum) {
         return null;
     }
 
-    fn followingSpanMark(self: *const @This()) *SpanMark {
-        if (self.next()) |nextToken| {
-            switch (nextToken.*) {
-                .spanMark => |*m| {
-                    return m;
-                },
-                else => unreachable,
-            }
-        } else unreachable;
-    }
+    //fn followingSpanMark(self: *const @This()) *SpanMark {
+    //    if (self.next()) |nextToken| {
+    //        switch (nextToken.*) {
+    //            .spanMark => |*m| {
+    //                return m;
+    //            },
+    //            else => unreachable,
+    //        }
+    //    } else unreachable;
+    //}
 };
 
 pub const SpanMarkType = enum(u4) {

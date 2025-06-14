@@ -3,14 +3,14 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-   // __here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
+   === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
 
 __TapirMD__ official maintains libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
 
 The Zig library is fully featured, while the others currently support only
 HTML generation (from TapirMD documents) and TapirMD document formatting.
 
-// __TapirMD:: index.html
+=== TapirMD:: index.html
 
 ###---
 
@@ -49,15 +49,15 @@ The library provides a `tmd` module which can be imported into the modules of yo
 
 Here is __an example Zig project__ which uses the TapirMD Zig library.
 
-// __ an example Zig project :: https://github.com/tapirmd/lib-use-examples/tree/master/zig
+=== an example Zig project :: https://github.com/tapirmd/lib-use-examples/tree/master/zig
 
 @@@ #wasm-lib
 ###-------- The WASM library
 
-// __Git :: https://git-scm.com/downloads
-// __Zig :: https://ziglang.org/download/
-// __the TapirMD project :: https://github.com/tapirmd/tmd
-// __download its source code :: https://github.com/tapirmd/tmd/tags
+=== Git :: https://git-scm.com/downloads
+=== Zig :: https://ziglang.org/download/
+=== the TapirMD project :: https://github.com/tapirmd/tmd
+=== download its source code :: https://github.com/tapirmd/tmd/tags
 
 The steps to build the TapirMD WASM library:
 
@@ -77,8 +77,8 @@ The steps to build the TapirMD WASM library:
 The output `tmd.wasm` binary file can be used in various languages.
 The official TapirMD __JavaScript__ and __Go__ libraries are both built upon WASM.
 
-// __ JavaScript :: #js-lib
-// __ Go :: #go-lib
+=== JavaScript :: #js-lib
+=== Go :: #go-lib
 
 The WASM binary file exports several APIs:
 *  `lib_version` returns the memory offset of the version string of the library.
@@ -95,7 +95,7 @@ The WASM binary file exports several APIs:
    and returns the memory offset of the output HTML content with a length header.
 *  `tmd_format` formats the input TapirMD document and returns the memory offset
    of the output formatted result with a length header.
-   If the result length is `0xFFFFFFFF`, 
+   If the result length is `0xFFFFFFFF`,
    it means the formatted result is identical to the input TapirMD document.
 
 Every memory offset return result is a `int32` value.
@@ -136,7 +136,7 @@ The steps to build the TapirMD JavaScript library:
 
 Please read the source code of the __online play page__ to get how to use the JavaScript library.
 
-// __ online play page :: play.html
+=== online play page :: play.html
 
 @@@ #go-lib
 ###-------- The Go library

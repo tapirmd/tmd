@@ -24,7 +24,7 @@ blockSession: struct {
     spanStatuses: [MarkCount]SpanStatus = .{SpanStatus{}} ** MarkCount,
     currentTextNumber: u32 = 0,
 
-    lastLinkInfoToken: ?*tmd.Token = null,
+    lastLink: ?*tmd.Link = null,
     lastPlainTextToken: ?*tmd.Token = null,
     spanStatusChangesAfterTheLastPlainTextToken: u32 = 0,
 
@@ -77,15 +77,11 @@ pub fn init(self: *ContentParser) void {
     self.linkSpanStatus = self.span_status(.link);
 }
 
-fn isCommentLineParser(self: *const ContentParser) bool {
-    return self == self.docParser.commentLineParser;
-}
-
 fn span_status(self: *ContentParser, markType: tmd.SpanMarkType) *SpanStatus {
     return &self.blockSession.spanStatuses[markType.asInt()];
 }
 
-pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) void {
+pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
     self.close_opening_spans(); // for the last block
 
     //if (self.blockSession.endLine) |line| {
@@ -99,6 +95,10 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) void {
     self.blockSession = .{
         .atomBlock = atomBlock,
     };
+
+    if (atomBlock.blockType == .link) {
+        _ = try self.open_new_link(true);
+    }
 }
 
 fn set_currnet_line(self: *ContentParser, line: *tmd.Line, lineStart: u32) void {
@@ -114,6 +114,25 @@ fn set_currnet_line(self: *ContentParser, line: *tmd.Line, lineStart: u32) void 
         .contentStart = lineStart,
         //.tokens = &line.tokens,
     };
+}
+
+fn open_new_link(self: *ContentParser, inLinkBlock: bool) !*tmd.Link {
+    std.debug.assert(self.blockSession.lastLink == null);
+
+    var linkElement = try list.createListElement(tmd.Link, self.docParser.tmdDoc.allocator);
+    self.docParser.tmdDoc.links.pushTail(linkElement);
+    const link = &linkElement.value;
+    link.* = .{
+        .textInfo = .{
+            .firstPlainText = null,
+        },
+        .more = .{
+            .inLinkBlock = inLinkBlock,
+        },
+    };
+    self.blockSession.lastLink = link;
+
+    return link;
 }
 
 fn create_token(self: ContentParser) !*tmd.Token {
@@ -141,9 +160,9 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
         },
     };
 
-    if (self.blockSession.lastLinkInfoToken) |link| {
-        if (link.linkInfo.info.firstPlainText == null) {
-            link.linkInfo.info.firstPlainText = token;
+    if (self.blockSession.lastLink) |link| {
+        if (link.textInfo.firstPlainText == null) {
+            link.textInfo.firstPlainText = token;
         } else if (self.blockSession.lastPlainTextToken) |text| {
             text.content.nextInLink = token;
         } else unreachable;
@@ -162,7 +181,7 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
 fn create_leading_mark(self: *ContentParser, markType: tmd.LineSpanMarkType, markStart: u32, markLen: u32) !*tmd.Token.LeadingSpanMark {
     std.debug.assert(markStart == self.lineSession.contentStart);
 
-    var token = try self.create_token();
+    const token = try self.create_token();
     token.* = .{
         .leadingSpanMark = .{
             .start = @intCast(markStart),
@@ -180,35 +199,8 @@ fn create_leading_mark(self: *ContentParser, markType: tmd.LineSpanMarkType, mar
 fn open_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, markLen: u32, isSecondary: bool) !*tmd.Token.SpanMark {
     std.debug.assert(markStart >= self.lineSession.contentStart);
 
-    if (markType == .link and !isSecondary) {
-        // Link needs 2 tokens to store information.
-        var token = try self.create_token();
-        token.* = .{
-            .linkInfo = .{
-                .info = .{
-                    .firstPlainText = null,
-                },
-            },
-        };
-        self.blockSession.lastLinkInfoToken = token;
-
-        var linkElement = try list.createListElement(tmd.Link, self.docParser.tmdDoc.allocator);
-        self.docParser.tmdDoc.links.pushTail(linkElement);
-        const link = &linkElement.value;
-        link.* = .{
-            .info = &token.linkInfo,
-        };
-
-        //if (self.docParser.nextElementAttributes) |as| {
-        //    link.attrs = as;
-        //    token.linkInfo.attrs = &link.attrs;
-        //
-        //    self.docParser.nextElementAttributes = null;
-        //}
-    }
-
     // Create the open mark.
-    var token = try self.create_token();
+    const token = try self.create_token();
     token.* = .{
         .spanMark = .{
             .start = @intCast(markStart),
@@ -218,7 +210,6 @@ fn open_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, m
             .more = .{
                 .open = true,
                 .secondary = isSecondary,
-                .inComment = self.isCommentLineParser(),
                 .blankSpan = false, // will be determined finally later
             },
         },
@@ -238,10 +229,6 @@ fn close_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, 
 
     std.debug.assert(markStart >= self.lineSession.contentStart);
 
-    if (markType == .link) {
-        self.blockSession.lastLinkInfoToken = null;
-    }
-
     const spanStatus = &self.blockSession.spanStatuses[markType.asInt()];
     std.debug.assert(self.blockSession.currentTextNumber >= spanStatus.openTextNumber);
     std.debug.assert(spanStatus.openMark == openMark);
@@ -250,7 +237,7 @@ fn close_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, 
     openMark.more.blankSpan = isBlankSpan;
 
     // Create the close mark.
-    var token = try self.create_token();
+    const token = try self.create_token();
     token.* = .{
         .spanMark = .{
             .start = @intCast(markStart),
@@ -259,7 +246,6 @@ fn close_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, 
             .blankLen = undefined, // will be modified later
             .more = .{
                 .open = false,
-                .inComment = self.isCommentLineParser(),
                 .blankSpan = isBlankSpan,
             },
         },
@@ -272,7 +258,7 @@ fn create_even_backticks_span(self: *ContentParser, markStart: u32, pairCount: u
     std.debug.assert(markStart >= self.lineSession.contentStart);
 
     // Create the dummy code spans mark.
-    var token = try self.create_token();
+    const token = try self.create_token();
     token.* = .{
         .evenBackticks = .{
             .start = @intCast(markStart),
@@ -318,20 +304,14 @@ pub fn parse_attributes_line_tokens(self: *ContentParser, line: *tmd.Line, lineS
     return textEnd;
 }
 
-pub fn parse_usual_line_tokens(self: *ContentParser, line: *tmd.Line, lineStart: u32, handleLineSpanMark: bool) !u32 {
+pub fn parse_line_tokens(self: *ContentParser, line: *tmd.Line, lineStart: u32, handleLineSpanMark: bool) !u32 {
     self.set_currnet_line(line, lineStart);
 
-    return try self.parse_line_tokens(handleLineSpanMark);
+    return try self._parse_line_tokens(handleLineSpanMark);
 }
 
-pub fn parse_header_line_tokens(self: *ContentParser, line: *tmd.Line, lineStart: u32) !u32 {
-    self.set_currnet_line(line, lineStart);
-
-    //return try self.parse_line_tokens(false);
-    return try self.parse_line_tokens(true);
-}
-
-fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
+// ToDo: merge this into the above one.
+fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
     const lineStart = self.lineSession.contentStart;
     const lineScanner = &self.docParser.lineScanner;
     std.debug.assert(lineScanner.lineEnd == null);
@@ -381,17 +361,13 @@ fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
             switch (leadingMarkType) {
                 .lineBreak => break :handle_leading_mark,
+                // ToDo: the following prongs are similar, merge?
                 .comment => {
-                    const isLineDefinition = lineScanner.peekCursor() == '_' and lineScanner.peekNext() == '_';
-                    if (!isLineDefinition) {
-                        const numBlanks = lineScanner.readUntilLineEnd();
-                        const textEnd = lineScanner.cursor - numBlanks;
-                        std.debug.assert(textEnd > textStart);
-                        _ = try self.create_comment_text_token(textStart, textEnd, false);
-                        break :parse_tokens textEnd;
-                    }
-
-                    // jump out of the swith block
+                    const numBlanks = lineScanner.readUntilLineEnd();
+                    const textEnd = lineScanner.cursor - numBlanks;
+                    std.debug.assert(textEnd > textStart);
+                    _ = try self.create_comment_text_token(textStart, textEnd, false);
+                    break :parse_tokens textEnd;
                 },
                 .escape, .spoiler => {
                     const numBlanks = lineScanner.readUntilLineEnd();
@@ -408,15 +384,6 @@ fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     break :parse_tokens textEnd;
                 },
             }
-
-            // To parse link definition tokens.
-
-            std.debug.assert(leadingMarkType == .comment);
-
-            const commentLineParser = self.docParser.commentLineParser;
-            commentLineParser.on_new_atom_block(self.blockSession.atomBlock);
-            commentLineParser.set_currnet_line(self.lineSession.currentLine, textStart);
-            break :parse_tokens try commentLineParser.parse_line_tokens(false);
         }
 
         if (lineScanner.lineEnd != null) { // the line only contains one leading mark
@@ -537,6 +504,9 @@ fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                         // if (codeSpanStatus.openMark) |_| break :create_mark_token;
                         if (inPrimaryCodeSpan) break :create_mark_token;
                         if (markLen < 2 or markLen >= tmd.MaxSpanMarkLength) break :create_mark_token;
+                        // .link blocks don't contain .link spans.
+                        const isLinkMark = spanMarkType == .link;
+                        if (isLinkMark and self.blockSession.atomBlock.blockType == .link) break :create_mark_token;
 
                         const markStatus = self.span_status(spanMarkType);
 
@@ -547,6 +517,12 @@ fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             if (textEnd > textStart) {
                                 _ = try self.create_plain_text_token(textStart, textEnd);
                             } else std.debug.assert(textEnd == textStart);
+
+                            if (isLinkMark) {
+                                std.debug.assert(openMark.more.secondary or self.blockSession.lastLink != null);
+
+                                self.blockSession.lastLink = null;
+                            }
 
                             const closeMark = try self.close_span(spanMarkType, textEnd, markLen, openMark);
                             closeMark.blankLen = @intCast(numBlanks);
@@ -564,6 +540,18 @@ fn parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             if (textEnd > textStart) {
                                 _ = try self.create_plain_text_token(textStart, textEnd);
                             } else std.debug.assert(textEnd == textStart);
+
+                            if (isLinkMark and !isSecondary) {
+                                const link = try self.open_new_link(false);
+
+                                // Link needs 2 tokens to store information.
+                                const token = try self.create_token();
+                                token.* = .{
+                                    .linkInfo = .{
+                                        .link = link,
+                                    },
+                                };
+                            }
 
                             const openMark = try self.open_span(spanMarkType, textEnd, markLen, isSecondary);
 

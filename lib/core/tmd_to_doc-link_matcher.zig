@@ -208,13 +208,13 @@ fn Patricia(comptime TextType: type) type {
             //n.value.textSegment is undefined (deliborately).
             //std.debug.assert(n.value.textSegment.len == 0);
             std.debug.assert(n.value.deeperTree.count == 0);
-            std.debug.assert(n.value.linkInfos.empty());
+            std.debug.assert(n.value.links.empty());
 
             return n;
         }
 
         fn freeNode(self: *@This(), node: *Node) void {
-            //std.debug.assert(node.value.linkInfos.empty());
+            //std.debug.assert(node.value.links.empty());
 
             node.value.textSegment.len = 0;
             if (self.freeNodeList) |old| {
@@ -230,7 +230,7 @@ fn Patricia(comptime TextType: type) type {
 
         const NodeValue = struct {
             textSegment: TextType = undefined,
-            linkInfos: list.List(*tmd.Token.LinkInfo) = .{},
+            links: list.List(*tmd.Link) = .{},
             deeperTree: Tree = .{},
 
             fn init(self: *@This(), nilNodePtr: *Node) void {
@@ -260,7 +260,7 @@ fn Patricia(comptime TextType: type) type {
             }
         };
 
-        fn putLinkInfo(self: *@This(), text: TextType, linkInfoElement: *list.Element(*tmd.Token.LinkInfo)) !void {
+        fn putLinkInfo(self: *@This(), text: TextType, linkElement: *list.Element(*tmd.Link)) !void {
             var node = try self.getFreeNode();
             node.value.textSegment = text;
 
@@ -269,9 +269,7 @@ fn Patricia(comptime TextType: type) type {
 
             // ToDo: also free text ... ?
 
-            //var element = try self.getFreeLinkInfoElement();
-            //element.value = linkInfo;
-            n.value.linkInfos.pushTail(linkInfoElement);
+            n.value.links.pushTail(linkElement);
         }
 
         fn putNodeIntoTree(self: *@This(), theTree: *Tree, node: *Node) !*Node {
@@ -378,7 +376,7 @@ fn Patricia(comptime TextType: type) type {
         }
 
         fn setUrlSourceForNode(node: *Node, urlSource: ?*tmd.Token, confirmed: bool) void {
-            var le = node.value.linkInfos.head;
+            var le = node.value.links.head;
             while (le) |linkInfoElement| {
                 if (!linkInfoElement.value.urlSourceSet()) {
                     linkInfoElement.value.setSourceOfURL(urlSource, confirmed);
@@ -409,17 +407,17 @@ fn Patricia(comptime TextType: type) type {
 }
 
 const LinkForTree = struct {
-    linkInfoElementNormal: list.Element(*tmd.Token.LinkInfo),
-    linkInfoElementInverted: list.Element(*tmd.Token.LinkInfo),
+    linkInfoElementNormal: list.Element(*tmd.Link),
+    linkInfoElementInverted: list.Element(*tmd.Link),
     revisedLinkText: RevisedLinkText,
 
-    fn setInfoAndText(self: *@This(), linkInfo: *tmd.Token.LinkInfo, text: RevisedLinkText) void {
-        self.linkInfoElementNormal.value = linkInfo;
-        self.linkInfoElementInverted.value = linkInfo;
+    fn setLinkAndText(self: *@This(), link: *tmd.Link, text: RevisedLinkText) void {
+        self.linkInfoElementNormal.value = link;
+        self.linkInfoElementInverted.value = link;
         self.revisedLinkText = text;
     }
 
-    fn info(self: *const @This()) *tmd.Token.LinkInfo {
+    fn getLink(self: *const @This()) *tmd.Link {
         std.debug.assert(self.linkInfoElementNormal.value == self.linkInfoElementInverted.value);
         return self.linkInfoElementNormal.value;
     }
@@ -437,11 +435,11 @@ const Matcher = struct {
     invertedPatricia: *InvertedPatricia,
 
     fn doForLinkDefinition(self: @This(), linkDef: *LinkForTree) void {
-        const linkInfo = linkDef.info();
-        std.debug.assert(linkInfo.inComment());
+        const link = linkDef.getLink();
+        std.debug.assert(link.more.inLinkBlock);
 
-        const urlSource = linkInfo.info.urlSourceText.?;
-        const confirmed = linkInfo.urlConfirmed();
+        const urlSource = link.textInfo.urlSourceText.?;
+        const confirmed = link.urlConfirmed();
 
         const linkText = linkDef.revisedLinkText.asString();
 
@@ -507,14 +505,14 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
     // The top-to-bottom pass.
     while (true) {
-        const linkInfo = linkElement.value.info;
-        std.debug.assert(!linkInfo.urlSourceSet());
+        const link = &linkElement.value;
+        std.debug.assert(!link.urlSourceSet());
         blk: {
-            const firstTextToken = if (linkInfo.info.firstPlainText) |first| first else {
+            const firstTextToken = if (link.textInfo.firstPlainText) |first| first else {
                 // The link should be ignored in rendering.
 
                 //std.debug.print("ignored for no content tokens\n", .{});
-                linkInfo.setSourceOfURL(null, false);
+                link.setSourceOfURL(null, false);
                 break :blk;
             };
 
@@ -531,22 +529,22 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             // handle the last text token
             {
                 const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
-                if (linkInfo.inComment()) {
+                if (link.more.inLinkBlock) {
                     if (copyLinkText(&dummyLinkText, 0, str) == 0) {
                         // This link definition will be ignored.
 
                         //std.debug.print("ignored for blank link definition\n", .{});
-                        linkInfo.setSourceOfURL(null, false);
+                        link.setSourceOfURL(null, false);
                         break :blk;
                     }
                 } else if (AttributeParser.isValidLinkURL(str)) {
                     // For built-in cases, no need to call callback to determine the url.
 
                     //std.debug.print("self defined url: {s}\n", .{str});
-                    linkInfo.setSourceOfURL(lastToken, true);
+                    link.setSourceOfURL(lastToken, true);
 
                     if (lastToken == firstTextToken and std.mem.startsWith(u8, str, "#") and !std.mem.startsWith(u8, str[1..], "#")) {
-                        linkInfo.setFootnote(true);
+                        link.setFootnote(true);
                     }
 
                     break :blk;
@@ -558,7 +556,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     // The link should be ignored in rendering.
 
                     //std.debug.print("ignored for blank link text\n", .{});
-                    linkInfo.setSourceOfURL(null, false);
+                    link.setSourceOfURL(null, false);
                     break :blk;
                 }
             }
@@ -570,11 +568,11 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 .len = linkTextLen,
                 .text = textPtr,
             };
-            //defer std.debug.print("====={}: ||{s}||\n", .{linkInfo.inComment(), revisedLinkText.asString()});
+            //defer std.debug.print("====={}: ||{s}||\n", .{link.more.inLinkBlock, revisedLinkText.asString()});
 
             const theElement = try self.allocator.create(list.Element(LinkForTree));
             linksForTree.pushTail(theElement);
-            theElement.value.setInfoAndText(linkInfo, revisedLinkText);
+            theElement.value.setLinkAndText(link, revisedLinkText);
             const linkForTree = &theElement.value;
 
             const confirmed = while (true) { // ToDo: use a labled non-loop block
@@ -593,7 +591,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                 // handle the last text token
                 const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
-                if (linkInfo.inComment()) {
+                if (link.more.inLinkBlock) {
                     std.debug.assert(linkTextLen2 == linkTextLen);
 
                     //std.debug.print("    222 linkText = {s}\n", .{revisedLinkText.asString()});
@@ -618,9 +616,9 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 }
             };
 
-            std.debug.assert(linkInfo.inComment());
+            std.debug.assert(link.more.inLinkBlock);
 
-            linkInfo.setSourceOfURL(lastToken, confirmed);
+            link.setSourceOfURL(lastToken, confirmed);
             matcher.doForLinkDefinition(linkForTree);
         }
 
@@ -637,11 +635,11 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         var element = linksForTree.tail;
         while (element) |theElement| {
             const linkForTree = &theElement.value;
-            const theLinkInfo = linkForTree.info();
-            if (theLinkInfo.inComment()) {
-                std.debug.assert(theLinkInfo.urlSourceSet());
+            const link = linkForTree.getLink();
+            if (link.more.inLinkBlock) {
+                std.debug.assert(link.urlSourceSet());
                 matcher.doForLinkDefinition(linkForTree);
-            } else if (!theLinkInfo.urlSourceSet()) {
+            } else if (!link.urlSourceSet()) {
                 try normalPatricia.putLinkInfo(linkForTree.revisedLinkText, &linkForTree.linkInfoElementNormal);
                 try invertedPatricia.putLinkInfo(linkForTree.revisedLinkText.invert(), &linkForTree.linkInfoElementInverted);
             }
@@ -653,9 +651,9 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
     {
         var element = linksForTree.head;
         while (element) |theElement| {
-            const theLinkInfo = theElement.value.info();
-            if (!theLinkInfo.urlSourceSet()) {
-                theLinkInfo.setSourceOfURL(theLinkInfo.info.firstPlainText, false);
+            const link = theElement.value.getLink();
+            if (!link.urlSourceSet()) {
+                link.setSourceOfURL(link.textInfo.firstPlainText, false);
             }
             element = theElement.next;
         }

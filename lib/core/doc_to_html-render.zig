@@ -425,6 +425,7 @@ pub const TmdRender = struct {
                 try fns.writeCloseTag(w, tag, true);
             },
             .attributes => {},
+            .link => {},
             .seperator => {
                 const tag = "hr";
                 const classes = "tmd-seperator";
@@ -941,7 +942,7 @@ pub const TmdRender = struct {
             },
 
             // atom
-            .seperator, .header, .usual, .attributes, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
+            .seperator, .header, .usual, .attributes, .link, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
         }
     }
 
@@ -1028,17 +1029,18 @@ pub const TmdRender = struct {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
                     .content => blk: {
                         if (tracker.activeLinkInfo) |linkInfo| {
+                            const link = linkInfo.link;
                             if (!tracker.firstPlainTextInLink) {
-                                std.debug.assert(!linkInfo.isFootnote());
-                                std.debug.assert(linkInfo.urlSourceSet());
+                                std.debug.assert(!link.isFootnote());
+                                std.debug.assert(link.urlSourceSet());
 
-                                if (linkInfo.info.urlSourceText) |sourceText| {
+                                if (link.textInfo.urlSourceText) |sourceText| {
                                     if (sourceText == token) break :blk;
                                 }
                             } else {
                                 tracker.firstPlainTextInLink = false;
 
-                                if (linkInfo.isFootnote()) {
+                                if (link.isFootnote()) {
                                     if (usage == .general) {
                                         if (tracker.linkFootnote.block) |_| {
                                             _ = try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
@@ -1088,15 +1090,16 @@ pub const TmdRender = struct {
                                 try writeCloseMarks(w, markElement, usage);
 
                                 const linkInfo = tracker.activeLinkInfo orelse unreachable;
+                                const link = linkInfo.link;
                                 if (usage == .general) blk: {
-                                    if (linkInfo.urlConfirmed()) {
-                                        std.debug.assert(linkInfo.urlConfirmed());
-                                        std.debug.assert(linkInfo.info.urlSourceText != null);
+                                    if (link.urlConfirmed()) {
+                                        std.debug.assert(link.urlConfirmed());
+                                        std.debug.assert(link.textInfo.urlSourceText != null);
 
-                                        const t = linkInfo.info.urlSourceText.?;
+                                        const t = link.textInfo.urlSourceText.?;
                                         const linkURL = LineScanner.trim_blanks(self.doc.rangeData(t.range()));
 
-                                        if (linkInfo.isFootnote()) {
+                                        if (link.isFootnote()) {
                                             const footnote_id = linkURL[1..];
                                             const footnote = try self.onFootnoteReference(footnote_id);
                                             tracker.linkFootnote = footnote;
@@ -1113,8 +1116,8 @@ pub const TmdRender = struct {
                                             \\<a href="{s}">
                                         , .{linkURL});
                                     } else {
-                                        std.debug.assert(!linkInfo.urlConfirmed());
-                                        std.debug.assert(!linkInfo.isFootnote());
+                                        std.debug.assert(!link.urlConfirmed());
+                                        std.debug.assert(!link.isFootnote());
 
                                         // ToDo: call custom callback to try to generate a url.
 
@@ -1225,13 +1228,14 @@ pub const TmdRender = struct {
                 .link => blk: {
                     const linkInfo = tracker.activeLinkInfo orelse break :blk;
                     tracker.activeLinkInfo = null;
+                    const link = linkInfo.link;
 
                     try writeCloseMarks(w, markElement, usage);
 
                     if (usage == .general) {
-                        if (linkInfo.urlConfirmed()) {
+                        if (link.urlConfirmed()) {
                             _ = try w.write("</a>");
-                            if (linkInfo.isFootnote()) {
+                            if (link.isFootnote()) {
                                 _ = try w.write("</sup>");
                             }
                         } else {

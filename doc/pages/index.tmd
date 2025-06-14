@@ -79,7 +79,7 @@
 ---
 {
 The page is written in TapirMD (source is available __here__).
-// __here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/index.tmd
+=== here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/index.tmd
 @@@
 }
 

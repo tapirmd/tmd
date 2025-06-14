@@ -18,7 +18,6 @@ const DocParser = @This();
 tmdDoc: *tmd.Doc,
 numBlocks: u32 = 0,
 
-commentLineParser: *ContentParser = undefined,
 lineScanner: LineScanner = undefined,
 
 nextElementAttributes: ?tmd.ElementAttibutes = null,
@@ -231,11 +230,6 @@ fn parse(parser: *DocParser) !void {
     const rootBlock = try parser.createAndPushBlockElement();
     var blockArranger = BlockArranger.start(rootBlock, parser.tmdDoc);
     // defer blockArranger.end(); // should not be called deferredly. Put in the end of the function now.
-
-    var commentLineParser = ContentParser.make(parser);
-    commentLineParser.init();
-    defer commentLineParser.deinit(); // ToDo: needed?
-    parser.commentLineParser = &commentLineParser;
 
     var contentParser = ContentParser.make(parser);
     contentParser.init();
@@ -818,7 +812,7 @@ fn parse(parser: *DocParser) !void {
                         parser.pendingTocHeaderBlock = headerBlock;
                     }
 
-                    contentParser.on_new_atom_block(currentAtomBlock);
+                    try contentParser.on_new_atom_block(currentAtomBlock);
 
                     if (lineScanner.lineEnd != null) {
                         // suffixBlankStart has been determined.
@@ -826,11 +820,11 @@ fn parse(parser: *DocParser) !void {
                         break :handle;
                     }
 
-                    const contentEnd = try contentParser.parse_header_line_tokens(line, lineScanner.cursor);
+                    const contentEnd = try contentParser.parse_line_tokens(line, lineScanner.cursor, true);
                     suffixBlankStart = contentEnd;
                     std.debug.assert(lineScanner.lineEnd != null);
                 },
-                ';' => |mark| handle: {
+                ';', '=' => |mark| handle: {
                     lineScanner.advance(1);
                     const markLen = lineScanner.readUntilNotChar(mark) + 1;
                     if (markLen < 3) {
@@ -860,13 +854,16 @@ fn parse(parser: *DocParser) !void {
                         },
                     };
 
-                    const usualBlock = try parser.createAndPushBlockElement();
-                    usualBlock.blockType = .{
+                    const newAtomBlock = try parser.createAndPushBlockElement();
+                    newAtomBlock.blockType = if (mark == ';') .{
                         .usual = .{
                             .startLine = line,
                         },
+                    } else .{
+                        .link = .{
+                            .startLine = line,
+                        },
                     };
-                    const newAtomBlock = usualBlock;
 
                     try blockArranger.stackAtomBlock(newAtomBlock, hasContainerMark);
 
@@ -874,7 +871,7 @@ fn parse(parser: *DocParser) !void {
                     currentAtomBlock = newAtomBlock;
                     atomBlockCount += 1;
 
-                    contentParser.on_new_atom_block(currentAtomBlock);
+                    try contentParser.on_new_atom_block(currentAtomBlock);
 
                     if (lineScanner.lineEnd != null) {
                         // suffixBlankStart has been determined.
@@ -882,7 +879,7 @@ fn parse(parser: *DocParser) !void {
                         break :handle;
                     }
 
-                    const contentEnd = try contentParser.parse_usual_line_tokens(line, lineScanner.cursor, true);
+                    const contentEnd = try contentParser.parse_line_tokens(line, lineScanner.cursor, true);
                     suffixBlankStart = contentEnd;
                     std.debug.assert(lineScanner.lineEnd != null);
                 },
@@ -950,7 +947,7 @@ fn parse(parser: *DocParser) !void {
                         oldLastBlock = parser.lastBlock;
                     }
 
-                    contentParser.on_new_atom_block(currentAtomBlock);
+                    try contentParser.on_new_atom_block(currentAtomBlock);
                     //defer contentParser.on_new_atom_block(); // ToDo: might be unnecessary
 
                     if (lineScanner.lineEnd == null) {
@@ -976,9 +973,8 @@ fn parse(parser: *DocParser) !void {
                 line.lineType = .usual;
 
                 if (hasContainerMark or
-                    currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header
-                        //and currentAtomBlock.blockType != .footer
-                ) {
+                    currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header and currentAtomBlock.blockType != .link)
+                {
                     const usualBlock = try parser.createAndPushBlockElement();
                     usualBlock.blockType = .{
                         .usual = .{
@@ -991,14 +987,15 @@ fn parse(parser: *DocParser) !void {
                     currentAtomBlock = usualBlock;
                     atomBlockCount += 1;
 
-                    contentParser.on_new_atom_block(currentAtomBlock);
+                    try contentParser.on_new_atom_block(currentAtomBlock);
                 }
 
                 if (lineScanner.lineEnd == null) {
-                    const contentEnd = try contentParser.parse_usual_line_tokens(
+                    std.debug.assert(contentStart == lineScanner.cursor);
+                    const contentEnd = try contentParser.parse_line_tokens(
                         line,
                         contentStart,
-                        //currentAtomBlock.blockType != .header and
+                        // ToDo: this is always true?
                         contentStart == lineScanner.cursor,
                     );
                     suffixBlankStart = contentEnd;
@@ -1027,7 +1024,7 @@ fn parse(parser: *DocParser) !void {
     try parser.setEndLineForAtomBlock(currentAtomBlock);
 
     // ToDo: remove this line. (Forget the reason.;( )
-    contentParser.on_new_atom_block(currentAtomBlock); // try to determine line-end spacing for the last coment line.
+    try contentParser.on_new_atom_block(currentAtomBlock); // try to determine line-end spacing for the last coment line.
 
     blockArranger.end();
 

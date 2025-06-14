@@ -4,7 +4,7 @@
 !  { ><
    :: The specification is written in TapirMD (source is available __here__).
    }
-   // __here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
+   === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
 
 __TapirMD__ is a powerful, next-generation markup language
 that simplifies content creation.
@@ -12,7 +12,7 @@ It builds on Markdown's straightforward syntax,
 offering enhanced specificity and greater control
 over formatting __#note-markdown__.
 
-// __TapirMD:: index.html
+=== TapirMD:: index.html
 
 While inspired by Markdown, TapirMD is not directly compatible.
 It's designed to generate rich HTML content,
