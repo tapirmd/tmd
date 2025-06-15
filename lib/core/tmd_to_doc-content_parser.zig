@@ -97,7 +97,7 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
     };
 
     if (atomBlock.blockType == .link) {
-        _ = try self.open_new_link(true);
+        _ = try self.open_new_link(atomBlock);
     }
 }
 
@@ -116,18 +116,16 @@ fn set_currnet_line(self: *ContentParser, line: *tmd.Line, lineStart: u32) void 
     };
 }
 
-fn open_new_link(self: *ContentParser, inLinkBlock: bool) !*tmd.Link {
+fn open_new_link(self: *ContentParser, linkBlock: ?*tmd.Block) !*tmd.Link {
     std.debug.assert(self.blockSession.lastLink == null);
 
     var linkElement = try list.createListElement(tmd.Link, self.docParser.tmdDoc.allocator);
     self.docParser.tmdDoc.links.pushTail(linkElement);
     const link = &linkElement.value;
     link.* = .{
+        .linkBlock = linkBlock,
         .textInfo = .{
             .firstPlainText = null,
-        },
-        .more = .{
-            .inLinkBlock = inLinkBlock,
         },
     };
     self.blockSession.lastLink = link;
@@ -542,7 +540,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             } else std.debug.assert(textEnd == textStart);
 
                             if (isLinkMark and !isSecondary) {
-                                const link = try self.open_new_link(false);
+                                const link = try self.open_new_link(null);
 
                                 // Link needs 2 tokens to store information.
                                 const token = try self.create_token();

@@ -991,11 +991,12 @@ fn parse(parser: *DocParser) !void {
                 }
 
                 if (lineScanner.lineEnd == null) {
-                    std.debug.assert(contentStart == lineScanner.cursor);
+                    // This is not always true. ex line: ---a
+                    //std.debug.assert(contentStart == lineScanner.cursor);
+
                     const contentEnd = try contentParser.parse_line_tokens(
                         line,
                         contentStart,
-                        // ToDo: this is always true?
                         contentStart == lineScanner.cursor,
                     );
                     suffixBlankStart = contentEnd;

@@ -210,8 +210,10 @@ pub const Link = struct {
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
 
-    //info: *Token.LinkInfo,
+    linkBlock: ?*Block = null, // non-null for like definition
 
+    // ToDo: since .firstPlainText is only a temporatiy value,
+    //       just replace this union with .urlSourceText.
     textInfo: packed union {
         // This is only used for link matching.
         firstPlainText: ?*Token, // null for a blank link span
@@ -222,11 +224,13 @@ pub const Link = struct {
     },
 
     more: packed struct {
-        inLinkBlock: bool = false,
         urlSourceSet: bool = false,
         urlConfirmed: bool = false,
+        //blankSourceOfURL: bool = false,
         isFootnote: bool = false,
-    },
+    } = .{},
+
+    // ToDo: remove the setXXX pub funcitons.
 
     pub fn isFootnote(self: *const @This()) bool {
         return self.more.isFootnote;
@@ -254,6 +258,19 @@ pub const Link = struct {
 
         self.more.urlSourceSet = true;
     }
+
+    // ToDo: support blankSourceOfURL? Maybe not a good idea.
+    //pub fn confirmBlankSourceOfURL(self: *@This()) void {
+    //    std.debug.assert(!self.urlSourceSet());
+    //
+    //    self.more.urlConfirmed = true;
+    //    self.textInfo = .{
+    //        .urlSourceText = null,
+    //    };
+    //    self.more.blankSourceOfURL = true;
+    //
+    //    self.more.urlSourceSet = true;
+    //}
 };
 
 pub const BaseBlockAttibutes = struct {
@@ -389,6 +406,12 @@ pub const Block = struct {
         std.debug.assert(self.isAtom());
 
         return inlineTokensBetweenLines(self.startLine(), self.endLine());
+    }
+
+    pub fn isBare(self: *const @This()) bool {
+        std.debug.assert(self.isAtom());
+        const line = self.startLine();
+        return line == self.endLine() and line.firstTokenOf(.others) == null;
     }
 
     pub fn compare(x: *const @This(), y: *const @This()) isize {
@@ -1180,6 +1203,8 @@ pub const Token = union(enum) {
         more: packed struct {
             secondary: bool,
         },
+
+        // nextInLink: ?*Token = null, // ToDo: put .pairCount in .more to save space for this.
 
         // `` means a void char.
         // ```` means (pairCount-1) non-collapsable spaces?

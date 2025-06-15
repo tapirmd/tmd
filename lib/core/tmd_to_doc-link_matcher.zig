@@ -436,7 +436,7 @@ const Matcher = struct {
 
     fn doForLinkDefinition(self: @This(), linkDef: *LinkForTree) void {
         const link = linkDef.getLink();
-        std.debug.assert(link.more.inLinkBlock);
+        std.debug.assert(link.linkBlock != null);
 
         const urlSource = link.textInfo.urlSourceText.?;
         const confirmed = link.urlConfirmed();
@@ -512,7 +512,19 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 // The link should be ignored in rendering.
 
                 //std.debug.print("ignored for no content tokens\n", .{});
-                link.setSourceOfURL(null, false);
+                link.setSourceOfURL(null, true);
+
+                if (link.linkBlock) |linkBlock| {
+                    if (linkBlock.isBare()) {
+                        normalPatricia.clear();
+                        invertedPatricia.clear();
+
+                        const theElement = try self.allocator.create(list.Element(LinkForTree));
+                        linksForTree.pushTail(theElement);
+                        theElement.value.setLinkAndText(link, .{});
+                    }
+                }
+
                 break :blk;
             };
 
@@ -529,7 +541,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             // handle the last text token
             {
                 const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
-                if (link.more.inLinkBlock) {
+                if (link.linkBlock != null) {
                     if (copyLinkText(&dummyLinkText, 0, str) == 0) {
                         // This link definition will be ignored.
 
@@ -556,7 +568,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     // The link should be ignored in rendering.
 
                     //std.debug.print("ignored for blank link text\n", .{});
-                    link.setSourceOfURL(null, false);
+                    link.setSourceOfURL(null, true);
                     break :blk;
                 }
             }
@@ -568,7 +580,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 .len = linkTextLen,
                 .text = textPtr,
             };
-            //defer std.debug.print("====={}: ||{s}||\n", .{link.more.inLinkBlock, revisedLinkText.asString()});
+            //defer std.debug.print("====={}: ||{s}||\n", .{link.linkBlock != null, revisedLinkText.asString()});
 
             const theElement = try self.allocator.create(list.Element(LinkForTree));
             linksForTree.pushTail(theElement);
@@ -591,7 +603,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                 // handle the last text token
                 const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
-                if (link.more.inLinkBlock) {
+                if (link.linkBlock != null) {
                     std.debug.assert(linkTextLen2 == linkTextLen);
 
                     //std.debug.print("    222 linkText = {s}\n", .{revisedLinkText.asString()});
@@ -616,7 +628,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 }
             };
 
-            std.debug.assert(link.more.inLinkBlock);
+            std.debug.assert(link.linkBlock != null);
 
             link.setSourceOfURL(lastToken, confirmed);
             matcher.doForLinkDefinition(linkForTree);
@@ -636,9 +648,15 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         while (element) |theElement| {
             const linkForTree = &theElement.value;
             const link = linkForTree.getLink();
-            if (link.more.inLinkBlock) {
-                std.debug.assert(link.urlSourceSet());
-                matcher.doForLinkDefinition(linkForTree);
+            if (link.linkBlock) |linkBlock| {
+                if (linkBlock.isBare()) {
+                    normalPatricia.clear();
+                    invertedPatricia.clear();
+                } else {
+                    std.debug.assert(link.urlSourceSet());
+
+                    matcher.doForLinkDefinition(linkForTree);
+                }
             } else if (!link.urlSourceSet()) {
                 try normalPatricia.putLinkInfo(linkForTree.revisedLinkText, &linkForTree.linkInfoElementNormal);
                 try invertedPatricia.putLinkInfo(linkForTree.revisedLinkText.invert(), &linkForTree.linkInfoElementInverted);
