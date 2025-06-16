@@ -84,6 +84,16 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
+        \\__
+        \\!! __foo__
+        \\
+        \\=== __foo__:: https://go101.org/__foo__
+        \\
+    , &.{
+        "https://go101.org/__foo__",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
         \\__foo__
         \\=== foo 
         \\    !! https://go101.org/__foo__/`foo``

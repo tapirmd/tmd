@@ -114,6 +114,7 @@ TapirMD supports a variety of block types, categorized into three groups:
    -  blank blocks
    -  usual blocks
    -  header blocks
+   -  link (definition) blocks
    -  seperator blocks
    -  attribute blocks
    -  code blocks
@@ -445,17 +446,24 @@ A syntaxable line is a %%**usual line**%%
 if it begins with a %%**usual block leadng mark token**%%, which
 *  begins with three or more consecutive `;` characters
 *  and ends with an optional blank character sequence.
-   A new %%**usual block**%% will always start at such a line.
-   If the usual block leading mark token is followed by a line-end blank token,
-   then the line is rendered as a blank block in HTML output.
+
+A new %%**usual block**%% will always start at such a usual line.
+If the usual block leading mark token is followed by a line-end blank token,
+then the line is rendered as a blank block in HTML output.
 
 If a syntaxable line doesn't begin with any identifiable block leading tokens,
-the line is also treated as a usual line.
-For such a usual line,
-*  if it has a previous line and the previous line is also a usual line or a header line
-   (see the following sections),
-   then the two lines belong to the same atom block (which might be a usual or header block).
-*  otherwise, a new usual block starts at the usual line.
+the line is also treated as a usual line, called a %%**plain usual line**%%.
+For a plain usual line,
+*  if it is the first line of a predefined container block,
+   a new usual block starts at the plain usual line.
+*  it has a previous line and the previous line is a block boundary line or a blank line,
+   a new usual block starts at the plain usual line.
+*  it has a previous line and the previous line is a usual/__header__/__link__ line,
+   then the two lines belong to the same atom block (which might be a usual/header/link block).
+*  otherwise, a new usual block starts at the plain usual line.
+
+=== header :: #header-blocks
+=== link :: #link-blocks
 
 Note that a usual block without non-blank tokens has alternative semantic when
 it is the first child block of a table block,
@@ -465,8 +473,7 @@ Usual blocks should be rendered as `<div>` elements in HTML output.
 @@@ #header-blocks
 ###+++++ Header blocks
 
-A syntaxable line beginning with three consecutive `#` characters is a %%**header (usual) line**%%.
-A new %%**header block**%% will always start at such a line.
+A syntaxable line beginning with three consecutive `#` characters is a %%**header line**%%.
 If the three `#` characters are followed by
 *  one or more consecutive `=` characters, a second-level header block starts at the header line, or
 *  one or more consecutive `+` characters, a three-level header block starts at the header line, or
@@ -477,11 +484,11 @@ A %%**header block leading mark token**%%
 *  begins with such a leading character sequences containing `#=+-` characters,
 *  and ends with an optional blank character sequence.
 
-Multiple optional non-header usual lines can follow a header line and also belong to
-the same header block starts at the header line.
+Multiple optional plain usual lines can follow a header line and also belong to
+the same header block starting at the header line.
 
-A header blocks with only one non-blank token
-(it sheader block leading mark token) is called a %%**bare header block**%%.
+A header block with only one non-blank token
+(its header block leading mark token) is called a %%**bare header block**%%.
 
 First-level non-bare header blocks are generally used for document titles.
 When there are more than one first-level non-bare headers in a TapirMD document
@@ -502,7 +509,8 @@ when they are the first non-attribute children of predefined container blocks.
 @@@ #inline-marks
 ###+++++ Style and controlling marks
 
-The usual lines in header and usual blocks may contain all kinds of style and controlling mark tokens.
+Besides the block leading mark token (if it exists), each line within a usual/header/link block
+may contain all kinds of style and controlling mark tokens.
 These mark tokens can help content creators achieve text styling, hyperlinks, media showing,
 line spacing, mark character escaping, etc.
 
@@ -727,57 +735,31 @@ However, TapirMD is carefully designed to ensure that text spans with link or co
 never need to be split apart.
 
 @@@ #links
-###----- links, link definitions and footnotes
+###----- links and footnotes
 
-Below, we will refer to text spans with link style as %%**link spans**%%.
+Below, we will refer to text spans with link style as %%**link spans**%% (or just links).
 
-Link spans outside comment lines are called %%**hyperlink spans**%%.
-A not-empty hyperlink span will be rendered as a hyperlink in HTML output.
-*  If the hyperlink span contains only one content token,
-   that token is used as the link text.
-*  If the hyperlink span contains multiple content tokens,
-   all tokens except the last one are used as the link text.
+A not-empty link span will be rendered as a hyperlink in HTML output.
+*  If the link span contains only one content token,
+   that token is used as the text of the hyperlink.
+*  If the link span contains multiple content tokens,
+   all tokens except the last one are used as the link text of the hyperlink.
 
-Within a comment line, if the text following the line-comment token
-begins with `__` (two underscores), it is parsed as a one-line usual block.
-Any link spans within this block are considered %%**link definitions**%%,
-which define URLs for hyperlink spans.
-A valid link definition must contain at least two content tokens.
+The URL for a hyperlink can be defined either inside or outside the corresponding link span.
+*  If the last content token of a link span is a valid URL (see below),
+   it is used as the hyperlink's URL. We call the link self-defined.
+*  Otherwise, a matching link (definition) block will be searched to provide the URL
+   (the matching rules are __described below__).
+   +  If a match is found, then the hyperlink's URL is determined by the matched link (definition) block.
+      -  If the matched link (definition) block succeeds to specifiy a URL,
+         that URL is used as the hyperlink's URL.
+      -  Otherwise, the hyperlink is viewed as broken.
+   +  If no matching blocks are found, the last content token in the corresponding link span
+      is treated as the argument of a custom URL generator.
+      -  If the URL is successfully generated, the generated URL is used as the hyperlink's URL.
+      -  Otherwise, the hyperlink is viewed as broken.
 
-The URL for a hyperlink can be defined either inside or outside the corresponding hyperlink span.
-*  If the last content token of a hyperlink span is a valid URL (see below),
-   it is used as the hyperlink's URL. We call the hyperlink self-defined.
-*  Otherwise, a matching link definition will be searched to provide the URL
-   (the matching rules are described below).
-   +  If a match is found, the last content token of the matching link definition is checked.
-      ~  If it's a valid URL (see below), that URL is used as the hyperlink's URL.
-      ~  If not, the last token is treated as a URL generation argument,
-         which is passed to custom user callbacks to generate a URL.
-         -  If the URL is successfully generated, it is used as the hyperlink's URL.
-         -  Otherwise, the hyperlink is marked as broken.
-   +  If no matching definitions are found, the last content token in the hyperlink span
-      is treated as a URL generation argument and passed to user callbacks to generate a URL.
-      -  If successful, the generated URL is usedas the hyperlink's URL.
-      -  Otherwise, the hyperlink is marked as broken.
-
-During searching a matching link definition for a hyperlink,
-link definitions following the hyperlink span have higher matching priority than those before it.
-And
--  for the ones following the hyperlink span, earlier ones have priority over later ones.
--  for the ones before the hyperlink span, later ones have priority over earlier ones.
-
-Matching text generation:
-*  All content tokens of a hyperlink span are combined into a single matching text,
-   with all blank characters removed.
-*  All content tokens of a link definition, except the last one,
-   are combined into a single matching text, with all blank characters removed.
-
-How matching works depends on the structure of matching texts of link definitions:
-*  If the matching text of a link definition consists solely of three dots (`...`),
-   the definition matches all hyperlink spans.
-*  If the matching text ends with three dots, prefix matching is performed.
-*  If the matching text begins with three dots, suffix matching is performed.
-*  Otherwise, exact matching is performed.
+=== described below :: #link-blocks
 
 A content token is a valid URL if its text
 *  starts with `http://` (ignore case), or
@@ -788,15 +770,61 @@ A content token is a valid URL if its text
 
 `[...]` means an optional part here.
 
-!  ### NOTE:
-   ;;; The URL validation rules might be adjuested with more details later.
-
 If a hyperlink span only contains a `#fragment` token,
 then the hyperlink span is viewed as a footnote reference.
 The corresponding footnote is defined in the block specified with ID as `fragment`.
 Generally, footnote definition blocks should be placed in an explcit base block
 which is commented out.
 Footnote blocks will be always rendered at the end of HTML output.
+
+@@@ #link-blocks
+###+++++ Link (definition) blocks
+
+A syntaxable line beginning with three or more consecutive `=` characters
+is a %%**link (definition) line**%% (or simply %%**link line**%%).
+Each %%**link (definition) block**%% (or simply %%**link block**%%) always starts with such a line.
+
+Multiple optional plain usual lines can follow a link line and also belong to
+the same link block starting with the link line.
+
+The sequence of the leading consecutive `=` characters of a link block is called
+a link block leading mark token.
+
+The lines within a link block never contain link spans. In other words,
+`__` character sequences will be viewed as content characters in link blocks.
+
+A link block with only one non-blank token
+(its link block leading mark token) is called a %%**bare link block**%%.
+
+Link blocks are used to specify URL for non-self-defined link spans.
+Each link block can specify one URL for multiple link spans satisfying certain patterns.
+
+A link block must contain at least two content tokens to specify a URL.
+*  If the last content token of a link block is a valid URL,
+   then the URL is what is specified.
+*  Othewise, the last content token is treated as the argument of a custom URL generator.
+   -  If the URL is successfully generated, then the URL is what is specified.
+   -  Otherwise, the link block fails to specify a URL.
+
+For a (non-self-defined) link span, the link blocks after it have higher matching priority than those before it.
+And
+-  for the ones after the link span, earlier ones have priority over later ones.
+   But the ones after a bare link block which is after the link span will never get matched.
+-  for the ones before the link span, later ones have priority over earlier ones.
+   But the ones before a bare link block which is before the link span will never get matched.
+
+How matching texts are generated:
+*  All content tokens of a link span are combined into a single matching text,
+   with all blank characters removed.
+*  All content tokens of a link block, except the last one,
+   are combined into a single matching text, with all blank characters removed.
+
+How matching works depends on the structure of matching texts of link blocks:
+*  If the matching text of a link block consists solely of three dots (`...`),
+   then the link block matches all link spans.
+*  If the matching text ends with three dots, prefix matching is performed.
+*  If the matching text begins with three dots, suffix matching is performed.
+*  Otherwise, exact matching is performed.
 
 @@@ #line-end-spacing
 ###+++++ Line-end spacing rules
@@ -819,8 +847,6 @@ cases happens:
 *  After the line and before the next content token, a media-embedding or line-break token is found.
 *  The next content token begins with a blank or CJK character.
    \\ (%% Again, even-backtick mark tokens in primary mode are interpreted as CJK characters. %%)
-
-
 
 !  ### NOTE:
    ;;; The current line-end spacing rules are not perfect and may be adjusted later.
@@ -1414,7 +1440,6 @@ _ (underscore)
 The following punctuation character sequencs are potential atom block leading marks.
 They should be escaped when they appear at usual line beginning.
 '''
-===
 +++
 ,,,
 ...

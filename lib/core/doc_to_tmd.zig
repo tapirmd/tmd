@@ -178,7 +178,7 @@ const FormatWriter = struct {
 
             std.debug.assert(!fw.shouldIndentUsualLines);
             defer fw.shouldIndentUsualLines = false;
-            fw.shouldIndentUsualLines = block.blockType == .header or
+            fw.shouldIndentUsualLines = block.blockType == .header or block.blockType == .link or
                 tryToIndentUsualLines and block.blockType == .usual and line.lineTypeMarkToken() != null;
 
             const endLine = block.endLine();
