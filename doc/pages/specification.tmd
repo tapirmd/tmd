@@ -4,7 +4,7 @@
 !  { ><
    :: The specification is written in TapirMD (source is available __here__).
    }
-   === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
 
 __TapirMD__ is a powerful, next-generation markup language
 that simplifies content creation.
@@ -12,7 +12,7 @@ It builds on Markdown's straightforward syntax,
 offering enhanced specificity and greater control
 over formatting __#note-markdown__.
 
-=== TapirMD:: index.html
+    === TapirMD:: index.html
 
 While inspired by Markdown, TapirMD is not directly compatible.
 It's designed to generate rich HTML content,
@@ -462,8 +462,8 @@ For a plain usual line,
    then the two lines belong to the same atom block (which might be a usual/header/link block).
 *  otherwise, a new usual block starts at the plain usual line.
 
-=== header :: #header-blocks
-=== link :: #link-blocks
+    === header :: #header-blocks
+    === link :: #link-blocks
 
 Note that a usual block without non-blank tokens has alternative semantic when
 it is the first child block of a table block,
@@ -759,7 +759,7 @@ The URL for a hyperlink can be defined either inside or outside the correspondin
       -  If the URL is successfully generated, the generated URL is used as the hyperlink's URL.
       -  Otherwise, the hyperlink is viewed as broken.
 
-=== described below :: #link-blocks
+    === described below :: #link-blocks
 
 A content token is a valid URL if its text
 *  starts with `http://` (ignore case), or

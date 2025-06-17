@@ -4,22 +4,22 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-   === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/installation.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/installation.tmd
 
 This page shows the steps of installing and using the official __TapirMD__ toolset locally.
 You can also experience the toolset __online__.
 
-=== TapirMD:: index.html
-=== online:: play.html
+    === TapirMD:: index.html
+    === online:: play.html
 
 ###+++++ Installation steps
 
-=== Git :: https://git-scm.com/downloads
-=== Go :: https://go.dev/dl/
-=== Zig :: https://ziglang.org/download/
-=== the TapirMD project :: https://github.com/tapirmd/tmd
-=== the go-tmd project :: https://github.com/go101/tmd
-=== download its source code :: https://github.com/tapirmd/tmd/tags
+    === Git :: https://git-scm.com/downloads
+    === Go :: https://go.dev/dl/
+    === Zig :: https://ziglang.org/download/
+    === the TapirMD project :: https://github.com/tapirmd/tmd
+    === the go-tmd project :: https://github.com/go101/tmd
+    === download its source code :: https://github.com/tapirmd/tmd/tags
 
 TapirMD hasn't yet reached version 1.0.0 (or even 0.1.0).
 At this stage, building from source is the only way to run
@@ -68,4 +68,9 @@ the offcial TapirMD commands locally.
       Now, only `html` custom blocks can be enabled.
 
    -  Complete HTML files can be generated with the `--trial-page-css` option.
-      Just run `tmd` without arguments to show the help information.
+      For example, the following command will use the built-in example css.
+      '''
+    tmd gen ---trial-page-css=@ foo.tmd path-to-a-tmd-folder
+      '''
+
+*  Just run `tmd` without arguments to show the help information.

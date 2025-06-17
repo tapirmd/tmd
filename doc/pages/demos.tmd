@@ -4,13 +4,13 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-   === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/demos.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/demos.tmd
 
 This page presents a few simple demos using __TapirMD__.
 For detailed explanations, please refer to __the specification__.
 
-=== TapirMD:: index.html
-=== the specification:: specification.html
+    === TapirMD:: index.html
+    === the specification:: specification.html
 
 ###-
 
@@ -89,7 +89,7 @@ For detailed explanations, please refer to __the specification__.
    ''''' << #demo-3
    @@@ #demo-3
    {
-   === Go 101 website ` https://go101.org
+       === Go 101 website ` https://go101.org
 
    Visit __Go 101 website__ (the link is defined above) __#note-go101__.
 
@@ -97,12 +97,12 @@ For detailed explanations, please refer to __the specification__.
    is on __`for` Loop Semantic Changes in Go 1.22:
    Be Aware of the Impact__ (the link is defined below).
 
-   === for Loop... :: https://go101.org/blog/2024-03-01-for-loop-semantic-changes-in-go-1.22.html
+       === for Loop... :: https://go101.org/blog/2024-03-01-for-loop-semantic-changes-in-go-1.22.html
 
    __No Safe Efficient Ways to Do Three-way String Comparisons in Go__
    (the link is defined below).
 
-   === ...in Go ~~ https://go101.org/blog/2022-10-01-three-way-string-comparison.html
+       === ...in Go ~~ https://go101.org/blog/2022-10-01-three-way-string-comparison.html
    }
 
 @@@ #section-demo-4
