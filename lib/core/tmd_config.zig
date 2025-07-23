@@ -32,7 +32,6 @@ pub const Config = struct {
         const block = config.doc.blockByID(key) orelse return null;
 
         return switch (block.blockType) {
-            .blank => "",
             .header, .usual => blk: {
                 var iter = block.inlineTokens();
                 var token = iter.first() orelse break :blk "";
@@ -49,7 +48,7 @@ pub const Config = struct {
                 const endLine = c.endDataLine() orelse unreachable;
                 break :blk config.doc.rangeData(.{ .start = startLine.start(.none), .end = endLine.end(.trimLineEnd) });
             },
-            else => null,
+            else => "",
         };
     }
 };

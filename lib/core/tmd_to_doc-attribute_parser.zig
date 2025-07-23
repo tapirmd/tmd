@@ -99,7 +99,7 @@ pub fn parse_element_attributes(playload: []const u8) tmd.ElementAttibutes {
     // } = null;
 
     var it = std.mem.splitAny(u8, playload, " \t");
-    var item = it.first();
+    var item = it.first(); // ToDo: only use next() is okay.
     parse: while (true) {
         if (item.len != 0) {
             switch (item[0]) {

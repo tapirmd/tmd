@@ -104,7 +104,7 @@ pub const TmdRender = struct {
             try self.writeUsualContentBlockLinesForTitleInPageHeader(w, titleHeader);
             return true;
         } else {
-            _ = try w.write("");
+            try w.writeAll("");
             return false;
         }
     }
@@ -214,7 +214,7 @@ pub const TmdRender = struct {
                 }
             },
 
-            // NOTE: can't be |listItem|, which makes @fieldParentPtr return wrong pointer.
+            // NOTE: can't be |listItem|, which makes @fieldParentPtr return wrong pointer (to a temp value on stack?).
             .item => |*listItem| {
                 std.debug.assert(block.attributes == null); // ToDo: support item attributes?
 
@@ -252,18 +252,18 @@ pub const TmdRender = struct {
                         const tabInfo = &self.tabListInfos[@intCast(self.currentTabListDepth)];
                         tabInfo.nextItemOrderId += 1;
 
-                        _ = try w.print(
+                        try w.print(
                             \\<input type="radio" class="tmd-tab-radio" name="tmd-tab-{d}{s}" id="tmd-tab-{d}-input-{d}{s}"
                         ,
                             .{ tabInfo.orderId, self.autoIdentSuffix, tabInfo.orderId, tabInfo.nextItemOrderId, self.autoIdentSuffix },
                         );
 
-                        if (listItem.isFirst()) _ = try w.write(" checked");
-                        _ = try w.write(">\n");
+                        if (listItem.isFirst()) try w.writeAll(" checked");
+                        try w.writeAll(">\n");
 
                         const headerTag = "label";
                         const headerClasses = "tmd-tab-header tmd-tab-label";
-                        _ = try w.print(
+                        try w.print(
                             \\<{s} for="tmd-tab-{d}-input-{d}{s}"
                         ,
                             .{ headerTag, tabInfo.orderId, tabInfo.nextItemOrderId, self.autoIdentSuffix },
@@ -271,20 +271,20 @@ pub const TmdRender = struct {
 
                         const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                             try fns.writeBlockAttributes(w, headerClasses, headerBlock.attributes, self.identSuffix);
-                            _ = try w.write(">");
+                            try w.writeAll(">\n");
 
                             if (listItem.list.blockType.list.secondMode) {
-                                _ = try w.print("{d}. ", .{tabInfo.nextItemOrderId});
+                                try w.print("{d}. ", .{tabInfo.nextItemOrderId});
                             }
                             try self.writeUsualContentBlockLines(w, headerBlock);
 
                             break :blk headerBlock.nextSibling();
                         } else blk: {
                             try fns.writeBlockAttributes(w, headerClasses, null, self.identSuffix);
-                            _ = try w.write(">");
+                            try w.writeAll(">\n");
 
                             if (listItem.list.blockType.list.secondMode) {
-                                _ = try w.print("{d}. ", .{tabInfo.nextItemOrderId});
+                                try w.print("{d}. ", .{tabInfo.nextItemOrderId});
                             }
 
                             break :blk block.firstChild();
@@ -450,13 +450,13 @@ pub const TmdRender = struct {
                         try fns.writeOpenTag(w, headerTag, headerClasses, null, self.identSuffix, true);
                     }
 
-                    _ = try w.print("<h{}", .{realLevel});
+                    try w.print("<h{}", .{realLevel});
                     try fns.writeBlockAttributes(w, tmdHeaderClass(realLevel), block.attributes, self.identSuffix);
-                    _ = try w.write(">\n");
+                    try w.writeAll(">\n");
 
                     try self.writeUsualContentBlockLines(w, block);
 
-                    _ = try w.print("</h{}>\n", .{realLevel});
+                    try w.print("</h{}>\n", .{realLevel});
                 }
             },
             .usual => |usual| {
@@ -692,23 +692,23 @@ pub const TmdRender = struct {
     fn writeTableCellSpans(w: anytype, spans: TableCell.Spans) !void {
         std.debug.assert(spans.rowSpan > 0);
         if (spans.rowSpan != 1) {
-            _ = try w.print(
+            try w.print(
                 \\ rowspan="{}"
             , .{spans.rowSpan});
         }
         std.debug.assert(spans.colSpan > 0);
-        if (spans.colSpan != 1) _ = try w.print(
+        if (spans.colSpan != 1) try w.print(
             \\ colspan="{}"
         , .{spans.colSpan});
     }
 
     // ToDo: write align
     fn renderTableHeaderCellBlock(self: *TmdRender, w: anytype, tableHeaderCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
-        _ = try w.write("<th");
+        try w.writeAll("<th");
         try writeTableCellSpans(w, spans);
-        _ = try w.write(">\n");
+        try w.writeAll(">\n");
         try self.writeUsualContentBlockLines(w, tableHeaderCellBlock);
-        _ = try w.write("</th>\n");
+        try w.writeAll("</th>\n");
     }
 
     // ToDo: write align
@@ -738,7 +738,7 @@ pub const TmdRender = struct {
 
         try fns.writeOpenTag(w, tag, tdClass, null, self.identSuffix, null);
         try writeTableCellSpans(w, spans);
-        _ = try w.write(">\n");
+        try w.writeAll(">\n");
         try self.renderBlock(w, tableCellBlock);
         try fns.writeCloseTag(w, tag, true);
     }
@@ -756,19 +756,19 @@ pub const TmdRender = struct {
 
         try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.identSuffix, true);
 
-        _ = try w.write("<tr>\n");
+        try w.writeAll("<tr>\n");
         var lastRow: u32 = 0;
         for (cells) |cell| {
             if (cell.row != lastRow) {
                 lastRow = cell.row;
 
-                _ = try w.write("</tr>\n");
-                _ = try w.write("<tr>\n");
+                try w.writeAll("</tr>\n");
+                try w.writeAll("<tr>\n");
             }
 
             try self.renderTableCellBlock(w, cell.block, cell.spans_RowOriented());
         }
-        _ = try w.write("</tr>\n");
+        try w.writeAll("</tr>\n");
 
         try fns.writeCloseTag(w, tag, true);
     }
@@ -788,19 +788,19 @@ pub const TmdRender = struct {
 
         try fns.writeOpenTag(w, tag, classes, tableBlock.attributes, self.identSuffix, true);
 
-        _ = try w.write("<tr>\n");
+        try w.writeAll("<tr>\n");
         var lastCol: u32 = 0;
         for (cells) |cell| {
             if (cell.col != lastCol) {
                 lastCol = cell.col;
 
-                _ = try w.write("</tr>\n");
-                _ = try w.write("<tr>\n");
+                try w.writeAll("</tr>\n");
+                try w.writeAll("<tr>\n");
             }
 
             try self.renderTableCellBlock(w, cell.block, cell.spans_ColumnOriented());
         }
-        _ = try w.write("</tr>\n");
+        try w.writeAll("</tr>\n");
 
         try fns.writeCloseTag(w, tag, true);
     }
@@ -855,7 +855,8 @@ pub const TmdRender = struct {
 
         //try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
-        try self.customFn(w.any(), self.doc, &block.blockType.custom);
+        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
+        try self.customFn(aw, self.doc, &block.blockType.custom);
 
         //try fns.writeCloseTag(w, tag, true);
     }
@@ -876,10 +877,10 @@ pub const TmdRender = struct {
         try fns.writeOpenTag(w, tag, classes, block.attributes, self.identSuffix, true);
 
         if (attrs.language.len > 0) {
-            _ = try w.write("<code class=\"language-");
+            try w.writeAll("<code class=\"language-");
             try fns.writeHtmlAttributeValue(w, attrs.language);
-            _ = try w.write("\"");
-            _ = try w.write(">");
+            try w.writeAll("\"");
+            try w.writeAll(">");
         }
 
         const endLine = block.endLine();
@@ -899,7 +900,7 @@ pub const TmdRender = struct {
                 }
 
                 std.debug.assert(!line.treatEndAsSpace);
-                _ = try w.write("\n");
+                try w.writeAll("\n");
 
                 if (line == endLine) break;
 
@@ -916,12 +917,12 @@ pub const TmdRender = struct {
             } else if (std.mem.startsWith(u8, content, "#")) {
                 const id = content[1..];
                 const b = if (self.doc.blockByID(id)) |b| b else break :blk;
-                _ = try self.renderTmdCode(w, b, true);
+                try self.renderTmdCode(w, b, true);
             } else break :blk;
         }
 
         if (attrs.language.len > 0) {
-            _ = try w.write("</code>");
+            try w.writeAll("</code>");
         }
 
         try fns.writeCloseTag(w, tag, true);
@@ -971,7 +972,7 @@ pub const TmdRender = struct {
         const start = line.start(.none);
         const end = line.end(.trimLineEnd);
         try fns.writeHtmlContentText(w, self.doc.rangeData(.{ .start = start, .end = end }));
-        _ = try w.write("\n");
+        try w.writeAll("\n");
     }
 
     //======================== usual
@@ -1043,9 +1044,9 @@ pub const TmdRender = struct {
                                 if (link.isFootnote()) {
                                     if (usage == .general) {
                                         if (tracker.linkFootnote.block) |_| {
-                                            _ = try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
+                                            try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
                                         } else {
-                                            _ = try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                            try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
                                         }
                                     }
                                     break :blk;
@@ -1053,25 +1054,25 @@ pub const TmdRender = struct {
                             }
                         }
                         const text = self.doc.rangeData(token.range());
-                        _ = try fns.writeHtmlContentText(w, text);
+                        try fns.writeHtmlContentText(w, text);
                     },
                     .linkInfo => |*l| {
                         tracker.onLinkInfo(l);
                     },
                     .evenBackticks => |m| {
                         if (m.more.secondary) {
-                            //_ = try w.write("&ZeroWidthSpace;"); // ToDo: write the code utf value instead
+                            //try w.writeAll("&ZeroWidthSpace;"); // ToDo: write the code utf value instead
 
                             for (0..m.pairCount) |_| {
-                                _ = try w.write("`");
+                                try w.writeAll("`");
                             }
                         } else if (usage == .titleInPageHeader) {
                             if (m.pairCount > 1) {
-                                _ = try w.write(" ");
+                                try w.writeAll(" ");
                             }
                         } else {
                             for (1..m.pairCount) |_| {
-                                _ = try w.write("&nbsp");
+                                try w.writeAll("&nbsp");
                             }
                         }
                     },
@@ -1106,13 +1107,13 @@ pub const TmdRender = struct {
 
                                             if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
 
-                                            _ = try w.print(
+                                            try w.print(
                                                 \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
                                             , .{ footnote_id, self.identSuffix, footnote.refWrittenCount, footnote_id, self.identSuffix });
                                             break :blk;
                                         }
 
-                                        _ = try w.print(
+                                        try w.print(
                                             \\<a href="{s}">
                                         , .{linkURL});
                                     } else {
@@ -1121,7 +1122,7 @@ pub const TmdRender = struct {
 
                                         // ToDo: call custom callback to try to generate a url.
 
-                                        _ = try w.write(
+                                        try w.writeAll(
                                             \\<span class="tmd-broken-link">
                                         );
 
@@ -1139,11 +1140,11 @@ pub const TmdRender = struct {
                     .leadingSpanMark => |m| {
                         switch (m.more.markType) {
                             .lineBreak => {
-                                if (usage != .titleInPageHeader) _ = try w.write("<br/>");
+                                if (usage != .titleInPageHeader) try w.writeAll("<br/>");
                             },
                             .escape => {},
                             .spoiler => if (tokenElement.next) |_| {
-                                if (usage != .titleInPageHeader) _ = try w.write(
+                                if (usage != .titleInPageHeader) try w.writeAll(
                                     \\<span class="tmd-spoiler">
                                 );
                                 isNonBareSpoilerLine = true;
@@ -1154,7 +1155,7 @@ pub const TmdRender = struct {
                                     tracker.firstPlainTextInLink = false;
                                 }
                                 if (m.more.isBare) {
-                                    _ = try w.write(" ");
+                                    try w.writeAll(" ");
                                     break :blk;
                                 }
                                 if (usage == .titleInPageHeader) break :blk;
@@ -1169,12 +1170,12 @@ pub const TmdRender = struct {
                                     const src = self.doc.rangeData(mediaInfoToken.range());
                                     if (!AttributeParser.isValidMediaURL(src)) break :writeMedia;
 
-                                    _ = try w.write("<img src=\"");
+                                    try w.writeAll("<img src=\"");
                                     try fns.writeHtmlAttributeValue(w, src);
                                     if (isInline) {
-                                        _ = try w.write("\" class=\"tmd-inline-media\"/>");
+                                        try w.writeAll("\" class=\"tmd-inline-media\"/>");
                                     } else {
-                                        _ = try w.write("\" class=\"tmd-media\"/>");
+                                        try w.writeAll("\" class=\"tmd-media\"/>");
                                     }
                                 }
 
@@ -1189,11 +1190,11 @@ pub const TmdRender = struct {
             }
 
             if (usage != .titleInPageHeader) {
-                if (isNonBareSpoilerLine) _ = try w.write("</span>");
+                if (isNonBareSpoilerLine) try w.writeAll("</span>");
             }
 
             if (line != endLine) {
-                if (line.treatEndAsSpace) _ = try w.write(" ");
+                if (line.treatEndAsSpace) try w.writeAll(" ");
                 line = line.next() orelse unreachable;
             } else {
                 std.debug.assert(!line.treatEndAsSpace);
@@ -1214,7 +1215,7 @@ pub const TmdRender = struct {
             }
         }
 
-        if (usage == .general) _ = try w.write("\n");
+        if (usage == .general) try w.writeAll("\n");
     }
 
     // Genreally, m is a close mark. But for missing close marks in the end,
@@ -1234,12 +1235,12 @@ pub const TmdRender = struct {
 
                     if (usage == .general) {
                         if (link.urlConfirmed()) {
-                            _ = try w.write("</a>");
+                            try w.writeAll("</a>");
                             if (link.isFootnote()) {
-                                _ = try w.write("</sup>");
+                                try w.writeAll("</sup>");
                             }
                         } else {
-                            _ = try w.write("</span>");
+                            try w.writeAll("</span>");
                         }
                     }
 
@@ -1300,79 +1301,79 @@ pub const TmdRender = struct {
         switch (spanMark.markType) {
             .link => {
                 std.debug.assert(spanMark.more.secondary);
-                _ = try w.write(
+                try w.writeAll(
                     \\<span class="tmd-underlined">
                 );
             },
             .fontWeight => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-dimmed">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-bold">
                     );
                 }
             },
             .fontStyle => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-revert-italic">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-italic">
                     );
                 }
             },
             .fontSize => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-larger-size">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-smaller-size">
                     );
                 }
             },
             .deleted => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-invisible">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<span class="tmd-deleted">
                     );
                 }
             },
             .marked => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<mark class="tmd-marked-2">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<mark class="tmd-marked">
                     );
                 }
             },
             .supsub => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write("<sup>");
+                    try w.writeAll("<sup>");
                 } else {
-                    _ = try w.write("<sub>");
+                    try w.writeAll("<sub>");
                 }
             },
             .code => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<code class="tmd-mono-font">
                     );
                 } else {
-                    _ = try w.write(
+                    try w.writeAll(
                         \\<code class="tmd-code-span">
                     );
                 }
@@ -1386,20 +1387,20 @@ pub const TmdRender = struct {
 
         switch (spanMark.markType) {
             .link, .fontWeight, .fontStyle, .fontSize, .deleted => {
-                _ = try w.write("</span>");
+                try w.writeAll("</span>");
             },
             .marked => {
-                _ = try w.write("</mark>");
+                try w.writeAll("</mark>");
             },
             .supsub => {
                 if (spanMark.more.secondary) {
-                    _ = try w.write("</sup>");
+                    try w.writeAll("</sup>");
                 } else {
-                    _ = try w.write("</sub>");
+                    try w.writeAll("</sub>");
                 }
             },
             .code => {
-                _ = try w.write("</code>");
+                try w.writeAll("</code>");
             },
         }
     }
@@ -1409,7 +1410,7 @@ pub const TmdRender = struct {
     fn writeTableOfContents(self: *TmdRender, w: anytype, level: u8) !void {
         if (self.doc.tocHeaders.empty()) return;
 
-        _ = try w.write("\n<ul class=\"tmd-list tmd-toc\">\n");
+        try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
 
         var levelOpened: [tmd.MaxHeaderLevel + 1]bool = .{false} ** (tmd.MaxHeaderLevel + 1);
         var lastLevel: u8 = tmd.MaxHeaderLevel + 1;
@@ -1428,42 +1429,42 @@ pub const TmdRender = struct {
                 for (headerLevel..lastLevel) |level_1| if (levelOpened[level_1]) {
                     // close last level
                     levelOpened[level_1] = false;
-                    _ = try w.write("</ul>\n");
+                    try w.writeAll("</ul>\n");
                 };
             } else if (lastLevel < headerLevel) {
                 // open level
                 levelOpened[headerLevel - 1] = true;
-                _ = try w.write("\n<ul class=\"tmd-list tmd-toc\">\n");
+                try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
             }
 
-            _ = try w.write("<li class=\"tmd-list-item tmd-toc-item\">");
+            try w.writeAll("<li class=\"tmd-list-item tmd-toc-item\">");
 
             const id = if (headerBlock.attributes) |as| as.id else "";
 
             // ToDo:
-            //_ = try w.write("hdr:");
+            //try w.writeAll("hdr:");
             // try self.writeUsualContentAsID(w, headerBlock);
             // Maybe it is better to pre-generate the IDs, to avoid duplications.
 
-            if (id.len == 0) _ = try w.write("<span class=\"tmd-broken-link\"") else {
-                _ = try w.write("<a href=\"#");
-                _ = try w.write(id);
-                _ = try w.write(self.identSuffix);
+            if (id.len == 0) try w.writeAll("<span class=\"tmd-broken-link\"") else {
+                try w.writeAll("<a href=\"#");
+                try w.writeAll(id);
+                try w.writeAll(self.identSuffix);
             }
-            _ = try w.write("\">");
+            try w.writeAll("\">");
 
             try self.writeUsualContentBlockLinesForTocItem(w, headerBlock);
 
-            if (id.len == 0) _ = try w.write("</span>\n") else _ = try w.write("</a>\n");
+            if (id.len == 0) try w.writeAll("</span>\n") else try w.writeAll("</a>\n");
 
-            _ = try w.write("</li>\n");
+            try w.writeAll("</li>\n");
         }
 
         for (&levelOpened) |opened| if (opened) {
-            _ = try w.write("</ul>\n");
+            try w.writeAll("</ul>\n");
         };
 
-        _ = try w.write("</ul>\n");
+        try w.writeAll("</ul>\n");
     }
 
     fn writeFootnotes(self: *TmdRender, w: anytype) !void {
@@ -1478,31 +1479,31 @@ pub const TmdRender = struct {
     fn _writeFootnotes(self: *TmdRender, w: anytype) !void {
         if (self.footnoteNodes.empty()) return;
 
-        _ = try w.write("\n<ol class=\"tmd-list tmd-footnotes\">\n");
+        try w.writeAll("\n<ol class=\"tmd-list tmd-footnotes\">\n");
 
         var listElement = self.footnoteNodes.head;
         while (listElement) |element| {
             defer listElement = element.next;
             const footnote = element.value.value;
 
-            _ = try w.print("<li id=\"fn:{s}{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ footnote.id, self.identSuffix });
+            try w.print("<li id=\"fn:{s}{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ footnote.id, self.identSuffix });
             const missing_flag = if (footnote.block) |block| blk: {
                 switch (block.blockType) {
                     // .item can't have ID now.
-                    //.item => _ = try self.renderBlockChildren(w, block),
+                    //.item => try self.renderBlockChildren(w, block),
                     .item => unreachable,
-                    else => _ = try self.renderBlock(w, block),
+                    else => try self.renderBlock(w, block),
                 }
                 break :blk "";
             } else "?";
 
             for (1..footnote.refCount + 1) |n| {
-                _ = try w.print(" <a href=\"#fn:{s}{s}:ref-{}\">↩︎{s}</a>", .{ footnote.id, self.identSuffix, n, missing_flag });
+                try w.print("<a href=\"#fn:{s}{s}:ref-{}\">↩︎{s}</a>", .{ footnote.id, self.identSuffix, n, missing_flag });
             }
-            _ = try w.write("</li>\n");
+            try w.writeAll("</li>\n");
         }
 
-        _ = try w.write("</ol>\n");
+        try w.writeAll("</ol>\n");
     }
 
     //===================================

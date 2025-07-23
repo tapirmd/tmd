@@ -44,8 +44,8 @@ pub fn htmlCustomGenFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const 
     while (true) {
         std.debug.assert(line.lineType == .data);
 
-        _ = try w.write(doc.rangeData(line.range(.trimLineEnd)));
-        _ = try w.write("\n");
+        try w.writeAll(doc.rangeData(line.range(.trimLineEnd)));
+        try w.writeAll("\n");
 
         if (line == endDataLine) break;
         line = line.next() orelse unreachable;

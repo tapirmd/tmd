@@ -5,33 +5,33 @@ const tmd = @import("tmd.zig");
 pub fn writeOpenTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8, endAndWriteNewLine: ?bool) !void {
     std.debug.assert(tag.len > 0);
 
-    _ = try w.write("<");
-    _ = try w.write(tag);
+    try w.writeAll("<");
+    try w.writeAll(tag);
     try writeBlockAttributes(w, classesSeperatedBySpace, attributes, identSuffix);
     if (endAndWriteNewLine) |write| {
-        _ = try w.write(">");
-        if (write) _ = try w.write("\n");
+        try w.writeAll(">");
+        if (write) try w.writeAll("\n");
     }
 }
 
 pub fn writeCloseTag(w: anytype, tag: []const u8, writeNewLine: bool) !void {
     std.debug.assert(tag.len > 0);
 
-    _ = try w.write("</");
-    _ = try w.write(tag);
-    _ = try w.write(">");
-    if (writeNewLine) _ = try w.write("\n");
+    try w.writeAll("</");
+    try w.writeAll(tag);
+    try w.writeAll(">");
+    if (writeNewLine) try w.writeAll("\n");
 }
 
 pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8, writeNewLine: bool) !void {
     std.debug.assert(tag.len > 0);
 
-    _ = try w.write("<");
-    _ = try w.write(tag);
-    _ = try w.write(" ");
+    try w.writeAll("<");
+    try w.writeAll(tag);
+    try w.writeAll(" ");
     try writeBlockAttributes(w, classesSeperatedBySpace, attributes, identSuffix);
-    _ = try w.write("/>");
-    if (writeNewLine) _ = try w.write("\n");
+    try w.writeAll("/>");
+    if (writeNewLine) try w.writeAll("\n");
 }
 
 pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8) !void {
@@ -44,25 +44,25 @@ pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, att
 }
 
 pub fn writeID(w: anytype, id: []const u8, identSuffix: []const u8) !void {
-    _ = try w.write(" id=\"");
-    _ = try w.write(id);
-    if (identSuffix.len > 0) _ = try w.write(identSuffix);
-    _ = try w.write("\"");
+    try w.writeAll(" id=\"");
+    try w.writeAll(id);
+    if (identSuffix.len > 0) try w.writeAll(identSuffix);
+    try w.writeAll("\"");
 }
 
 pub fn writeClasses(w: anytype, classesSeperatedBySpace: []const u8, classesSeperatedBySemicolon: []const u8) !void {
     if (classesSeperatedBySpace.len == 0 and classesSeperatedBySemicolon.len == 0) return;
 
-    _ = try w.write(" class=\"");
+    try w.writeAll(" class=\"");
     var needSpace = classesSeperatedBySpace.len > 0;
-    if (needSpace) _ = try w.write(classesSeperatedBySpace);
+    if (needSpace) try w.writeAll(classesSeperatedBySpace);
     if (classesSeperatedBySemicolon.len > 0) {
         var it = std.mem.splitAny(u8, classesSeperatedBySemicolon, ";");
         var item = it.first();
         while (true) {
             if (item.len != 0) {
-                if (needSpace) _ = try w.write(" ") else needSpace = true;
-                _ = try w.write(item);
+                if (needSpace) try w.writeAll(" ") else needSpace = true;
+                try w.writeAll(item);
             }
 
             if (it.next()) |next| {
@@ -70,7 +70,7 @@ pub fn writeClasses(w: anytype, classesSeperatedBySpace: []const u8, classesSepe
             } else break;
         }
     }
-    _ = try w.write("\"");
+    try w.writeAll("\"");
 }
 
 pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
@@ -79,19 +79,19 @@ pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
     while (i < text.len) : (i += 1) {
         switch (text[i]) {
             '"' => {
-                _ = try w.write(text[last..i]);
-                _ = try w.write("&quot;");
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&quot;");
                 last = i + 1;
             },
             '\'' => {
-                _ = try w.write(text[last..i]);
-                _ = try w.write("&apos;");
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&apos;");
                 last = i + 1;
             },
             else => {},
         }
     }
-    _ = try w.write(text[last..i]);
+    try w.writeAll(text[last..i]);
 }
 
 pub fn writeHtmlContentText(w: anytype, text: []const u8) !void {
@@ -100,32 +100,32 @@ pub fn writeHtmlContentText(w: anytype, text: []const u8) !void {
     while (i < text.len) : (i += 1) {
         switch (text[i]) {
             '&' => {
-                _ = try w.write(text[last..i]);
-                _ = try w.write("&amp;");
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&amp;");
                 last = i + 1;
             },
             '<' => {
-                _ = try w.write(text[last..i]);
-                _ = try w.write("&lt;");
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&lt;");
                 last = i + 1;
             },
             '>' => {
-                _ = try w.write(text[last..i]);
-                _ = try w.write("&gt;");
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&gt;");
                 last = i + 1;
             },
             //'"' => {
-            //    _ = try w.write(text[last..i]);
-            //    _ = try w.write("&quot;");
+            //    try w.writeAll(text[last..i]);
+            //    try w.writeAll("&quot;");
             //    last = i + 1;
             //},
             //'\'' => {
-            //    _ = try w.write(text[last..i]);
-            //    _ = try w.write("&apos;");
+            //    try w.writeAll(text[last..i]);
+            //    try w.writeAll("&apos;");
             //    last = i + 1;
             //},
             else => {},
         }
     }
-    _ = try w.write(text[last..i]);
+    try w.writeAll(text[last..i]);
 }

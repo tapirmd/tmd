@@ -181,7 +181,7 @@ pub fn build(b: *std.Build) !void {
         }
 
         fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
-            const self: *@This() = @fieldParentPtr("step", step);
+            const self: *@This() = @alignCast(@fieldParentPtr("step", step));
 
             const needle = "<wasm-file-as-base64-string>";
 
@@ -246,7 +246,7 @@ pub fn build(b: *std.Build) !void {
         }
 
         fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
-            const self: *@This() = @fieldParentPtr("step", step);
+            const self: *@This() = @alignCast(@fieldParentPtr("step", step));
 
             const needle = "[js-lib-file]";
 

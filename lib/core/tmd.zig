@@ -109,6 +109,19 @@ pub const Doc = struct {
         return if (self.blocksByID.search(&b)) |node| node.value else null;
     }
 
+    pub fn traverseBlockIDs(self: *const @This(), onID: *fn ([]const u8) void) void {
+        const NodeHandler = struct {
+            onID: *fn ([]const u8) void,
+
+            pub fn onNode(h: @This(), node: *BlockRedBlack.Node) void {
+                h.onID(node.value.ElementAttibutes.id);
+            }
+        };
+
+        const handler = NodeHandler{ .onID = onID };
+        self.blocksByID.traverseNodes(handler);
+    }
+
     pub fn firstLine(self: *const @This()) ?*Line {
         return if (self.lines.head) |le| &le.value else null;
     }
@@ -324,7 +337,7 @@ pub const Block = struct {
     index: u32 = undefined, // one basedd (for debug purpose only, ToDo: voidOr(u32))
     nestingDepth: u32 = 0, // ToDo: can be of BlockNestingDepthType and put in .more
 
-    blockType: BlockType,
+    blockType: BlockType, // ToDo: renamed to "type".
 
     attributes: ?*ElementAttibutes = null,
 
@@ -921,7 +934,7 @@ pub const Line = struct {
 
     treatEndAsSpace: bool = false,
 
-    lineType: Type = undefined,
+    lineType: Type = undefined, // ToDo: renamed to "type".
 
     tokens: list.List(Token) = .{},
 
@@ -1166,6 +1179,7 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 //     commentText: ...,
 
 pub const Token = union(enum) {
+    // Same results as using std.meta.TagPayload(Token, .XXX)
     pub const PlainText = std.meta.FieldType(Token, .content);
     pub const CommentText = std.meta.FieldType(Token, .commentText);
     pub const EvenBackticks = std.meta.FieldType(Token, .evenBackticks);

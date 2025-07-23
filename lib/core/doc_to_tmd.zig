@@ -35,39 +35,39 @@ const UnchangeWriter = struct {
                 .code, .data => {
                     std.debug.assert(line.prefixBlankEnd == lineStartAt);
                     std.debug.assert(line.suffixBlankStart == lineEndPos);
-                    _ = try writer.write(uw.data(lineStartAt, lineEndPos));
+                    try writer.writeAll(uw.data(lineStartAt, lineEndPos));
                 },
                 else => blk: {
                     std.debug.assert(LineScanner.are_all_blanks(uw.data(lineStartAt, line.prefixBlankEnd)));
                     std.debug.assert(LineScanner.are_all_blanks(uw.data(line.suffixBlankStart, lineEndPos)));
 
                     var token = &(line.tokens.head orelse {
-                        _ = try writer.write(uw.data(lineStartAt, lineEndPos));
+                        try writer.writeAll(uw.data(lineStartAt, lineEndPos));
                         break :blk;
                     }).value;
                     var lastTokenEnd = line.prefixBlankEnd;
-                    _ = try writer.write(uw.data(lineStartAt, lastTokenEnd));
+                    try writer.writeAll(uw.data(lineStartAt, lastTokenEnd));
                     while (true) {
                         std.debug.assert(token.start() == lastTokenEnd);
                         const tokenEnd = token.end();
-                        _ = try writer.write(uw.data(lastTokenEnd, tokenEnd));
+                        try writer.writeAll(uw.data(lastTokenEnd, tokenEnd));
                         lastTokenEnd = tokenEnd;
                         token = token.next() orelse break;
                     }
                     // not always true for playload containing lines.
                     // ToDo: playloads should be .plainText tokens?
                     //std.debug.assert(lastTokenEnd == line.suffixBlankStart);
-                    _ = try writer.write(uw.data(lastTokenEnd, lineEndPos));
+                    try writer.writeAll(uw.data(lastTokenEnd, lineEndPos));
                 },
             }
 
             const endLen: u2 = blk: switch (line.endType) {
                 .n => {
-                    _ = try writer.write("\n");
+                    try writer.writeAll("\n");
                     break :blk 1;
                 },
                 .rn => {
-                    _ = try writer.write("\r\n");
+                    try writer.writeAll("\r\n");
                     break :blk 2;
                 },
                 .void => {
@@ -214,13 +214,13 @@ const FormatWriter = struct {
     fn writeContainerMark(fw: *FormatWriter, w: anytype, line: *const tmd.Line) !void {
         const token = line.containerMarkToken() orelse unreachable;
         const mark = token.*.containerMark;
-        _ = try w.write(fw.indentSpaces());
-        _ = try w.write(fw.data(mark.start, mark.start + mark.more.markLen));
+        try w.writeAll(fw.indentSpaces());
+        try w.writeAll(fw.data(mark.start, mark.start + mark.more.markLen));
         if (mark.blankLen == 0) return;
 
         switch (mark.more.markLen) {
-            1 => _ = try w.write("  "),
-            2 => _ = try w.write(" "),
+            1 => try w.writeAll("  "),
+            2 => try w.writeAll(" "),
             else => unreachable,
         }
     }
@@ -229,35 +229,35 @@ const FormatWriter = struct {
         switch (line.lineType) {
             .blank => {},
             .data, .code => {
-                _ = try w.write(fw.data(line.start(.none), line.end(.trimLineEnd)));
+                try w.writeAll(fw.data(line.start(.none), line.end(.trimLineEnd)));
             },
             else => {
                 if (!indentationWritten) {
-                    _ = try w.write(fw.indentSpaces());
+                    try w.writeAll(fw.indentSpaces());
                     if (fw.needExtraIndentUnit) {
-                        _ = try w.write("    "); // 4 spaces
+                        try w.writeAll("    "); // 4 spaces
                     }
                     if (fw.shouldIndentUsualLines and line.lineType == .usual) {
-                        _ = try w.write("    "); // 4 spaces
+                        try w.writeAll("    "); // 4 spaces
                     }
                 }
 
                 const lineEnd = line.end(.trimTrailingSpaces);
                 const remainingStart = if (line.lineTypeMarkToken()) |token| blk: {
                     const mark = token.*.lineTypeMark;
-                    _ = try w.write(fw.data(mark.start, mark.start + mark.markLen));
+                    try w.writeAll(fw.data(mark.start, mark.start + mark.markLen));
                     const tokenEnd = token.end();
-                    if (tokenEnd != lineEnd) _ = try w.write(" ");
+                    if (tokenEnd != lineEnd) try w.writeAll(" ");
                     break :blk tokenEnd;
                 } else blk: {
                     break :blk line.start(.trimContainerMark);
                 };
 
                 if (remainingStart != lineEnd) {
-                    _ = try w.write(fw.data(remainingStart, lineEnd));
+                    try w.writeAll(fw.data(remainingStart, lineEnd));
                 }
             },
         }
-        _ = try w.write("\n");
+        try w.writeAll("\n");
     }
 };

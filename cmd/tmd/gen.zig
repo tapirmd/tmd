@@ -194,9 +194,9 @@ const Generator = struct {
             .none => try tmdDoc.writeHTML(fbs.writer(), generator.genOptions, allocator),
             .url => |url| {
                 try writePageStartPart1(fbs.writer());
-                if (!try tmdDoc.writePageTitle(fbs.writer())) _ = try fbs.writer().write("Untitled");
+                if (!try tmdDoc.writePageTitle(fbs.writer())) try fbs.writer().writeAll("Untitled");
                 try writePageStartPart2(fbs.writer());
-                _ = try fbs.writer().print(
+                try fbs.writer().print(
                     \\<link rel="stylesheet" href="{s}">
                     \\
                 ,
@@ -208,9 +208,9 @@ const Generator = struct {
             },
             .data => |data| {
                 try writePageStartPart1(fbs.writer());
-                if (!try tmdDoc.writePageTitle(fbs.writer())) _ = try fbs.writer().write("Untitled");
+                if (!try tmdDoc.writePageTitle(fbs.writer())) try fbs.writer().writeAll("Untitled");
                 try writePageStartPart2(fbs.writer());
-                _ = try fbs.writer().print(
+                try fbs.writer().print(
                     \\<style>
                     \\{s}
                     \\</style>
@@ -243,14 +243,15 @@ const Generator = struct {
 const tmdFavicon = "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";
 
 fn writePageStartPart1(w: anytype) !void {
-    _ = try w.write(
+    try w.writeAll(
         \\<!DOCTYPE html>
+        \\<html>
         \\<head>
         \\<meta charset="utf-8">
         \\<link rel="icon" type="image/jpeg" href="data:image/jpeg;base64,
     );
-    _ = try w.write(tmdFavicon);
-    _ = try w.write(
+    try w.writeAll(tmdFavicon);
+    try w.writeAll(
         \\">
         \\<meta name="viewport" content="width=device-width, initial-scale=1.0">
         \\<title>
@@ -259,7 +260,7 @@ fn writePageStartPart1(w: anytype) !void {
 }
 
 fn writePageStartPart2(w: anytype) !void {
-    _ = try w.write(
+    try w.writeAll(
         \\
         \\</title>
         \\
@@ -267,7 +268,7 @@ fn writePageStartPart2(w: anytype) !void {
 }
 
 fn writePageStartPart3(w: anytype) !void {
-    _ = try w.write(
+    try w.writeAll(
         \\</head>
         \\<body>
         \\
@@ -275,7 +276,7 @@ fn writePageStartPart3(w: anytype) !void {
 }
 
 fn writePageEndPart(w: anytype) !void {
-    _ = try w.write(
+    try w.writeAll(
         \\
         \\</body>
         \\</html>
