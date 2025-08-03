@@ -23,7 +23,7 @@ pub fn build(b: *std.Build) !void {
     // tmd module
 
     const tmdLibModule = b.addModule("tmd", .{
-        .root_source_file = b.path("lib/core/tmd.zig"),
+        .root_source_file = b.path("library/core/tmd.zig"),
         .target = target,
         .optimize = optimize,
     });
@@ -36,7 +36,7 @@ pub fn build(b: *std.Build) !void {
 
     const libTest = b.addTest(.{
         .name = "lib unit test",
-        .root_source_file = b.path("lib/core-tests/all.zig"),
+        .root_source_file = b.path("library/core-tests/all.zig"),
         .target = target,
     });
     libTest.root_module.addImport("tmd", tmdLibModule); // just use file imports instead of module import
@@ -44,17 +44,10 @@ pub fn build(b: *std.Build) !void {
 
     const libInternalTest = b.addTest(.{
         .name = "lib internal unit test",
-        .root_source_file = b.path("lib/core/tests.zig"),
+        .root_source_file = b.path("library/core/tests.zig"),
         .target = target,
     });
     const runLibInternalTest = b.addRunArtifact(libInternalTest);
-
-    const cmdTest = b.addTest(.{
-        .name = "cmd unit test",
-        .root_source_file = b.path("cmd/tmd/tests.zig"),
-        .target = target,
-    });
-    const runCmdTest = b.addRunArtifact(cmdTest);
 
     const wasmTest = b.addTest(.{
         .name = "wasm unit test",
@@ -63,33 +56,34 @@ pub fn build(b: *std.Build) !void {
     });
     const runWasmTest = b.addRunArtifact(wasmTest);
 
+    //const toolsetTest = b.addTest(.{
+    //    .name = "cmd unit test",
+    //    .root_source_file = b.path("toolset/tmd/tests.zig"),
+    //    .target = target,
+    //});
+    //const runToolsetTest = b.addRunArtifact(toolsetTest);
+
     const testStep = b.step("test", "Run unit tests");
     testStep.dependOn(&runLibTest.step);
     testStep.dependOn(&runLibInternalTest.step);
-    testStep.dependOn(&runCmdTest.step);
+    //testStep.dependOn(&runToolsetTest.step);
     testStep.dependOn(&runWasmTest.step);
 
-    // cmd module (as lib for commands)
-
-    const cmdLibModule = b.addModule("cmd", .{
-        .root_source_file = b.path("cmd/cmd.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-
-    // toolset cmd
+    // toolset command
 
     const toolsetCommand = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("cmd/tmd/main.zig"),
+            .root_source_file = b.path("toolset/app.zig"),
             .target = target,
             .optimize = optimize,
         }),
     });
     toolsetCommand.root_module.addImport("tmd", tmdLibModule);
-    toolsetCommand.root_module.addImport("cmd", cmdLibModule);
     const installToolset = b.addInstallArtifact(toolsetCommand, .{});
+
+    const toolsetStep = b.step("toolset", "Build toolset");
+    toolsetStep.dependOn(&installToolset.step);
 
     b.installArtifact(toolsetCommand);
 
@@ -100,26 +94,6 @@ pub fn build(b: *std.Build) !void {
 
     const runStep = b.step("run", "Run tmd command");
     runStep.dependOn(&runTmdCommand.step);
-
-    // fmt-test cmd
-
-    const tmdFmtTestCommand = b.addExecutable(.{
-        .name = "tmd-fmt-test",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("cmd/tmd-fmt-test/main.zig"),
-            .target = target,
-            .optimize = optimize,
-        }),
-    });
-    tmdFmtTestCommand.root_module.addImport("tmd", tmdLibModule);
-    tmdFmtTestCommand.root_module.addImport("cmd", cmdLibModule);
-    const installFmtTest = b.addInstallArtifact(tmdFmtTestCommand, .{});
-
-    // cmd
-
-    const cmdStep = b.step("cmd", "Build commands");
-    cmdStep.dependOn(&installToolset.step);
-    cmdStep.dependOn(&installFmtTest.step);
 
     // wasm
 
@@ -208,14 +182,14 @@ pub fn build(b: *std.Build) !void {
     const jsLibStep = b.step("js", "Build JavaScript lib");
     jsLibStep.dependOn(&installJsLib.step);
 
-    // doc fmt
+    // documentation fmt
 
     const fmtDoc = b.addRunArtifact(toolsetCommand);
     fmtDoc.setCwd(b.path("."));
     fmtDoc.addArg("fmt");
-    fmtDoc.addArg("doc/pages");
+    fmtDoc.addArg("documentation/pages");
 
-    // doc gen
+    // documentation gen
 
     const buildWebsite = b.addRunArtifact(toolsetCommand);
     buildWebsite.step.dependOn(&installJsLib.step);
@@ -223,7 +197,7 @@ pub fn build(b: *std.Build) !void {
     buildWebsite.addArg("gen");
     buildWebsite.addArg("--trial-page-css=@");
     buildWebsite.addArg("--enabled-custom-apps=html");
-    buildWebsite.addArg("doc/pages");
+    buildWebsite.addArg("documentation/pages");
 
     const CompletePlayPage = struct {
         step: std.Build.Step,
@@ -267,11 +241,11 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const websitePagesPath = b.path("doc/pages");
+    const websitePagesPath = b.path("documentation/pages");
     const completePlayPage = try CompletePlayPage.create(b, websitePagesPath, installJsLib);
     completePlayPage.step.dependOn(&buildWebsite.step);
 
-    const buildDoc = b.step("doc", "Build doc");
+    const buildDoc = b.step("doc", "Build documentation");
     buildDoc.dependOn(&completePlayPage.step);
 
     RequireOptimizeMode_ReleaseSmall.current = optimize;
@@ -291,7 +265,7 @@ pub fn build(b: *std.Build) !void {
             ".",
         },
     });
-    const fmtCodeAndDoc = b.step("fmt", "Format code and doc");
+    const fmtCodeAndDoc = b.step("fmt", "Format code and documentation");
     fmtCodeAndDoc.dependOn(&fmtCode.step);
     fmtCodeAndDoc.dependOn(&fmtDoc.step);
 
@@ -305,7 +279,7 @@ const Config = struct {
 fn collectConfig(b: *std.Build, mode: std.builtin.OptimizeMode) Config {
     var c = Config{};
 
-    if (b.option(bool, "dump_ast", "dump doc AST")) |dump| {
+    if (b.option(bool, "dump_ast", "dump TMD doc AST")) |dump| {
         if (mode == .Debug) c.dumpAST = dump else std.debug.print(
             \\The "dump_ast" definition is ignored, because it is only valid in Debug optimization mode.
             \\

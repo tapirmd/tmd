@@ -1,0 +1,247 @@
+
+const std = @import("std");
+
+const tmd = @import("tmd");
+
+const AppContext = @import("./common/AppContext.zig");
+const FileIterator = @import("./common/FileIterator.zig");
+
+const maxTmdFileSize = 1 << 23; // 8M
+const bufferSize = maxTmdFileSize * 4;
+
+pub const Formatter = struct {
+
+    // file args: always treated as tmd files.
+    //
+    // dir args: use all tmd and config files.
+    //
+    // no args means the current dir.
+
+    pub fn argsDesc() []const u8 {
+        return "[Dir | TmdFile]...";
+    }
+
+    pub fn briefDesc() []const u8 {
+        return "Format .tmd files.";
+    }
+
+    pub fn completeDesc(comptime command: []const u8) []const u8 {
+        return (comptime briefDesc()) ++
+            \\
+            \\
+            \\  tmd 
+            ++ command ++ " " 
+            ++ (comptime argsDesc()) ++
+            \\
+            \\
+            \\The 'fmt' command formats all of the specified input
+            \\.tmd files.
+            \\Without any argument specified, the current directory
+            \\will be used.
+            \\
+            ;
+    }
+
+    pub fn process(ctx: *AppContext, args: []const []u8) !void {
+        const buffer = try ctx.allocator.alloc(u8, bufferSize);
+        defer ctx.allocator.free(buffer);
+
+        if (args.len == 0) {
+            try ctx.stderr.print("No tmd files specified.", .{});
+            std.process.exit(1);
+        }
+
+        try fmtTmdFiles(args, buffer, ctx);
+    }
+
+    fn fmtTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
+        var fi: FileIterator = .{
+            .paths = paths,
+            .allocator = ctx.allocator,
+            .stderr = ctx.stderr,
+        };
+        while (try fi.next()) |entry| {
+            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+
+            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+
+            try fmtTmdFile(entry, buffer, ctx);
+        }
+    }
+
+    fn fmtTmdFile(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
+        var remainingBuffer = buffer;
+
+        // load file
+
+        const tmdContent = try ctx.readFileIntoBuffer(entry.dir, entry.filePath, remainingBuffer[0..maxTmdFileSize]);
+        remainingBuffer = remainingBuffer[tmdContent.len..];
+
+        // parse file
+
+        var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
+        // defer fba.reset(); // unnecessary
+        const fbaAllocator = fba.allocator();
+        var tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
+        // defer tmdDoc.destroy(); // unnecessary
+
+        remainingBuffer = remainingBuffer[fba.end_index..];
+
+        // format file
+
+        var fbs = std.io.fixedBufferStream(remainingBuffer);
+        try tmdDoc.writeTMD(fbs.writer(), true);
+        const newContent = fbs.getWritten();
+
+        // write file
+
+        const outputFilename: []const u8 = entry.filePath;
+
+        if (!std.mem.eql(u8, tmdContent, newContent)) {
+            const tmdFile = try entry.dir.createFile(outputFilename, .{});
+            defer tmdFile.close();
+            try tmdFile.writeAll(newContent);
+            try ctx.stdout.print(
+                \\{s}
+                \\
+            , .{outputFilename});
+        }
+    }
+};
+
+
+pub const FormatTester = struct {
+    pub fn argsDesc() []const u8 {
+        return "[Dir | TmdFile]...";
+    }
+
+    pub fn briefDesc() []const u8 {
+        return "Run several format tests on .tmd files.";
+    }
+
+    pub fn completeDesc(comptime command: []const u8) []const u8 {
+        return (comptime briefDesc()) ++
+            \\
+            \\
+            \\  tmd 
+            ++ command ++ " " 
+            ++ (comptime argsDesc()) ++
+            \\
+            \\
+            \\The 'fmt-test' command is used to test the correctness
+            \\of the format functionality of the TapirMD core lib.
+            \\Without any argument specified, the current directory
+            \\will be used.
+            \\
+            ;
+    }
+
+    pub fn process(ctx: *AppContext, args: []const []u8) !void {
+        const buffer = try ctx.allocator.alloc(u8, bufferSize);
+        defer ctx.allocator.free(buffer);
+
+        if (args.len == 0) {
+            try ctx.stderr.print("No tmd files specified.", .{});
+            std.process.exit(1);
+        }
+
+        try fmtTestTmdFiles(args, buffer, ctx);
+    }
+
+    fn fmtTestTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
+        var fi: FileIterator = . {
+            .paths = paths,
+            .allocator = ctx.allocator,
+            .stderr = ctx.stderr,
+        };
+        while (try fi.next()) |entry| {
+            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+
+            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+
+            try fmtTestFile(entry, buffer, ctx);
+        }
+    }
+
+    fn fmtTestFile(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
+        // load file
+
+        const tmdContent = try ctx.readFileIntoBuffer(entry.dir, entry.filePath, buffer[0..maxTmdFileSize]);
+        var remainingBuffer = buffer[tmdContent.len..];
+
+        // parse file
+
+        var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
+        var fbaAllocator = fba.allocator();
+        const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
+        remainingBuffer = remainingBuffer[fba.end_index..];
+
+        // test 1: data -> parse -> write w/o formatting -> data2. assert(data == data2)
+        if (true) {
+            // write file without formatting
+
+            var fbs = std.io.fixedBufferStream(remainingBuffer);
+            try tmdDoc.writeTMD(fbs.writer(), false);
+            const newContent = fbs.getWritten();
+            if (!std.mem.eql(u8, tmdContent, newContent)) {
+                std.debug.print("test#1 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                return;
+            }
+        }
+
+        // write file with formatting
+
+        var fbs = std.io.fixedBufferStream(remainingBuffer);
+        try tmdDoc.writeTMD(fbs.writer(), true);
+        const newTmdContent = fbs.getWritten();
+        if (std.mem.eql(u8, tmdContent, newTmdContent)) return;
+        remainingBuffer = remainingBuffer[newTmdContent.len..];
+
+        // test 2: data -> parse -> write with formating -> data2 -> re-parse -> write with formating -> data3. assert(data2 == data3)
+        const newTmdDoc = blk: {
+            // re-parse
+
+            fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
+            fbaAllocator = fba.allocator();
+            const newTmdDoc = try tmd.Doc.parse(newTmdContent, fbaAllocator);
+            remainingBuffer = remainingBuffer[fba.end_index..];
+
+            // write file with formatting again.
+
+            fbs = std.io.fixedBufferStream(remainingBuffer);
+            try newTmdDoc.writeTMD(fbs.writer(), true);
+            const newNewTmdContent = fbs.getWritten();
+            if (!std.mem.eql(u8, newNewTmdContent, newTmdContent)) {
+                std.debug.print("test#2 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                return;
+            }
+            //remainingBuffer = remainingBuffer[newNewTmdContent.len..];
+
+            break :blk newTmdDoc;
+        };
+
+        // If data !== data2, and there are streaming to data/code blocks, then the test might fail.
+        // So it is disabled now.
+        //
+        // ToDo: if there is no streaming cases, then enable this test.
+        //
+        // test 3: to_html(tmdDoc) and to_html(newTmdDoc) should be identical
+        if (false) {
+            fbs = std.io.fixedBufferStream(remainingBuffer);
+            try tmdDoc.writeHTML(fbs.writer(), .{}, ctx.allocator);
+            const html = fbs.getWritten();
+            remainingBuffer = remainingBuffer[html.len..];
+
+            fbs = std.io.fixedBufferStream(remainingBuffer);
+            try newTmdDoc.writeHTML(fbs.writer(), .{}, ctx.allocator);
+            const newHtml = fbs.getWritten();
+            //remainingBuffer = remainingBuffer[newHtml.len..];
+
+            if (!std.mem.eql(u8, html, newHtml)) {
+                std.debug.print("test#3 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                //std.debug.print("\n--------\n{s}\n------------\n{s}\n", .{ html, newHtml });
+                return;
+            }
+        }
+    }
+};
