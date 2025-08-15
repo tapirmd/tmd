@@ -1072,7 +1072,8 @@ pub const TmdRender = struct {
                             }
                         } else {
                             for (1..m.pairCount) |_| {
-                                try w.writeAll("&nbsp");
+                                //try w.writeAll("&nbsp;");
+                                try w.writeAll("&#160;"); // better in epub
                             }
                         }
                     },
