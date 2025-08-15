@@ -11,12 +11,6 @@ const bufferSize = maxTmdFileSize * 4;
 
 pub const Formatter = struct {
 
-    // file args: always treated as tmd files.
-    //
-    // dir args: use all tmd and config files.
-    //
-    // no args means the current dir.
-
     pub fn argsDesc() []const u8 {
         return "[Dir | TmdFile]...";
     }
@@ -25,35 +19,26 @@ pub const Formatter = struct {
         return "Format .tmd files.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return
             \\The 'fmt' command formats all of the specified input
             \\.tmd files.
             \\Without any argument specified, the current directory
             \\will be used.
-            \\
             ;
     }
 
-    pub fn process(ctx: *AppContext, args: []const []u8) !void {
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
         const buffer = try ctx.allocator.alloc(u8, bufferSize);
         defer ctx.allocator.free(buffer);
 
-        if (args.len == 0) {
-            try ctx.stderr.print("No tmd files specified.", .{});
-            std.process.exit(1);
-        }
-
-        try fmtTmdFiles(args, buffer, ctx);
+        if (args.len == 0) try fmtTmdFiles(&.{"."}, buffer, ctx)
+        else try fmtTmdFiles(args, buffer, ctx);
     }
 
+    // ToDo: to avoid duplicated arguments.
+    //       Do it in common.TmdFiles.format() ?
+    //       Sort args, short dir paths < longer dir paths < file paths.
     fn fmtTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
         var fi: FileIterator = .{
             .paths = paths,
@@ -119,33 +104,21 @@ pub const FormatTester = struct {
         return "Run several format tests on .tmd files.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return
             \\The 'fmt-test' command is used to test the correctness
             \\of the format functionality of the TapirMD core lib.
             \\Without any argument specified, the current directory
             \\will be used.
-            \\
             ;
     }
 
-    pub fn process(ctx: *AppContext, args: []const []u8) !void {
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
         const buffer = try ctx.allocator.alloc(u8, bufferSize);
         defer ctx.allocator.free(buffer);
 
-        if (args.len == 0) {
-            try ctx.stderr.print("No tmd files specified.", .{});
-            std.process.exit(1);
-        }
-
-        try fmtTestTmdFiles(args, buffer, ctx);
+        if (args.len == 0) try fmtTestTmdFiles(&.{"."}, buffer, ctx)
+        else try fmtTestTmdFiles(args, buffer, ctx);
     }
 
     fn fmtTestTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {

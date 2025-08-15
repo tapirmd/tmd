@@ -14,10 +14,16 @@ const Command = union(enum) {
     @"fmt-test": fmt.FormatTester,
 
     vet: vet.Vetter,
+    @"vet-project": vet.ProjectVetter,
 
     build: build.TmdToStaticWebsite,
     @"build-epub": build.TmdToEpub,
     @"build-standalone-html": build.TmdToStandaloneHtml,
+
+    // ToDo: generate htmls in the same dir of tmd files, without copying assets.
+    //       Paths of non-embedding asset files must be reachable as relative urls.
+    // @"build-partial-htmls": // or gen-partiial
+    // @"build-full-htmls":    // or gen
 
     run: run.Runner,
 
@@ -76,6 +82,7 @@ fn listCommands(w: std.fs.File.Writer) !void {
             \\
         , .{}
     );
+
     const unionTypeInfo = @typeInfo(Command).@"union";
     inline for (unionTypeInfo.fields) |unionField| {
         try w.print(
@@ -106,8 +113,21 @@ const Helper = struct {
             switch (cmd) {
                 inline else => |tag| {
                     const CommandType = std.meta.TagPayload(Command, tag);
-                    try ctx.stdout.print("{s}\n", .{CommandType.completeDesc(@tagName(tag))});
-                }
+                    try ctx.stdout.print(
+                        \\{s}
+                        \\
+                        \\  tmd {s} {s}
+                        \\
+                        \\{s}
+                        \\
+                        , .{
+                            CommandType.briefDesc(),
+                            command,
+                            CommandType.argsDesc(),
+                            CommandType.completeDesc(),
+                        }
+                    );
+                },
             }
         } else {
             try ctx.stderr.print("Unknown command: {s}\n", .{command});
@@ -125,20 +145,12 @@ const Helper = struct {
         return "Explain the specified command with more details.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return
             \\Run 'tmd' without arguments to list available commands.
             \\
             \\Please visit the following webpages to learn more:
             \\- https://tmd.tapirgames.com
-            \\
             ;
     }
 };

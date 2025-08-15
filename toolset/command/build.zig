@@ -5,6 +5,7 @@ const tmd = @import("tmd");
 
 const AppContext = @import("./common/AppContext.zig");
 const FileIterator = @import("./common/FileIterator.zig");
+const Project = @import("./common/Project.zig");
 
 const maxTmdFileSize = 1 << 23; // 8M
 const bufferSize = maxTmdFileSize * 8;
@@ -18,23 +19,15 @@ pub const TmdToStaticWebsite = struct {
         return "Generate static websites for the specified projects.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return
             \\Without any argument specified, the current directory
             \\will be used. 
-            \\
             ;
     }
 
-    pub fn process(ctx: *AppContext, _: []const []u8) !void {
-        try ctx.stdout.print("Not implemented yet.\n", .{});
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
+        try build(ctx, args, Project.buildStaticWebsite);
     }
 };
 
@@ -47,23 +40,15 @@ pub const TmdToEpub = struct {
         return "Generate EPUB ebook files for the specified projects.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return
             \\Without any argument specified, the current directory
             \\will be used. 
-            \\
             ;
     }
 
-    pub fn process(ctx: *AppContext, _: []const []u8) !void {
-        try ctx.stdout.print("Not implemented yet.\n", .{});
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
+        try build(ctx, args, Project.buildEpub);
     }
 };
 
@@ -73,26 +58,33 @@ pub const TmdToStandaloneHtml = struct {
     }
 
     pub fn briefDesc() []const u8 {
-        return "Generate standalone HTML files the for specified projects.";
+        return "Generate standalone HTML files for the specified projects.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
+    pub fn completeDesc() []const u8 {
+        return 
             \\Without any argument specified, the current directory
             \\will be used. 
-            \\
             ;
     }
 
-    pub fn process(ctx: *AppContext, _: []const []u8) !void {
-        try ctx.stdout.print("Not implemented yet.\n", .{});
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
+        try build(ctx, args, Project.buildStandaloneHtml);
     }
 };
 
+fn build(ctx: *AppContext, args: []const []const u8, processFunction: fn(*Project, *AppContext) anyerror!void) !void {
+    const paths = if (args.len > 0) args else blk: {
+        const default: []const []const u8 = &.{"."};
+        break :blk default;
+    };
+    for (paths) |path| {
+        const result = try ctx.regOrGetProject(path);
+
+        switch (result) {
+            .invalid => try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path}),
+            .registered => {},
+            .new => |project| try processFunction(project, ctx),
+        }
+    }
+}

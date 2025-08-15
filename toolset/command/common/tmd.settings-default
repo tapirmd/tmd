@@ -1,0 +1,21 @@
+
+@@@ #html-page-template .data
+"""
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{{ page-title-in-head }}}</title>
+<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @favicon }}">
+<style>
+{{ file-content @css }}
+</style>
+</head>
+<body>
+{{{ html-snippet-in-body }}}
+</body>
+</html>
+"""
+

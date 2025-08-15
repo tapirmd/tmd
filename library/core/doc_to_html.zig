@@ -4,50 +4,36 @@ const tmd = @import("tmd.zig");
 const render = @import("doc_to_html-render.zig");
 const fns = @import("doc_to_html-fns.zig");
 
-pub const Options = struct {
-    customFn: ?*const fn (w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void = null,
-    identSuffix: []const u8 = "", // for forum posts etc. To avoid id duplications.
-    autoIdentSuffix: []const u8 = "", // to avoid some auto id duplication. Should only be used when identPrefix is blank.
-    renderRoot: bool = true,
-};
+pub const GenOptions = render.GenOptions;
+pub const GenCallback = render.GenCallback;
 
-pub fn doc_to_html(writer: anytype, tmdDoc: *const tmd.Doc, options: Options, allocator: std.mem.Allocator) !void {
-    var r = render.TmdRender{
-        .doc = tmdDoc,
-        .allocator = allocator,
-
-        .customFn = options.customFn orelse render.dummayCustomFn,
-        .identSuffix = options.identSuffix,
-        .autoIdentSuffix = if (options.autoIdentSuffix.len > 0) options.autoIdentSuffix else options.identSuffix,
-        .renderRoot = options.renderRoot,
-    };
-
+pub fn doc_to_html(writer: anytype, tmdDoc: *const tmd.Doc, options: GenOptions, allocator: std.mem.Allocator) !void {
+    var r: render.TmdRender = .init(tmdDoc, allocator, options);
     try r.render(writer);
 }
 
 pub fn write_doc_title(writer: anytype, tmdDoc: *const tmd.Doc) !bool {
-    var r = render.TmdRender{
-        .doc = tmdDoc,
-        .allocator = undefined,
-
-        .customFn = undefined,
-    };
-
+    var r: render.TmdRender = .init(tmdDoc, undefined, undefined);
     return try r.writeTitleInHtmlHeader(writer);
 }
 
-pub fn htmlCustomGenFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
-    var line = custom.startDataLine() orelse return;
-    const endDataLine = custom.endDataLine().?;
-    std.debug.assert(endDataLine.lineType == .data);
+pub const GenCallback_HtmlBlock = struct {
+    doc: *const tmd.Doc,
+    custom: *const tmd.BlockType.Custom,
 
-    while (true) {
-        std.debug.assert(line.lineType == .data);
+    pub fn write(self: *const GenCallback_HtmlBlock, w: std.io.AnyWriter) !void {
+        var line = self.custom.startDataLine() orelse return;
+        const endDataLine = self.custom.endDataLine().?;
+        std.debug.assert(endDataLine.lineType == .data);
 
-        try w.writeAll(doc.rangeData(line.range(.trimLineEnd)));
-        try w.writeAll("\n");
+        while (true) {
+            std.debug.assert(line.lineType == .data);
 
-        if (line == endDataLine) break;
-        line = line.next() orelse unreachable;
+            try w.writeAll(self.doc.rangeData(line.range(.trimLineEnd)));
+            try w.writeAll("\n");
+
+            if (line == endDataLine) break;
+            line = line.next() orelse unreachable;
+        }
     }
-}
+};

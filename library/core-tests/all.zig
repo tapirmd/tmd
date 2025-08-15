@@ -103,26 +103,35 @@ test "DocChecker" {
 
 pub const RenderChecker = struct {
     pub fn check(data: []const u8, v: anytype) !bool {
-        var doc = try tmd.Doc.parse(data, std.testing.allocator);
-        defer doc.destroy();
+        var tmdDoc = try tmd.Doc.parse(data, std.testing.allocator);
+        defer tmdDoc.destroy();
 
         var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
         defer buf.deinit();
 
+        const CallbackFactory = struct {
+            var htmlGenCallback: tmd.GenCallback_HtmlBlock = undefined;
+
+            fn getCustomBlockGenCallback(doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+                std.debug.assert(doc == htmlGenCallback.doc);
+
+                const attrs = custom.attributes();
+                if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
+                    htmlGenCallback.custom = custom;
+                    return .init(&htmlGenCallback);
+                }
+                return null;
+            }
+        };
+        CallbackFactory.htmlGenCallback.doc = &tmdDoc;
+
         const options = tmd.GenOptions{
-            .customFn = customFn,
+            .getCustomBlockGenCallback = CallbackFactory.getCustomBlockGenCallback,
         };
 
-        try doc.writeHTML(buf.writer(), options, std.testing.allocator);
+        try tmdDoc.writeHTML(buf.writer(), options, std.testing.allocator);
         const html = buf.items;
         return v.checkFn(html);
-    }
-
-    fn customFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
-        const attrs = custom.attributes();
-        if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
-            return tmd.htmlCustomDefaultGenFn(w, doc, custom);
-        }
     }
 };
 

@@ -5,8 +5,9 @@ pub const version = @import("version.zig").version;
 
 pub const exampleCSS = @embedFile("example.css");
 
-pub const GenOptions = @import("doc_to_html.zig").Options;
-pub const htmlCustomDefaultGenFn = @import("doc_to_html.zig").htmlCustomGenFn;
+pub const GenOptions = @import("doc_to_html.zig").GenOptions;
+pub const GenCallback = @import("doc_to_html.zig").GenCallback;
+pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlock;
 
 const std = @import("std");
 const builtin = @import("builtin");

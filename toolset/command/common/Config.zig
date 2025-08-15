@@ -77,3 +77,6 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
     //url: []const u8, // might be not a good idea
 } = null,
 
+@"project-language": ?union(enum) {
+    data: []const u8,
+} = null,

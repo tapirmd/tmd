@@ -3,45 +3,43 @@ const std = @import("std");
 
 const AppContext = @import("./common/AppContext.zig");
 
-// Only accept one or two argument (missing means CWD).
-//
-// single config file arg: use it for its parent directory
-// The name of config file starts with "tmd.config" and doesn't have a ".tmd" extension.
-// 
-// dir arg: try to use tmd.config.run, then tmd.config, then the default config.
-//
-// (delayed) start tmd file arg: use its parent dir.
-//                    in read-only service mode.
-//
-
 pub const Runner = struct {
     pub fn argsDesc() []const u8 {
-        return "[ProjectDir | ProjectConfigFile | StartTmdPage]";
+        return "[ProjectDir | ProjectConfigFile]";
     }
 
     pub fn briefDesc() []const u8 {
         return "Preview or edit the specified project.";
     }
 
-    pub fn completeDesc(comptime command: []const u8) []const u8 {
-        return (comptime briefDesc()) ++
-            \\
-            \\
-            \\  tmd 
-            ++ command ++ " " 
-            ++ (comptime argsDesc()) ++
-            \\
-            \\
-            \\The 'run' command only accepts one argument, which
-            \\may be a path to a project (ProjectDir), a project
-            \\settings file (tmd.project), or a .tmd file (StartPage).
+    pub fn completeDesc() []const u8 {
+        return
+            \\The 'run' command only accepts at most one argument.
             \\Without any argument specified, the current directory
             \\will be used.
-            \\
             ;
     }
 
-    pub fn process(_: *AppContext, _: []const []u8) !void {
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
+        const path = switch (args.len) {
+            0 => ".",
+            1 => args[0],
+            else => {
+                try ctx.stderr.print("Too many arguments.\n", .{});
+                std.process.exit(1);
 
+                // This line is needless, because std.process.exit is a noreturn function.
+                // Now, if this line is enabled, no unreachable error. See:
+                // https://ziggit.dev/t/should-std-process-exit-calls-be-treated-as-return-panic-alike-statements
+                // return;
+            },
+        };
+
+        const result = try ctx.regOrGetProject(path);
+        switch (result) {
+            .invalid => try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path}),
+            .registered => unreachable,
+            .new => |project| try project.run(ctx),
+        }
     }
 };

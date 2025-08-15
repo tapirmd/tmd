@@ -11,7 +11,7 @@ pub fn build(b: *std.Build) !void {
     //
     //const tmdLib = b.addStaticLibrary(.{
     //    .name = "tmd",
-    //    .root_source_file = b.path("lib/core/tmd-for-c.zig"),
+    //    .root_source_file = b.path("library/core/tmd-for-c.zig"),
     //    .target = target,
     //    .optimize = optimize,
     //});
@@ -51,7 +51,7 @@ pub fn build(b: *std.Build) !void {
 
     const wasmTest = b.addTest(.{
         .name = "wasm unit test",
-        .root_source_file = b.path("lib/wasm/tests.zig"),
+        .root_source_file = b.path("library/wasm/tests.zig"),
         .target = target, // ToDo: related to wasmTarget?
     });
     const runWasmTest = b.addRunArtifact(wasmTest);
@@ -106,7 +106,7 @@ pub fn build(b: *std.Build) !void {
     const wasm = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("lib/wasm/wasm.zig"),
+            .root_source_file = b.path("library/wasm/wasm.zig"),
             .target = wasmTarget,
             .optimize = wasmOptimize,
         }),
@@ -176,7 +176,7 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const installJsLib = try GenerateJsLib.create(b, b.path("lib/js"), installWasm);
+    const installJsLib = try GenerateJsLib.create(b, b.path("library/js"), installWasm);
     installJsLib.step.dependOn(&installWasm.step);
 
     const jsLibStep = b.step("js", "Build JavaScript lib");

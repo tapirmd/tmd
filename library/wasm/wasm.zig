@@ -172,32 +172,6 @@ fn generatePageTitle() ![]const u8 {
     return titleWithLengthHeader;
 }
 
-fn customFn(w: std.io.AnyWriter, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!void {
-    const attrs = custom.attributes();
-    if (std.ascii.eqlIgnoreCase(attrs.app, "html")) blk: {
-        var line = custom.startDataLine() orelse break :blk;
-        const endDataLine = custom.endDataLine().?;
-        std.debug.assert(endDataLine.lineType == .data);
-
-        while (true) {
-            std.debug.assert(line.lineType == .data);
-
-            try w.writeAll(doc.rangeData(line.range(.trimLineEnd)));
-            try w.writeAll("\n");
-
-            if (line == endDataLine) break;
-            line = line.next() orelse unreachable;
-        }
-    }
-}
-
-const GenOptions = struct {
-    enabledCustomApps: []const u8 = "",
-    identSuffix: []const u8 = "",
-    autoIdentSuffix: []const u8 = "",
-    renderRoot: bool = true,
-};
-
 fn generateHTML() ![]const u8 {
     const tmdDoc, const remainingBuffer = if (docInfo) |info| .{
         info.tmdDoc,
@@ -248,11 +222,26 @@ fn generateHTML() ![]const u8 {
     var fbs = std.io.fixedBufferStream(renderBuffer);
     try fbs.writer().writeInt(u32, 0, .little);
 
+    const CallbackFactory = struct {
+        var htmlGenCallback: tmd.GenCallback_HtmlBlock = undefined;
+
+        fn getCustomBlockGenCallback(doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+            const attrs = custom.attributes();
+            if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
+                std.debug.assert(doc == htmlGenCallback.doc);
+                htmlGenCallback.custom = custom;
+                return .init(&htmlGenCallback);
+            }
+            return null;
+        }
+    };
+    CallbackFactory.htmlGenCallback.doc = &tmdDoc;
+
     const genOptions = tmd.GenOptions{
-        .customFn = if (supportHTML) customFn else null,
+        .renderRoot = renderRoot,
         .identSuffix = identSuffix,
         .autoIdentSuffix = autoIdentSuffix,
-        .renderRoot = renderRoot,
+        .getCustomBlockGenCallback = if (supportHTML) CallbackFactory.getCustomBlockGenCallback else null,
     };
 
     try tmdDoc.writeHTML(fbs.writer(), genOptions, std.heap.wasm_allocator);
