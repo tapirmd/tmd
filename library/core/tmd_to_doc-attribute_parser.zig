@@ -62,11 +62,17 @@ const charPropertiesTable = blk: {
         table[i].canBeInClassName = true;
     }
 
-    // Yes, TapirMD is more stricted here.
+    // Yes, TapirD is more stricted here. (Why?)
     //for ("_") |i| {
     //    table[i].canBeFirstInID = true;
     //    table[i].canBeFirstInClassName = true;
     //}
+    for ("_") |i| {
+        table[i].canBeInID = true;
+        table[i].canBeFirstInID = true;
+        table[i].canBeInClassName = true;
+        table[i].canBeFirstInClassName = true;
+    }
 
     // Yes, TapirMD is less stricted here, by extra allowing `:`,
     // to work with TailWind CSS alike frameworks.
