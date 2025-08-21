@@ -1,8 +1,8 @@
 const std = @import("std");
 
 const tmd = @import("tmd.zig");
-const list = @import("list.zig");
-const tree = @import("tree.zig");
+const list = @import("list");
+const tree = @import("tree");
 
 const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 const LineScanner = @import("tmd_to_doc-line_scanner.zig");

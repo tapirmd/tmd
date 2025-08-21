@@ -691,3 +691,19 @@ test "isValidMediaURL" {
     try std.testing.expect(!isValidMediaURL(".jpeg"));
     try std.testing.expect(!isValidMediaURL("foo.xyz"));
 }
+
+// ToDo: support media size and placeholder texts.
+// Now, only return the first token as image url.
+pub fn parse_media_info(playload: []const u8) []const u8 {
+    var it = std.mem.splitAny(u8, playload, " \t");
+    return it.first();
+}
+
+test "parse_media_info" {
+    try std.testing.expectEqualStrings(parse_media_info(""), "");
+    try std.testing.expectEqualStrings(parse_media_info(" "), "");
+    try std.testing.expectEqualStrings(parse_media_info(" \t"), "");
+    try std.testing.expectEqualStrings(parse_media_info("foo.png"), "foo.png");
+    try std.testing.expectEqualStrings(parse_media_info("foo.png "), "foo.png");
+    try std.testing.expectEqualStrings(parse_media_info("foo.png bla ..."), "foo.png");
+}

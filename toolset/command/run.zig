@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const AppContext = @import("./common/AppContext.zig");
@@ -13,11 +12,11 @@ pub const Runner = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\The 'run' command only accepts at most one argument.
-            \\Without any argument specified, the current directory
-            \\will be used.
-            ;
+        return 
+        \\The 'run' command only accepts at most one argument.
+        \\Without any argument specified, the current directory
+        \\will be used.
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {

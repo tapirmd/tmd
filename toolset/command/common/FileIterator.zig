@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const FileIterator = @This();
@@ -78,4 +77,3 @@ pub fn next(fi: *FileIterator) !?Entry {
     fi._curIndex = 0; // ready to be reused.
     return null;
 }
-

@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const tmd = @import("tmd");
@@ -20,10 +19,10 @@ pub const TmdToStaticWebsite = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\Without any argument specified, the current directory
-            \\will be used. 
-            ;
+        return 
+        \\Without any argument specified, the current directory
+        \\will be used. 
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
@@ -41,10 +40,10 @@ pub const TmdToEpub = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\Without any argument specified, the current directory
-            \\will be used. 
-            ;
+        return 
+        \\Without any argument specified, the current directory
+        \\will be used. 
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
@@ -63,9 +62,9 @@ pub const TmdToStandaloneHtml = struct {
 
     pub fn completeDesc() []const u8 {
         return 
-            \\Without any argument specified, the current directory
-            \\will be used. 
-            ;
+        \\Without any argument specified, the current directory
+        \\will be used. 
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
@@ -73,7 +72,7 @@ pub const TmdToStandaloneHtml = struct {
     }
 };
 
-fn build(ctx: *AppContext, args: []const []const u8, processFunction: fn(*Project, *AppContext) anyerror!void) !void {
+fn build(ctx: *AppContext, args: []const []const u8, processFunction: fn (*Project, *AppContext) anyerror!void) !void {
     const paths = if (args.len > 0) args else blk: {
         const default: []const []const u8 = &.{"."};
         break :blk default;

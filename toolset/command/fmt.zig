@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const tmd = @import("tmd");
@@ -10,7 +9,6 @@ const maxTmdFileSize = 1 << 23; // 8M
 const bufferSize = maxTmdFileSize * 4;
 
 pub const Formatter = struct {
-
     pub fn argsDesc() []const u8 {
         return "[Dir | TmdFile]...";
     }
@@ -20,20 +18,19 @@ pub const Formatter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\The 'fmt' command formats all of the specified input
-            \\.tmd files.
-            \\Without any argument specified, the current directory
-            \\will be used.
-            ;
+        return 
+        \\The 'fmt' command formats all of the specified input
+        \\.tmd files.
+        \\Without any argument specified, the current directory
+        \\will be used.
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
         const buffer = try ctx.allocator.alloc(u8, bufferSize);
         defer ctx.allocator.free(buffer);
 
-        if (args.len == 0) try fmtTmdFiles(&.{"."}, buffer, ctx)
-        else try fmtTmdFiles(args, buffer, ctx);
+        if (args.len == 0) try fmtTmdFiles(&.{"."}, buffer, ctx) else try fmtTmdFiles(args, buffer, ctx);
     }
 
     // ToDo: to avoid duplicated arguments.
@@ -94,7 +91,6 @@ pub const Formatter = struct {
     }
 };
 
-
 pub const FormatTester = struct {
     pub fn argsDesc() []const u8 {
         return "[Dir | TmdFile]...";
@@ -105,24 +101,23 @@ pub const FormatTester = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\The 'fmt-test' command is used to test the correctness
-            \\of the format functionality of the TapirMD core lib.
-            \\Without any argument specified, the current directory
-            \\will be used.
-            ;
+        return 
+        \\The 'fmt-test' command is used to test the correctness
+        \\of the format functionality of the TapirMD core lib.
+        \\Without any argument specified, the current directory
+        \\will be used.
+        ;
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
         const buffer = try ctx.allocator.alloc(u8, bufferSize);
         defer ctx.allocator.free(buffer);
 
-        if (args.len == 0) try fmtTestTmdFiles(&.{"."}, buffer, ctx)
-        else try fmtTestTmdFiles(args, buffer, ctx);
+        if (args.len == 0) try fmtTestTmdFiles(&.{"."}, buffer, ctx) else try fmtTestTmdFiles(args, buffer, ctx);
     }
 
     fn fmtTestTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = . {
+        var fi: FileIterator = .{
             .paths = paths,
             .allocator = ctx.allocator,
             .stderr = ctx.stderr,

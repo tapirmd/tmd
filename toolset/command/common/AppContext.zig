@@ -20,7 +20,7 @@ _templateFunctions: std.StringHashMap(*const anyopaque) = undefined,
 _cachedFileContents: std.HashMap(FileCacheKey, []const u8, FileCacheKeyContext, 16) = undefined,
 
 pub fn init(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, stderr: std.fs.File.Writer) AppContext {
-    const ctx = AppContext {
+    const ctx = AppContext{
         .allocator = allocator,
         .stdout = stdout,
         .stderr = stderr,
@@ -37,7 +37,7 @@ pub fn init(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, stderr: st
 
 pub fn initMore(ctx: *AppContext) !void {
     ctx.arenaAllocator = ctx._arenaAllocator.allocator();
-    
+
     ctx._configToProjectMap = .init(ctx.arenaAllocator);
 
     ctx._commandConfigs = .init(ctx.arenaAllocator);
@@ -55,7 +55,6 @@ pub fn deinit(ctx: *AppContext) void {
     ctx._arenaAllocator.deinit();
 }
 
-
 pub const ConfigEx = @import("AppContext-config.zig").ConfigEx;
 
 pub const loadTmdConfigEx = @import("AppContext-config.zig").loadTmdConfigEx;
@@ -64,7 +63,6 @@ pub const printTmdConfig = @import("AppContext-config.zig").printTmdConfig;
 pub const mergeTmdConfig = @import("AppContext-config.zig").mergeTmdConfig;
 pub const parseAndFillConfig = @import("AppContext-config.zig").parseAndFillConfig;
 const parseDefaultConfig = @import("AppContext-config.zig").parseDefaultConfig;
-
 
 const FileCacheKey = @import("AppContext-render.zig").FileCacheKey;
 const FileCacheKeyContext = @import("AppContext-render.zig").FileCacheKeyContext;

@@ -11,8 +11,8 @@ pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlo
 
 const std = @import("std");
 const builtin = @import("builtin");
-const list = @import("list.zig");
-const tree = @import("tree.zig");
+const list = @import("list");
+const tree = @import("tree");
 
 pub const Doc = struct {
     allocator: std.mem.Allocator = undefined,
@@ -33,7 +33,8 @@ pub const Doc = struct {
     // The followings are used to track allocations for destroying.
     // ToDo: prefix them with _?
 
-    links: list.List(Link) = .{}, // ToDo: use Link.next
+    links: list.List(Link) = .{}, // ToDo: use Link.next instead of List?
+
     _blockTreeNodes: list.List(BlockRedBlack.Node) = .{}, // ToDo: use SinglyLinkedList
     // It is in _blockTreeNodes when exists. So no need to destroy it solely in the end.
     _freeBlockTreeNodeElement: ?*list.Element(BlockRedBlack.Node) = null,
@@ -224,7 +225,10 @@ pub const Link = struct {
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
 
-    linkBlock: ?*Block = null, // non-null for like definition
+    // ToDo: put this field in LinkInfo token.
+    //       And ref LinkInfo token here.
+    //       So that we can find LinkInfo from Link, and vice verse.
+    linkBlock: ?*Block = null, // non-null for link definition
 
     // ToDo: since .firstPlainText is only a temporatiy value,
     //       just replace this union with .urlSourceText.
@@ -1197,8 +1201,7 @@ pub const Token = union(enum) {
         // But it is good to keep it here, to verify the this value is the same as ....
         end: DocSize,
 
-        // Finally, the list will exclude the last one if
-        // it is only used for self-defined URL.
+        // The last one might be a URL source of a self-defined link.
         nextInLink: ?*Token = null,
     },
     commentText: struct {

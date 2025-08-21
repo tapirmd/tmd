@@ -1,8 +1,8 @@
 const std = @import("std");
 
 const tmd = @import("tmd.zig");
-const list = @import("list.zig");
-const tree = @import("tree.zig");
+const list = @import("list");
+const tree = @import("tree");
 
 const BlockArranger = @import("tmd_to_doc-block_manager.zig");
 const ContentParser = @import("tmd_to_doc-content_parser.zig");

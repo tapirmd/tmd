@@ -1,5 +1,8 @@
 const std = @import("std");
 
+// The 0.15+ std list types don't benefit for this project,
+// so we use the old implementation.
+
 pub fn List(comptime Value: type) type {
     return struct {
         // size is 3 words.

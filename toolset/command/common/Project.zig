@@ -1,8 +1,12 @@
 const std = @import("std");
 
+const list = @import("list");
+
 const AppContext = @import("AppContext.zig");
 
 const Project = @This();
+
+
 
 path: []const u8,
 
@@ -10,13 +14,28 @@ path: []const u8,
 // path of tmd.workspace, or path of tmd.project.
 configEx: *AppContext.ConfigEx,
 
-// If tmd.workspace file is not found in self+ancestor directory,
+// If tmd.workspace file is not found in self+ancestor directories,
 // then .workspacePath == .path.
 workspacePath: []const u8,
+
+// session data
+
+seedArticles: list.List([]const u8) = .{}, // abs paths
 
 pub fn title(project: *const Project) ?[]const u8 {
     return if (project.configEx.basic.@"project-title") |t| t else null;
 }
+
+pub fn collectSeedArticles(project: *Project, _: *AppContext) !void {
+    if (project.configEx.basic.@"project-articles") |data| {
+        var it = std.mem.splitAny(u8, data, "\n");
+        while (it.next()) |item| {
+            const path = std.mem.trim(u8, item, " \t"); // ToDo: trim more space chars?
+            if (path.len == 0) continue;
+        }
+    }
+}
+
 
 // For build
 // step 1: copy css/favicon and rename them with hash in names.
@@ -65,10 +84,10 @@ pub fn title(project: *const Project) ?[]const u8 {
 //    project-name-trial-VERSION.epub
 //    project-name-trial-VERSION-standalone.html
 
-
 pub const buildStaticWebsite = @import("Project-build.zig").buildStaticWebsite;
 pub const buildEpub = @import("Project-build.zig").buildEpub;
 pub const buildStandaloneHtml = @import("Project-build.zig").buildStandaloneHtml;
 
 pub const run = @import("Project-run.zig").run;
+
 

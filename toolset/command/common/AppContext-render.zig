@@ -5,7 +5,6 @@ const tmd = @import("tmd");
 const AppContext = @import("AppContext.zig");
 const Template = @import("Template.zig");
 
-
 pub fn renderTmdDoc(ctx: *AppContext, w: anytype, tmdDoc: *const tmd.Doc, tmdFilePath: []const u8, configEx: *const AppContext.ConfigEx) !void {
     const template = configEx.basic.@"html-page-template".?._parsed;
 
@@ -74,7 +73,7 @@ pub const TemplateFunctions = struct {
 
     pub fn @"html-snippet-in-body"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
-        
+
         try tfcc.tmdDoc.writeHTML(tfcc.w, .{}, tfcc.ctx.allocator);
     }
 
@@ -141,11 +140,10 @@ pub const FileCacheKeyContext = struct {
     }
 };
 
-
 fn readTheOnlyBoolArgument(arg_: ?*Template.Token.FunctionCall.Argument) !bool {
     const arg = arg_ orelse return false;
     if (arg.next != null) return error.TooManyTemplateFunctionArguments;
-    
+
     if (std.ascii.eqlIgnoreCase(arg.value, "0")) return false;
     if (std.ascii.eqlIgnoreCase(arg.value, "f")) return false;
     if (std.ascii.eqlIgnoreCase(arg.value, "n")) return false;
@@ -158,35 +156,32 @@ const maxCachedFileSize = 10 * 1024 * 1024;
 
 const faviconFileContent = @embedFile("favicon.jpg");
 
-fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *Template.Token.FunctionCall.Argument) !struct{ []const u8, []const u8} {
+fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *Template.Token.FunctionCall.Argument) !struct { []const u8, []const u8 } {
     const filePath = arg.value;
     const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
     const relativeToPath = if (relativeToFinalConfigFile) tfcc.configEx.path else tfcc.template.ownerFilePath;
-    
-    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath
-        else try ctx.resolvePathFromFilePath(relativeToPath, filePath, ctx.arenaAllocator);
+
+    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try ctx.resolvePathFromFilePath(relativeToPath, filePath, ctx.arenaAllocator);
 
     if (std.mem.startsWith(u8, absFilePath, "@")) {
         const asset = absFilePath[1..];
-        const content = if (std.mem.eql(u8, asset, "css")) tmd.exampleCSS
-            else if (std.mem.eql(u8, asset, "favicon")) faviconFileContent
-            else {
-                try ctx.stderr.print("unknown asset: {s}\n", .{asset});
-                return error.UnknownBuiltinAsset;
-            };
+        const content = if (std.mem.eql(u8, asset, "css")) tmd.exampleCSS else if (std.mem.eql(u8, asset, "favicon")) faviconFileContent else {
+            try ctx.stderr.print("unknown asset: {s}\n", .{asset});
+            return error.UnknownBuiltinAsset;
+        };
 
-        return .{content, absFilePath};
+        return .{ content, absFilePath };
     }
 
     const cacheKey: FileCacheKey = .{
         .op = .none,
         .path = absFilePath,
     };
-    if (ctx._cachedFileContents.get(cacheKey)) |content| return .{content, absFilePath};
+    if (ctx._cachedFileContents.get(cacheKey)) |content| return .{ content, absFilePath };
 
     const content = try ctx.readFile(absFilePath, ctx.arenaAllocator, maxCachedFileSize);
     try ctx._cachedFileContents.put(cacheKey, content);
-    return .{content, absFilePath};
+    return .{ content, absFilePath };
 }
 
 fn base64FileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *Template.Token.FunctionCall.Argument) ![]const u8 {

@@ -29,7 +29,6 @@ const Command = union(enum) {
 
     help: Helper, // must be the last one
 };
-     
 
 pub fn main() !void {
     var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
@@ -63,7 +62,7 @@ pub fn main() !void {
             inline else => |tag| {
                 const CommandType = std.meta.TagPayload(Command, tag);
                 try CommandType.process(&appContext, args[2..]);
-            }
+            },
         }
     } else {
         try stderr.print("Unknown command: {s}\n", .{args[1]});
@@ -76,12 +75,11 @@ pub fn main() !void {
 
 fn listCommands(w: std.fs.File.Writer) !void {
     try w.print(
-            \\
-            \\Supported commands:
-            \\
-            \\
-        , .{}
-    );
+        \\
+        \\Supported commands:
+        \\
+        \\
+    , .{});
 
     const unionTypeInfo = @typeInfo(Command).@"union";
     inline for (unionTypeInfo.fields) |unionField| {
@@ -90,7 +88,8 @@ fn listCommands(w: std.fs.File.Writer) !void {
             \\    {s}
             \\
             \\
-        , .{unionField.name, unionField.type.argsDesc(), unionField.type.briefDesc()},
+        ,
+            .{ unionField.name, unionField.type.argsDesc(), unionField.type.briefDesc() },
         );
     }
 }
@@ -100,7 +99,7 @@ const Helper = struct {
         const unionTypeInfo = @typeInfo(Command).@"union";
 
         const command = switch (args.len) {
-            0 => unionTypeInfo.fields[unionTypeInfo.fields.len-1].name,
+            0 => unionTypeInfo.fields[unionTypeInfo.fields.len - 1].name,
             1 => args[0],
             else => {
                 try ctx.stderr.print("Too many arguments.\n\n", .{});
@@ -120,13 +119,12 @@ const Helper = struct {
                         \\
                         \\{s}
                         \\
-                        , .{
-                            CommandType.briefDesc(),
-                            command,
-                            CommandType.argsDesc(),
-                            CommandType.completeDesc(),
-                        }
-                    );
+                    , .{
+                        CommandType.briefDesc(),
+                        command,
+                        CommandType.argsDesc(),
+                        CommandType.completeDesc(),
+                    });
                 },
             }
         } else {
@@ -146,11 +144,11 @@ const Helper = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\Run 'tmd' without arguments to list available commands.
-            \\
-            \\Please visit the following webpages to learn more:
-            \\- https://tmd.tapirgames.com
-            ;
+        return 
+        \\Run 'tmd' without arguments to list available commands.
+        \\
+        \\Please visit the following webpages to learn more:
+        \\- https://tmd.tapirgames.com
+        ;
     }
 };

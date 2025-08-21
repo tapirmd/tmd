@@ -2,39 +2,17 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const tmd = @import("tmd.zig");
-const list = @import("list.zig");
-const tree = @import("tree.zig");
+const list = @import("list");
+const tree = @import("tree");
 const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 const fns = @import("doc_to_html-fns.zig");
-
-const FootnoteRedBlack = tree.RedBlack(*Footnote, Footnote);
-const Footnote = struct {
-    id: []const u8,
-    orderIndex: u32 = undefined,
-    refCount: u32 = undefined,
-    refWrittenCount: u32 = undefined,
-    block: ?*tmd.Block = undefined,
-
-    pub fn compare(x: *const @This(), y: *const @This()) isize {
-        return switch (std.mem.order(u8, x.id, y.id)) {
-            .lt => -1,
-            .gt => 1,
-            .eq => 0,
-        };
-    }
-};
-
-const TabListInfo = struct {
-    orderId: u32,
-    nextItemOrderId: u32 = 0,
-};
 
 pub const GenOptions = struct {
     renderRoot: bool = true,
     identSuffix: []const u8 = "", // for forum posts etc. To avoid id duplications.
     autoIdentSuffix: []const u8 = "", // to avoid some auto id duplication. Should only be used when identPrefix is blank.
-    
+
     // more render switches
     // enabled_style_xxx: bool,
     // ignoreClasses: bool = false, // for forum posts etc.
@@ -42,53 +20,53 @@ pub const GenOptions = struct {
     getCustomBlockGenCallback: ?*const fn (doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    //mediaUrlValidateFn: ?*const fn([]const u8) ?[]const u8 = null,
-    //linkUrlValidateFn: ?*const fn(*tmd.Link) ?[]const u8 = null,
+    getMediaUrlGenCallback: ?*const fn(*const tmd.Doc, tmd.Token) ?GenCallback = null,
+    getLinkUrlGenCallback: ?*const fn(*const tmd.Doc, *const tmd.Link) ?GenCallback = null,
 };
 
 pub const GenCallback = struct {
-  obj: *const anyopaque,
-  writeFn: *const fn (obj: *const anyopaque, aw: std.io.AnyWriter) anyerror!void,
+    obj: *const anyopaque,
+    genFn: *const fn (obj: *const anyopaque, aw: std.io.AnyWriter) anyerror!void,
 
-  pub fn write(self: GenCallback, aw: std.io.AnyWriter) !void {
-    return self.writeFn(self.obj, aw);
-  }
-
-  pub fn init(obj: anytype) GenCallback {
-    const T = @TypeOf(obj);
-    const typeInfo = @typeInfo(T);
-    switch (typeInfo) {
-        .pointer => |pointer| {
-            const C = struct {
-                pub fn write(v: *const anyopaque, aw: std.io.AnyWriter) !void {
-                    const Base = pointer.child;
-                    const ptr: *const Base = @ptrCast(@alignCast(v));
-                    return try Base.write(ptr, aw);
-                }
-            };
-            return .{ .obj = obj, .writeFn = C.write };
-        },
-        inline .@"struct", .@"union", .@"enum" => |_, tag| {
-            if (@sizeOf(T) != 0) @compileError(@tagName(tag) ++ " types must a zero size.");
-            
-            const C = struct {
-                pub fn write(_: *const anyopaque, aw: std.io.AnyWriter) !void {
-                    return try T.write(T{}, aw);
-                }
-            };
-            return .{ .obj = undefined, .writeFn = C.write };
-        },
-        inline else => |_, tag| @compileError(@tagName(tag) ++ " types are unsupported."),
+    pub fn gen(self: GenCallback, aw: std.io.AnyWriter) !void {
+        return self.genFn(self.obj, aw);
     }
-  }
-  
-  pub fn dummy() GenCallback {
-    const GenCallback_Dummy = struct {
-        pub fn write(_: @This(), _: std.io.AnyWriter) !void {}
-    };
-    
-    return .init(GenCallback_Dummy{});
-  }
+
+    pub fn init(obj: anytype) GenCallback {
+        const T = @TypeOf(obj);
+        const typeInfo = @typeInfo(T);
+        switch (typeInfo) {
+            .pointer => |pointer| {
+                const C = struct {
+                    pub fn writeAll(v: *const anyopaque, aw: std.io.AnyWriter) !void {
+                        const Base = pointer.child;
+                        const ptr: *const Base = @ptrCast(@alignCast(v));
+                        return try Base.gen(ptr, aw);
+                    }
+                };
+                return .{ .obj = obj, .genFn = C.writeAll };
+            },
+            inline .@"struct", .@"union", .@"enum" => |_, tag| {
+                if (@sizeOf(T) != 0) @compileError(@tagName(tag) ++ " types must a zero size.");
+
+                const C = struct {
+                    pub fn writeAll(_: *const anyopaque, aw: std.io.AnyWriter) !void {
+                        return try T.gen(T{}, aw);
+                    }
+                };
+                return .{ .obj = undefined, .genFn = C.writeAll };
+            },
+            inline else => |_, tag| @compileError(@tagName(tag) ++ " types are unsupported."),
+        }
+    }
+
+    pub fn dummy() GenCallback {
+        const GenCallback_Dummy = struct {
+            pub fn gen(_: @This(), _: std.io.AnyWriter) !void {}
+        };
+
+        return .init(GenCallback_Dummy{});
+    }
 };
 
 const dummyGenCallback: GenCallback = .dummy();
@@ -113,8 +91,30 @@ pub const TmdRender = struct {
     footnotesByID: FootnoteRedBlack.Tree = .{}, // ToDo: use PatriciaTree to get a better performance
     footnoteNodes: list.List(FootnoteRedBlack.Node) = .{}, // for destroying
 
+    const FootnoteRedBlack = tree.RedBlack(*Footnote, Footnote);
+    const Footnote = struct {
+        id: []const u8,
+        orderIndex: u32 = undefined,
+        refCount: u32 = undefined,
+        refWrittenCount: u32 = undefined,
+        block: ?*tmd.Block = undefined,
+
+        pub fn compare(x: *const @This(), y: *const @This()) isize {
+            return switch (std.mem.order(u8, x.id, y.id)) {
+                .lt => -1,
+                .gt => 1,
+                .eq => 0,
+            };
+        }
+    };
+
+    const TabListInfo = struct {
+        orderId: u32,
+        nextItemOrderId: u32 = 0,
+    };
+
     pub fn init(doc: *const tmd.Doc, allocator: std.mem.Allocator, options: GenOptions) TmdRender {
-        var r = TmdRender {
+        var r = TmdRender{
             .doc = doc,
             .allocator = allocator,
             .options = options,
@@ -141,6 +141,20 @@ pub const TmdRender = struct {
         }
 
         return dummyGenCallback;
+    }
+
+    fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) ?GenCallback {
+        if (self.options.getLinkUrlGenCallback) |get| {
+            if (get(self.doc, link)) |callback| return callback;
+        }
+        return null;
+    }
+
+    fn getMediaUrlGenCallback(self: *const TmdRender, infoToken: tmd.Token) ?GenCallback {
+        if (self.options.getMediaUrlGenCallback) |get| {
+            if (get(self.doc, infoToken)) |callback| return callback;
+        }
+        return null;
     }
 
     fn onFootnoteReference(self: *TmdRender, id: []const u8) !*Footnote {
@@ -932,7 +946,7 @@ pub const TmdRender = struct {
 
         const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
         const callback = self.getCustomBlockGenCallback(&block.blockType.custom);
-        try callback.write(aw);
+        try callback.gen(aw);
 
         //try fns.writeCloseTag(w, tag, true);
     }
@@ -1065,10 +1079,12 @@ pub const TmdRender = struct {
         // These are only valid when activeLinkInfo != null.
         firstPlainTextInLink: bool = undefined,
         linkFootnote: *Footnote = undefined,
+        brokenLinkConfirmed: bool = undefined,
 
         fn onLinkInfo(self: *@This(), linkInfo: *tmd.Token.LinkInfo) void {
             self.activeLinkInfo = linkInfo;
             self.firstPlainTextInLink = true;
+            self.brokenLinkConfirmed = false;
         }
     };
 
@@ -1170,37 +1186,44 @@ pub const TmdRender = struct {
                                 const linkInfo = tracker.activeLinkInfo orelse unreachable;
                                 const link = linkInfo.link;
                                 if (usage == .general) blk: {
-                                    //if (link.isFootnote()) {
-                                    //    std.debug.assert(link.urlConfirmed());
-                                    //    break :blk;
-                                    //}
-                                    //
-                                    //if (self.linkUrlValidateFn(link)) |validURL| {
-                                    //    break :blk;
-                                    //}
+                                    if (link.isFootnote()) {
+                                        std.debug.assert(link.urlConfirmed());
+                                        std.debug.assert(link.textInfo.urlSourceText != null);
 
-                                    // broken ...
+                                        const t = link.textInfo.urlSourceText.?;
+                                        const linkURL = LineScanner.trim_blanks(self.doc.rangeData(t.range()));
 
-                                    // old ...
+                                        const footnote_id = linkURL[1..];
+                                        const footnote = try self.onFootnoteReference(footnote_id);
+                                        tracker.linkFootnote = footnote;
+
+                                        if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+
+                                        try w.print(
+                                            \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
+                                        , .{ footnote_id, self.options.identSuffix, footnote.refWrittenCount, footnote_id, self.options.identSuffix });
+                                        
+                                        break :blk;
+                                    }
+                                    
+                                    if (self.getLinkUrlGenCallback(link)) |callback| {
+                                        try w.writeAll(
+                                            \\<a href="
+                                        );
+                                        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
+                                        try callback.gen(aw);
+                                        try w.writeAll(
+                                            \\"
+                                        );
+
+                                        break :blk;
+                                    }
 
                                     if (link.urlConfirmed()) {
                                         std.debug.assert(link.textInfo.urlSourceText != null);
 
                                         const t = link.textInfo.urlSourceText.?;
                                         const linkURL = LineScanner.trim_blanks(self.doc.rangeData(t.range()));
-
-                                        if (link.isFootnote()) {
-                                            const footnote_id = linkURL[1..];
-                                            const footnote = try self.onFootnoteReference(footnote_id);
-                                            tracker.linkFootnote = footnote;
-
-                                            if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
-
-                                            try w.print(
-                                                \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
-                                            , .{ footnote_id, self.options.identSuffix, footnote.refWrittenCount, footnote_id, self.options.identSuffix });
-                                            break :blk;
-                                        }
 
                                         try w.print(
                                             \\<a href="{s}">
@@ -1215,7 +1238,7 @@ pub const TmdRender = struct {
                                             \\<span class="tmd-broken-link">
                                         );
 
-                                        break :blk;
+                                        tracker.brokenLinkConfirmed = true;
                                     }
                                 }
 
@@ -1256,11 +1279,20 @@ pub const TmdRender = struct {
                                     const mediaInfoToken = mediaInfoElement.value;
                                     std.debug.assert(mediaInfoToken == .content);
 
-                                    const src = self.doc.rangeData(mediaInfoToken.range());
-                                    if (!AttributeParser.isValidMediaURL(src)) break :writeMedia;
+                                    if (self.getMediaUrlGenCallback(mediaInfoToken)) |callback| {
+                                        try w.writeAll("<img src=\"");
+                                        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
+                                        try callback.gen(aw);
+                                    } else {
+                                        const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
+                                        const src = AttributeParser.parse_media_info(mediaInfo);
+                                        
+                                        if (!AttributeParser.isValidMediaURL(src)) break :writeMedia;
 
-                                    try w.writeAll("<img src=\"");
-                                    try fns.writeHtmlAttributeValue(w, src);
+                                        try w.writeAll("<img src=\"");
+                                        try fns.writeHtmlAttributeValue(w, src);
+                                    }
+
                                     if (isInline) {
                                         try w.writeAll("\" class=\"tmd-inline-media\"/>");
                                     } else {
@@ -1323,13 +1355,22 @@ pub const TmdRender = struct {
                     try writeCloseMarks(w, markElement, usage);
 
                     if (usage == .general) {
-                        if (link.urlConfirmed()) {
+                        //if (link.urlConfirmed()) {
+                        //    try w.writeAll("</a>");
+                        //    if (link.isFootnote()) {
+                        //        try w.writeAll("</sup>");
+                        //    }
+                        //} else {
+                        //    try w.writeAll("</span>");
+                        //}
+
+                        if (tracker.brokenLinkConfirmed) {
+                            try w.writeAll("</span>");
+                        } else {
                             try w.writeAll("</a>");
                             if (link.isFootnote()) {
                                 try w.writeAll("</sup>");
                             }
-                        } else {
-                            try w.writeAll("</span>");
                         }
                     }
 

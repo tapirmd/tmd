@@ -16,4 +16,3 @@ pub fn buildStandaloneHtml(project: *Project, ctx: *AppContext) !void {
     _ = project;
     _ = ctx;
 }
-

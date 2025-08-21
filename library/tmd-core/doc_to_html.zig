@@ -21,7 +21,7 @@ pub const GenCallback_HtmlBlock = struct {
     doc: *const tmd.Doc,
     custom: *const tmd.BlockType.Custom,
 
-    pub fn write(self: *const GenCallback_HtmlBlock, w: std.io.AnyWriter) !void {
+    pub fn gen(self: *const GenCallback_HtmlBlock, w: std.io.AnyWriter) !void {
         var line = self.custom.startDataLine() orelse return;
         const endDataLine = self.custom.endDataLine().?;
         std.debug.assert(endDataLine.lineType == .data);
@@ -35,5 +35,10 @@ pub const GenCallback_HtmlBlock = struct {
             if (line == endDataLine) break;
             line = line.next() orelse unreachable;
         }
+    }
+    
+    pub fn asGenBacklback(self: *GenCallback_HtmlBlock, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) render.GenCallback {
+        self.* = .{.doc = doc, .custom = custom};
+        return .init(self);
     }
 };

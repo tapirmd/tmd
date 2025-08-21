@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const Template = @This();
@@ -28,7 +27,7 @@ pub const Token = struct {
         len: usize = undefined,
     };
 
-    pub const FunctionCall = struct{
+    pub const FunctionCall = struct {
         func: *const anyopaque,
         args: ?*Argument,
 
@@ -53,7 +52,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
         pendingOpenTagEnd: usize = undefined,
 
         headToken: Token = .{},
-        lastToken:*Token = undefined,
+        lastToken: *Token = undefined,
         numTokens: usize = 0,
 
         contentStart: [*]const u8,
@@ -74,7 +73,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
                 },
                 .call => {
                     const func, const args = try parser.parseFunctionCall(parser.contentStart[start..end]);
-                    t.type = .{.call = .{.func = func, .args = args}};
+                    t.type = .{ .call = .{ .func = func, .args = args } };
                 },
             }
         }
@@ -89,8 +88,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             std.debug.assert(parser.tagOpening);
 
             if (parser.numCloseTagChars > 0) {
-                if (parser.numCloseTagChars != parser.numOpenTagChars) parser.numCloseTagChars = 0
-                else {
+                if (parser.numCloseTagChars != parser.numOpenTagChars) parser.numCloseTagChars = 0 else {
                     try parser.onCloseTagConfirmed(at);
                     return true;
                 }
@@ -126,8 +124,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
                 _ = try parser.tryConfirmCloseTag(at);
             } else {
                 if (parser.numOpenTagChars > 0) {
-                    if (parser.numOpenTagChars == 1) parser.numOpenTagChars = 0
-                    else parser.onPendingOpenTagConfirmed(at, 0);
+                    if (parser.numOpenTagChars == 1) parser.numOpenTagChars = 0 else parser.onPendingOpenTagConfirmed(at, 0);
                 }
             }
         }
@@ -163,7 +160,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             parser.denyOpening();
         }
 
-        fn parseFunctionCall(parser: *@This(), callContent: []const u8) !struct{*const anyopaque, ?*Token.FunctionCall.Argument} {
+        fn parseFunctionCall(parser: *@This(), callContent: []const u8) !struct { *const anyopaque, ?*Token.FunctionCall.Argument } {
             var it = std.mem.splitAny(u8, callContent, " \t");
             const funcName = while (it.next()) |item| {
                 if (item.len == 0) continue;
@@ -174,7 +171,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             };
 
             const func = parser.functionsMap.get(funcName) orelse {
-                try parser.stderr.print("error: Template function '{s}' in file '{s}' is not found.\n", .{funcName, parser.ownerFilePath});
+                try parser.stderr.print("error: Template function '{s}' in file '{s}' is not found.\n", .{ funcName, parser.ownerFilePath });
                 return error.TemplateFunctionNotFound;
             };
 
@@ -183,14 +180,13 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             while (it.next()) |item| {
                 if (item.len == 0) continue;
                 const arg = try parser.allocator.create(Token.FunctionCall.Argument);
-                arg.* = .{.value = item};
+                arg.* = .{ .value = item };
                 lastArg.next = arg;
                 lastArg = arg;
             }
 
-            return .{func, headArg.next};
+            return .{ func, headArg.next };
         }
-
     };
 
     var parser: Parser = .{
@@ -214,8 +210,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
                 if (!parser.tagOpening) parser.numOpenTagChars += 1;
             },
             CloseTagChar => {
-                if (parser.tagOpening) parser.numCloseTagChars += 1
-                else if (parser.numOpenTagChars > 1) parser.onPendingOpenTagConfirmed(@intCast(i), 1);
+                if (parser.tagOpening) parser.numCloseTagChars += 1 else if (parser.numOpenTagChars > 1) parser.onPendingOpenTagConfirmed(@intCast(i), 1);
             },
             NewLineChar => try parser.onNewLine(@intCast(i)),
             else => try parser.onOtherChars(@intCast(i), false),

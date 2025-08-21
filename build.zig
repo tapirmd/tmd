@@ -6,12 +6,42 @@ pub fn build(b: *std.Build) !void {
 
     const config = collectConfig(b, optimize);
 
+    // list module
+
+    const listLibModule = b.addModule("list", .{
+        .root_source_file = b.path("library/list/list.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const listLibTest = b.addTest(.{
+        .name = "list lib unit test",
+        .root_source_file = b.path("library/list/list.zig"),
+        .target = target,
+    });
+    const runListLibTest = b.addRunArtifact(listLibTest);
+
+    // tree module
+
+    const treeLibModule = b.addModule("tree", .{
+        .root_source_file = b.path("library/tree/tree.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const treeLibTest = b.addTest(.{
+        .name = "list lib unit test",
+        .root_source_file = b.path("library/tree/tree.zig"),
+        .target = target,
+    });
+    const runTreeLibTest = b.addRunArtifact(treeLibTest);
+
     // lib (for C users)
     // ToDo: Need many exported functions, including field setter/getter?
     //
     //const tmdLib = b.addStaticLibrary(.{
     //    .name = "tmd",
-    //    .root_source_file = b.path("library/core/tmd-for-c.zig"),
+    //    .root_source_file = b.path("library/tmd-core/tmd-for-c.zig"),
     //    .target = target,
     //    .optimize = optimize,
     //});
@@ -23,10 +53,12 @@ pub fn build(b: *std.Build) !void {
     // tmd module
 
     const tmdLibModule = b.addModule("tmd", .{
-        .root_source_file = b.path("library/core/tmd.zig"),
+        .root_source_file = b.path("library/tmd-core/tmd.zig"),
         .target = target,
         .optimize = optimize,
     });
+    tmdLibModule.addImport("list", listLibModule);
+    tmdLibModule.addImport("tree", treeLibModule);
 
     const libOptions = b.addOptions();
     libOptions.addOption(bool, "dump_ast", config.dumpAST);
@@ -34,40 +66,46 @@ pub fn build(b: *std.Build) !void {
 
     // test
 
-    const libTest = b.addTest(.{
-        .name = "lib unit test",
-        .root_source_file = b.path("library/core-tests/all.zig"),
+    const coreLibTest = b.addTest(.{
+        .name = "tmd core lib unit test",
+        .root_source_file = b.path("library/tmd-core-tests/all.zig"),
         .target = target,
     });
-    libTest.root_module.addImport("tmd", tmdLibModule); // just use file imports instead of module import
-    const runLibTest = b.addRunArtifact(libTest);
+    coreLibTest.root_module.addImport("tmd", tmdLibModule);
+    coreLibTest.root_module.addImport("list", listLibModule);
+    coreLibTest.root_module.addImport("tree", treeLibModule);
+    const runCoreLibTest = b.addRunArtifact(coreLibTest);
 
-    const libInternalTest = b.addTest(.{
-        .name = "lib internal unit test",
-        .root_source_file = b.path("library/core/tests.zig"),
+    const coreLibInternalTest = b.addTest(.{
+        .name = "tmd core lib internal unit test",
+        .root_source_file = b.path("library/tmd-core/tests.zig"),
         .target = target,
     });
-    const runLibInternalTest = b.addRunArtifact(libInternalTest);
+    coreLibInternalTest.root_module.addImport("list", listLibModule);
+    coreLibInternalTest.root_module.addImport("tree", treeLibModule);
+    const runCoreLibInternalTest = b.addRunArtifact(coreLibInternalTest);
 
-    const wasmTest = b.addTest(.{
-        .name = "wasm unit test",
-        .root_source_file = b.path("library/wasm/tests.zig"),
+    const wasmLibTest = b.addTest(.{
+        .name = "tmd wasm lib unit test",
+        .root_source_file = b.path("library/tmd-wasm/tests.zig"),
         .target = target, // ToDo: related to wasmTarget?
     });
-    const runWasmTest = b.addRunArtifact(wasmTest);
+    const runWasmLibTest = b.addRunArtifact(wasmLibTest);
 
     //const toolsetTest = b.addTest(.{
-    //    .name = "cmd unit test",
+    //    .name = "toolset unit test",
     //    .root_source_file = b.path("toolset/tmd/tests.zig"),
     //    .target = target,
     //});
     //const runToolsetTest = b.addRunArtifact(toolsetTest);
 
     const testStep = b.step("test", "Run unit tests");
-    testStep.dependOn(&runLibTest.step);
-    testStep.dependOn(&runLibInternalTest.step);
+    testStep.dependOn(&runListLibTest.step);
+    testStep.dependOn(&runTreeLibTest.step);
+    testStep.dependOn(&runCoreLibTest.step);
+    testStep.dependOn(&runCoreLibInternalTest.step);
+    testStep.dependOn(&runWasmLibTest.step);
     //testStep.dependOn(&runToolsetTest.step);
-    testStep.dependOn(&runWasmTest.step);
 
     // toolset command
 
@@ -80,6 +118,8 @@ pub fn build(b: *std.Build) !void {
         }),
     });
     toolsetCommand.root_module.addImport("tmd", tmdLibModule);
+    toolsetCommand.root_module.addImport("list", listLibModule);
+    toolsetCommand.root_module.addImport("tree", treeLibModule);
     const installToolset = b.addInstallArtifact(toolsetCommand, .{});
 
     const toolsetStep = b.step("toolset", "Build toolset");
@@ -106,7 +146,7 @@ pub fn build(b: *std.Build) !void {
     const wasm = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("library/wasm/wasm.zig"),
+            .root_source_file = b.path("library/tmd-wasm/wasm.zig"),
             .target = wasmTarget,
             .optimize = wasmOptimize,
         }),
@@ -122,6 +162,8 @@ pub fn build(b: *std.Build) !void {
     wasm.max_memory = (1 << 24) + (1 << 21); // 18M
 
     wasm.root_module.addImport("tmd", tmdLibModule);
+    wasm.root_module.addImport("list", listLibModule);
+    wasm.root_module.addImport("tree", treeLibModule);
     const installWasm = b.addInstallArtifact(wasm, .{ .dest_dir = .{ .override = .lib } });
 
     const wasmStep = b.step("wasm", "Build wasm lib");
@@ -176,7 +218,7 @@ pub fn build(b: *std.Build) !void {
         }
     };
 
-    const installJsLib = try GenerateJsLib.create(b, b.path("library/js"), installWasm);
+    const installJsLib = try GenerateJsLib.create(b, b.path("library/tmd-js"), installWasm);
     installJsLib.step.dependOn(&installWasm.step);
 
     const jsLibStep = b.step("js", "Build JavaScript lib");

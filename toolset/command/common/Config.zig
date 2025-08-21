@@ -1,12 +1,8 @@
-
-
-
 const std = @import("std");
 
 const Template = @import("Template.zig");
 
 pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
-
 
 @"based-on": ?union(enum) {
     path: []const u8,
@@ -23,8 +19,6 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
     data: []const u8,
 } = null,
 
-
-
 // For commands: to-html, run, build
 @"html-page-template": ?union(enum) {
     data: []const u8,
@@ -33,7 +27,7 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
 } = null,
 
 // For commands: to-html, run, build
-@"favicon": ?union(enum) {
+favicon: ?union(enum) {
     path: []const u8,
 } = null,
 
@@ -41,9 +35,6 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
 @"css-files": ?union(enum) {
     data: []const u8,
 } = null,
-
-
-
 
 // For commands: build
 // Default to project folder name.

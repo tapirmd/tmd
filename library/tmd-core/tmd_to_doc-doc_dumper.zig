@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const tmd = @import("tmd.zig");
-const list = @import("list.zig");
+const list = @import("list");
 
 const config = @import("config");
 

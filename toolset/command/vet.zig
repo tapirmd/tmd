@@ -1,4 +1,3 @@
-
 const std = @import("std");
 
 const AppContext = @import("./common/AppContext.zig");
@@ -20,10 +19,10 @@ pub const Vetter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\Without any argument specified, the current directory
-            \\will be used. 
-            ;
+        return 
+        \\Without any argument specified, the current directory
+        \\will be used. 
+        ;
     }
 
     pub fn process(ctx: *AppContext, _: []const []const u8) !void {
@@ -41,15 +40,13 @@ pub const ProjectVetter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return
-            \\Without any argument specified, the current directory
-            \\will be used. 
-            ;
+        return 
+        \\Without any argument specified, the current directory
+        \\will be used. 
+        ;
     }
 
     pub fn process(ctx: *AppContext, _: []const []const u8) !void {
         try ctx.stdout.print("Not implemented yet.\n", .{});
     }
 };
-
-

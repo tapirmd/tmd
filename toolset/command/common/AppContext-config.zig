@@ -32,7 +32,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     const configFilePath = try ctx.arenaAllocator.dupe(u8, absFilePath);
     //errdefer ctx.arenaAllocator.free(configFilePath);
 
-    try ctx._commandConfigs.put(configFilePath, .{.path = configFilePath});
+    try ctx._commandConfigs.put(configFilePath, .{ .path = configFilePath });
     //errdefer ctx.arenaAllocator.remove(configFilePath);
 
     var configEx = ctx._commandConfigs.getPtr(configFilePath).?;
@@ -50,7 +50,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
         defer ctx.allocator.free(baseFilePath);
 
         const baseConfigEx = try loadTmdConfigInternal(ctx, baseFilePath, loadedFilesInSession);
-        configEx.basic.@"based-on" = .{.path = configEx.path};
+        configEx.basic.@"based-on" = .{ .path = configEx.path };
 
         ctx.mergeTmdConfig(&configEx.basic, &baseConfigEx.basic);
 
@@ -66,7 +66,6 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     return configEx;
 }
-
 
 const defaultConfigContent = @embedFile("tmd.settings-default");
 
@@ -135,9 +134,10 @@ pub fn printTmdConfig(config: *Config) void {
             const activeTag = std.meta.activeTag(unionValue);
             inline for (unionTypeFields) |unionField| {
                 if ((unionField.type == []const u8) and
-                    std.meta.stringToEnum(TagType, unionField.name) == activeTag) {
+                    std.meta.stringToEnum(TagType, unionField.name) == activeTag)
+                {
                     const v = @field(unionValue, unionField.name);
-                    std.debug.print("      .{s}=\"{s}\",\n", .{unionField.name, v});
+                    std.debug.print("      .{s}=\"{s}\",\n", .{ unionField.name, v });
                 }
             }
         } else std.debug.print("null", .{});
@@ -167,7 +167,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
             else => return,
         };
 
-        configEx.basic.@"html-page-template" = .{ 
+        configEx.basic.@"html-page-template" = .{
             ._parsed = try Template.parseTemplate(content, ownerFilePath, ctx._templateFunctions, ctx.arenaAllocator, ctx.stderr),
         };
     }

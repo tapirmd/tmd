@@ -2,8 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 const tmd = @import("tmd.zig");
-const list = @import("list.zig");
-const tree = @import("tree.zig");
+const list = @import("list");
+const tree = @import("tree");
 const utf8 = @import("utf8.zig");
 
 const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
