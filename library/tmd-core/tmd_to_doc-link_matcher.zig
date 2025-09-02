@@ -260,7 +260,7 @@ fn Patricia(comptime TextType: type) type {
             }
         };
 
-        fn putLinkInfo(self: *@This(), text: TextType, linkElement: *list.Element(*tmd.Link)) !void {
+        fn putLinkInfo(self: *@This(), text: TextType, linkElement: *list.List(*tmd.Link).Element) !void {
             var node = try self.getFreeNode();
             node.value.textSegment = text;
 
@@ -407,9 +407,11 @@ fn Patricia(comptime TextType: type) type {
 }
 
 const LinkForTree = struct {
-    linkInfoElementNormal: list.Element(*tmd.Link),
-    linkInfoElementInverted: list.Element(*tmd.Link),
+    linkInfoElementNormal: list.List(*tmd.Link).Element,
+    linkInfoElementInverted: list.List(*tmd.Link).Element,
     revisedLinkText: RevisedLinkText,
+
+    const List = list.List(@This());
 
     fn setLinkAndText(self: *@This(), link: *tmd.Link, text: RevisedLinkText) void {
         self.linkInfoElementNormal.value = link;
@@ -487,8 +489,8 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
     const links = self.links;
     var linkElement = links.head orelse return;
 
-    var linksForTree: list.List(LinkForTree) = .{};
-    defer list.destroyListElements(LinkForTree, linksForTree, destroyRevisedLinkText, self.allocator);
+    var linksForTree: LinkForTree.List = .{};
+    defer linksForTree.destroy(destroyRevisedLinkText, self.allocator);
 
     var normalPatricia = NormalPatricia{ .allocator = self.allocator };
     normalPatricia.init();
@@ -519,7 +521,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                         normalPatricia.clear();
                         invertedPatricia.clear();
 
-                        const theElement = try self.allocator.create(list.Element(LinkForTree));
+                        const theElement = try self.allocator.create(LinkForTree.List.Element);
                         linksForTree.pushTail(theElement);
                         theElement.value.setLinkAndText(link, .{});
                     }
@@ -582,7 +584,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             };
             //defer std.debug.print("====={}: ||{s}||\n", .{link.linkBlock != null, revisedLinkText.asString()});
 
-            const theElement = try self.allocator.create(list.Element(LinkForTree));
+            const theElement = try self.allocator.create(LinkForTree.List.Element);
             linksForTree.pushTail(theElement);
             theElement.value.setLinkAndText(link, revisedLinkText);
             const linkForTree = &theElement.value;

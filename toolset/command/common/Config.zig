@@ -57,8 +57,7 @@ favicon: ?union(enum) {
     data: []const u8,
 } = null,
 
-// For commands: build
-@"project-articles": ?union(enum) {
+@"project-language": ?union(enum) {
     data: []const u8,
 } = null,
 
@@ -68,6 +67,15 @@ favicon: ?union(enum) {
     //url: []const u8, // might be not a good idea
 } = null,
 
-@"project-language": ?union(enum) {
-    data: []const u8,
+// Such as: Table of Contents
+@"project-toc-text": ?union(enum) {
+    path: []const u8,
 } = null,
+
+// null means use all files in project-dir
+@"project-navigation-file": ?union(enum) {
+    path: []const u8,
+} = null,
+
+// option: add hash suffix to file names?
+

@@ -119,8 +119,7 @@ fn set_currnet_line(self: *ContentParser, line: *tmd.Line, lineStart: u32) void 
 fn open_new_link(self: *ContentParser, linkBlock: ?*tmd.Block) !*tmd.Link {
     std.debug.assert(self.blockSession.lastLink == null);
 
-    var linkElement = try list.createListElement(tmd.Link, self.docParser.tmdDoc.allocator);
-    self.docParser.tmdDoc.links.pushTail(linkElement);
+    var linkElement = try self.docParser.tmdDoc.links.createElement(self.docParser.tmdDoc.allocator, true);
     const link = &linkElement.value;
     link.* = .{
         .linkBlock = linkBlock,

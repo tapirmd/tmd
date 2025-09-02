@@ -109,24 +109,30 @@ pub const RenderChecker = struct {
         var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
         defer buf.deinit();
 
-        const CallbackFactory = struct {
-            var htmlGenCallback: tmd.GenCallback_HtmlBlock = undefined;
+        const CustomHandler = struct {
+            htmlGenCallback: *tmd.GenCallback_HtmlBlock = undefined,
 
-            fn getCustomBlockGenCallback(doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
-                std.debug.assert(doc == htmlGenCallback.doc);
+            fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+                const handler: *const @This() = @ptrCast(@alignCast(ctx));
+                const callback = handler.htmlGenCallback;
+                std.debug.assert(doc == callback.doc);
 
                 const attrs = custom.attributes();
                 if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
-                    htmlGenCallback.custom = custom;
-                    return .init(&htmlGenCallback);
+                    callback.custom = custom;
+                    return .init(callback);
                 }
                 return null;
             }
         };
-        CallbackFactory.htmlGenCallback.doc = &tmdDoc;
+        var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{.doc = &tmdDoc, .custom = undefined};
+        const handler = CustomHandler {
+            .htmlGenCallback = &htmlGenCallback,
+        };
 
         const options = tmd.GenOptions{
-            .getCustomBlockGenCallback = CallbackFactory.getCustomBlockGenCallback,
+            .callbackContext = &handler,
+            .getCustomBlockGenCallback = CustomHandler.getCustomBlockGenCallback,
         };
 
         try tmdDoc.writeHTML(buf.writer(), options, std.testing.allocator);

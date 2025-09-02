@@ -7,13 +7,19 @@ pub fn List(comptime Value: type) type {
     return struct {
         // size is 3 words.
         //info: ?struct {
-        //    head: *Element(Value),
-        //    tail: *Element(Value),
+        //    head: *Element,
+        //    tail: *Element,
         //} = null,
 
         // size is 2 words.
-        head: ?*Element(Value) = null,
-        tail: ?*Element(Value) = null,
+        head: ?*Element = null,
+        tail: ?*Element = null,
+
+        pub const Element = struct {
+            value: Value = undefined,
+            prev: ?*Element = null,
+            next: ?*Element = null,
+        };
 
         const Self = @This();
 
@@ -23,7 +29,7 @@ pub fn List(comptime Value: type) type {
         }
 
         // e must not be in any list.
-        pub fn pushTail(self: *Self, e: *Element(Value)) void {
+        pub fn pushTail(self: *Self, e: *Element) void {
             if (self.tail) |tail| {
                 tail.next = e;
                 e.prev = tail;
@@ -36,7 +42,7 @@ pub fn List(comptime Value: type) type {
             e.next = null;
         }
 
-        pub fn popTail(self: *Self) ?*Element(Value) {
+        pub fn popTail(self: *Self) ?*Element {
             if (self.tail) |tail| {
                 if (tail.prev) |prev| {
                     prev.next = null;
@@ -52,7 +58,7 @@ pub fn List(comptime Value: type) type {
         }
 
         // e must not be in any list.
-        pub fn pushHead(self: *Self, e: *Element(Value)) void {
+        pub fn pushHead(self: *Self, e: *Element) void {
             if (self.head) |head| {
                 head.prev = e;
                 e.next = head;
@@ -65,7 +71,7 @@ pub fn List(comptime Value: type) type {
             e.prev = null;
         }
 
-        pub fn popHead(self: *Self) ?*Element(Value) {
+        pub fn popHead(self: *Self) ?*Element {
             if (self.head) |head| {
                 if (head.next) |next| {
                     next.prev = null;
@@ -80,7 +86,7 @@ pub fn List(comptime Value: type) type {
             return null;
         }
 
-        pub fn delete(self: *Self, e: *Element(Value)) void {
+        pub fn delete(self: *Self, e: *Element) void {
             if (self.head) |head| {
                 if (e == head) {
                     _ = self.popHead();
@@ -97,12 +103,12 @@ pub fn List(comptime Value: type) type {
 
         // For lacking of closure support, the pattern of using callback functions
         // is often not very useful. Try to only use this method in tests.
-        pub fn iterate(self: Self, comptime f: fn (Value) void) void {
+        pub fn iterate(self: Self, comptime f: fn (*Value) void) void {
             if (self.head) |head| {
                 var element = head;
                 while (true) {
                     const next = element.next;
-                    f(element.value);
+                    f(&element.value);
                     if (next) |n| element = n else break;
                 }
             }
@@ -120,47 +126,43 @@ pub fn List(comptime Value: type) type {
             }
             return k;
         }
-    };
-}
 
-// ToDo: put in the List namespace?
-pub fn Element(comptime Value: type) type {
-    return struct {
-        value: Value = undefined,
-        prev: ?*Element(Value) = null,
-        next: ?*Element(Value) = null,
-    };
-}
-
-pub fn createListElement(comptime Node: type, allocator: std.mem.Allocator) !*Element(Node) {
-    return try allocator.create(Element(Node));
-}
-
-// Note, this function doesn't clear the list argument.
-// Please make sure all list elements are created by the allocator.
-pub fn destroyListElements(comptime NodeValue: type, l: List(NodeValue), comptime onNodeValue: ?fn (*NodeValue, std.mem.Allocator) void, allocator: std.mem.Allocator) void {
-    var element = l.head;
-    if (onNodeValue) |f| {
-        while (element) |e| {
-            const next = e.next;
-            f(&e.value, allocator);
-            allocator.destroy(e);
-            element = next;
+        // Please make sure all list elements are created by the allocator.
+        pub fn destroy(self: *Self, comptime onNodeValue: ?fn (*Value, std.mem.Allocator) void, allocator: std.mem.Allocator) void {
+            var element = self.head;
+            if (onNodeValue) |f| {
+                while (element) |e| {
+                    const next = e.next;
+                    f(&e.value, allocator);
+                    allocator.destroy(e);
+                    element = next;
+                }
+            } else while (element) |e| {
+                const next = e.next;
+                allocator.destroy(e);
+                element = next;
+            }
+            self.* = .{};
         }
-    } else while (element) |e| {
-        const next = e.next;
-        allocator.destroy(e);
-        element = next;
-    }
+
+        pub fn createElement(self: *Self, allocator: std.mem.Allocator, comptime push: bool) !*Element {
+            const element = try allocator.create(Element);
+            if (push) self.pushTail(element);
+            return element;
+        }
+
+    };
 }
+
+
 
 test "list" {
     const T = struct {
         var lst: *List(u32) = undefined;
         var sum: u32 = undefined;
 
-        fn f(v: u32) void {
-            sum += v;
+        fn f(v: *const u32) void {
+            sum += v.*;
         }
 
         fn sumList() u32 {
@@ -178,7 +180,7 @@ test "list" {
     T.lst = &l;
     try std.testing.expect(T.sumList() == 0);
 
-    var elements: [3]Element(u32) = .{ .{ .value = 0 }, .{ .value = 1 }, .{ .value = 2 } };
+    var elements: [3]List(u32).Element = .{ .{ .value = 0 }, .{ .value = 1 }, .{ .value = 2 } };
     l.pushTail(&elements[0]);
     try std.testing.expect(!l.empty());
     try std.testing.expect(l.head != null);

@@ -161,7 +161,7 @@ fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, a
     const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
     const relativeToPath = if (relativeToFinalConfigFile) tfcc.configEx.path else tfcc.template.ownerFilePath;
 
-    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try ctx.resolvePathFromFilePath(relativeToPath, filePath, ctx.arenaAllocator);
+    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try AppContext.resolvePathFromFilePath(relativeToPath, filePath, ctx.arenaAllocator);
 
     if (std.mem.startsWith(u8, absFilePath, "@")) {
         const asset = absFilePath[1..];

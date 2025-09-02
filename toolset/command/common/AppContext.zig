@@ -70,6 +70,7 @@ const initTemplateFunctions = @import("AppContext-render.zig").initTemplateFunct
 const renderTmdDoc = @import("AppContext-render.zig").renderTmdDoc;
 
 pub const readFileIntoBuffer = @import("AppContext-fs.zig").readFileIntoBuffer;
+pub const isFileInDir = @import("AppContext-fs.zig").isFileInDir;
 pub const resolveRealPath2 = @import("AppContext-fs.zig").resolveRealPath2;
 pub const resolveRealPath = @import("AppContext-fs.zig").resolveRealPath;
 pub const resolvePathFromFilePath = @import("AppContext-fs.zig").resolvePathFromFilePath;
@@ -79,3 +80,6 @@ pub const validateURL = @import("AppContext-fs.zig").validateURL;
 pub const readFile = @import("AppContext-fs.zig").readFile;
 
 pub const regOrGetProject = @import("AppContext-project.zig").regOrGetProject;
+pub const buildOutputDirname = @import("AppContext-project.zig").buildOutputDirname;
+pub const excludeSpecialDir = @import("AppContext-project.zig").excludeSpecialDir;
+

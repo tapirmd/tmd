@@ -17,11 +17,15 @@ pub const GenOptions = struct {
     // enabled_style_xxx: bool,
     // ignoreClasses: bool = false, // for forum posts etc.
 
-    getCustomBlockGenCallback: ?*const fn (doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
+    // Must be valid if any of the following callbacks is not null.
+    // Will be passed as the first arguments of the callbacks.
+    callbackContext: *const anyopaque = undefined,
+
+    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn(*const tmd.Doc, tmd.Token) ?GenCallback = null,
-    getLinkUrlGenCallback: ?*const fn(*const tmd.Doc, *const tmd.Link) ?GenCallback = null,
+    getMediaUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?GenCallback = null,
+    getLinkUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
 };
 
 pub const GenCallback = struct {
@@ -132,12 +136,12 @@ pub const TmdRender = struct {
                 a.destroy(node.value);
             }
         };
-        list.destroyListElements(FootnoteRedBlack.Node, self.footnoteNodes, T.destroyFootnoteNode, self.allocator);
+        self.footnoteNodes.destroy(T.destroyFootnoteNode, self.allocator);
     }
 
     fn getCustomBlockGenCallback(self: *const TmdRender, custom: *const tmd.BlockType.Custom) GenCallback {
         if (self.options.getCustomBlockGenCallback) |get| {
-            if (get(self.doc, custom)) |callback| return callback;
+            if (get(self.options.callbackContext, self.doc, custom)) |callback| return callback;
         }
 
         return dummyGenCallback;
@@ -145,14 +149,14 @@ pub const TmdRender = struct {
 
     fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) ?GenCallback {
         if (self.options.getLinkUrlGenCallback) |get| {
-            if (get(self.doc, link)) |callback| return callback;
+            if (get(self.options.callbackContext, self.doc, link)) |callback| return callback;
         }
         return null;
     }
 
     fn getMediaUrlGenCallback(self: *const TmdRender, infoToken: tmd.Token) ?GenCallback {
         if (self.options.getMediaUrlGenCallback) |get| {
-            if (get(self.doc, infoToken)) |callback| return callback;
+            if (get(self.options.callbackContext, self.doc, infoToken)) |callback| return callback;
         }
         return null;
     }
@@ -178,9 +182,7 @@ pub const TmdRender = struct {
             .block = self.doc.blockByID(id),
         };
 
-        const nodeElement = try list.createListElement(FootnoteRedBlack.Node, self.allocator);
-        self.footnoteNodes.pushTail(nodeElement);
-
+        const nodeElement = try self.footnoteNodes.createElement(self.allocator, true);
         const node = &nodeElement.value;
         node.value = footnote;
         std.debug.assert(node == self.footnotesByID.insert(node));
@@ -199,7 +201,11 @@ pub const TmdRender = struct {
     }
 
     pub fn render(self: *TmdRender, w: anytype) !void {
-        defer self.cleanup();
+        try self._render(w, true);
+    }
+
+    fn _render(self: *TmdRender, w: anytype, doCleanup: bool) !void {
+        defer if (doCleanup) self.cleanup();
 
         var nilFootnoteTreeNode = FootnoteRedBlack.Node{
             .color = .black,
@@ -1070,10 +1076,12 @@ pub const TmdRender = struct {
     const MarkCount = tmd.SpanMarkType.MarkCount;
     const MarkStatus = struct {
         mark: ?*tmd.Token.SpanMark = null,
+
+        const List = list.List(@This());
     };
     const MarkStatusesTracker = struct {
-        markStatusElements: [MarkCount]list.Element(MarkStatus) = .{list.Element(MarkStatus){}} ** MarkCount,
-        marksStack: list.List(MarkStatus) = .{},
+        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{}} ** MarkCount,
+        marksStack: MarkStatus.List = .{},
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
         // These are only valid when activeLinkInfo != null.
@@ -1408,7 +1416,7 @@ pub const TmdRender = struct {
         markElement.value.mark = null;
     }
 
-    fn writeOpenMarks(w: anytype, bottomElement: *list.Element(MarkStatus), usage: contentUsage) !void {
+    fn writeOpenMarks(w: anytype, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
             try writeOpenMark(w, element.value.mark.?, usage);
@@ -1416,7 +1424,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn writeCloseMarks(w: anytype, bottomElement: *list.Element(MarkStatus), usage: contentUsage) !void {
+    fn writeCloseMarks(w: anytype, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
             try writeCloseMark(w, element.value.mark.?, usage);
@@ -1681,7 +1689,8 @@ test "footnotes" {
             .options = .{},
         };
 
-        try r.render(std.io.null_writer);
+        try r._render(std.io.null_writer, false);
+        defer r.cleanup();
 
         const footnotes = &r.footnoteNodes;
         try std.testing.expect(!footnotes.empty());

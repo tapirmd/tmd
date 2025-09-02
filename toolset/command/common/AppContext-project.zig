@@ -4,7 +4,7 @@ const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
 
 pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { invalid: void, registered: *Project, new: *Project } {
-    const path = ctx.resolveRealPath(dirOrConfigPath, ctx.arenaAllocator) catch |err| {
+    const path = AppContext.resolveRealPath(dirOrConfigPath, ctx.arenaAllocator) catch |err| {
         try ctx.stderr.print("Path ({s}) is bad. Resolve error: {s}.\n", .{ dirOrConfigPath, @errorName(err) });
         return .invalid;
     };
@@ -24,7 +24,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
             return .invalid;
         },
         .directory => {
-            const configPath = ctx.resolveRealPath2(path, "tmd.project", ctx.arenaAllocator) catch {
+            const configPath = AppContext.resolveRealPath2(path, "tmd.project", ctx.arenaAllocator) catch {
                 break :blk .{ path, path };
             };
             break :blk .{ path, configPath };
@@ -42,7 +42,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
     const workspaceConfigEx, const workspacePath = blk: {
         var dir = projectDir;
         while (true) {
-            const workspaceConfigPath = ctx.resolveRealPath2(dir, "tmd.workspace", ctx.arenaAllocator) catch {
+            const workspaceConfigPath = AppContext.resolveRealPath2(dir, "tmd.workspace", ctx.arenaAllocator) catch {
                 dir = std.fs.path.dirname(dir) orelse break :blk .{ null, projectDir };
                 continue;
             };
@@ -77,4 +77,10 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
     try ctx._configToProjectMap.put(configPath, project);
 
     return .{ .new = project };
+}
+
+pub const buildOutputDirname = "@tmd-build";
+
+pub fn excludeSpecialDir(dir: []const u8) bool {
+    return !std.mem.eql(u8, dir, buildOutputDirname);
 }

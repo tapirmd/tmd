@@ -222,26 +222,34 @@ fn generateHTML() ![]const u8 {
     var fbs = std.io.fixedBufferStream(renderBuffer);
     try fbs.writer().writeInt(u32, 0, .little);
 
-    const CallbackFactory = struct {
-        var htmlGenCallback: tmd.GenCallback_HtmlBlock = undefined;
+    const CustomHandler = struct {
+        htmlGenCallback: *tmd.GenCallback_HtmlBlock,
 
-        fn getCustomBlockGenCallback(doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+        fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+            const handler: *const @This() = @ptrCast(@alignCast(ctx));
+            const callback = handler.htmlGenCallback;
+
             const attrs = custom.attributes();
             if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
-                std.debug.assert(doc == htmlGenCallback.doc);
-                htmlGenCallback.custom = custom;
-                return .init(&htmlGenCallback);
+                std.debug.assert(doc == callback.doc);
+                callback.custom = custom;
+                return .init(callback);
             }
             return null;
         }
     };
-    CallbackFactory.htmlGenCallback.doc = &tmdDoc;
+    var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{.doc = &tmdDoc, .custom = undefined};
+    const handler = CustomHandler {
+        .htmlGenCallback = &htmlGenCallback,
+    };
 
     const genOptions = tmd.GenOptions{
         .renderRoot = renderRoot,
         .identSuffix = identSuffix,
         .autoIdentSuffix = autoIdentSuffix,
-        .getCustomBlockGenCallback = if (supportHTML) CallbackFactory.getCustomBlockGenCallback else null,
+        
+        .callbackContext = &handler,
+        .getCustomBlockGenCallback = if (supportHTML) CustomHandler.getCustomBlockGenCallback else null,
     };
 
     try tmdDoc.writeHTML(fbs.writer(), genOptions, std.heap.wasm_allocator);

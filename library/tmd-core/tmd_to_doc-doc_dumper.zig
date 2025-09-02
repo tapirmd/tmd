@@ -169,7 +169,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
                     break;
                 }
 
-                const lineElement: *list.Element(tmd.Line) = @alignCast(@fieldParentPtr("value", line));
+                const lineElement: *list.List(tmd.Line).Element = @alignCast(@fieldParentPtr("value", line));
                 if (lineElement.next) |le| {
                     line = &le.value;
                 } else unreachable; // should always break from above

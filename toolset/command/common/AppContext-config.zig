@@ -46,7 +46,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     try loadedFilesInSession.insert(configFilePath);
     //var hasBase = false;
     if (configEx.basic.@"based-on") |baseConfigPath| if (baseConfigPath.path.len > 0) {
-        const baseFilePath = try ctx.resolvePathFromFilePath(configFilePath, baseConfigPath.path, ctx.allocator);
+        const baseFilePath = try AppContext.resolvePathFromFilePath(configFilePath, baseConfigPath.path, ctx.allocator);
         defer ctx.allocator.free(baseFilePath);
 
         const baseConfigEx = try loadTmdConfigInternal(ctx, baseFilePath, loadedFilesInSession);
@@ -160,7 +160,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         const content, const ownerFilePath = switch (htmlPageTemplate) {
             .data => |data| .{ data, configEx.path },
             .path => |filePath| blk: {
-                const absPath = try ctx.resolvePathFromFilePath(configEx.path, filePath, ctx.arenaAllocator);
+                const absPath = try AppContext.resolvePathFromFilePath(configEx.path, filePath, ctx.arenaAllocator);
                 const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, Template.maxTemplateSize);
                 break :blk .{ data, absPath };
             },

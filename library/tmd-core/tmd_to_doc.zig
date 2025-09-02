@@ -18,8 +18,7 @@ pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator, comptime can
     errdefer tmdDoc.destroy();
 
     const BlockRedBlack = tree.RedBlack(*tmd.Block, tmd.Block);
-    const nilBlockTreeNodeElement = try list.createListElement(BlockRedBlack.Node, allocator);
-    tmdDoc._blockTreeNodes.pushTail(nilBlockTreeNodeElement);
+    const nilBlockTreeNodeElement = try tmdDoc._blockTreeNodes.createElement(allocator, true);
     const nilBlockTreeNode = &nilBlockTreeNodeElement.value;
     nilBlockTreeNode.* = BlockRedBlack.MakeNilNode();
     tmdDoc.blocksByID.init(nilBlockTreeNode);

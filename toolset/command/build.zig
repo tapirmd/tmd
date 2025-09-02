@@ -3,7 +3,6 @@ const std = @import("std");
 const tmd = @import("tmd");
 
 const AppContext = @import("./common/AppContext.zig");
-const FileIterator = @import("./common/FileIterator.zig");
 const Project = @import("./common/Project.zig");
 
 const maxTmdFileSize = 1 << 23; // 8M
@@ -26,7 +25,7 @@ pub const TmdToStaticWebsite = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.buildStaticWebsite);
+        try build(ctx, args, Project.StaticWebsiteBuilder);
     }
 };
 
@@ -47,7 +46,7 @@ pub const TmdToEpub = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.buildEpub);
+        try build(ctx, args, Project.EpubBuilder);
     }
 };
 
@@ -68,11 +67,11 @@ pub const TmdToStandaloneHtml = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.buildStandaloneHtml);
+        try build(ctx, args, Project.StandaloneHtmlBuilder);
     }
 };
 
-fn build(ctx: *AppContext, args: []const []const u8, processFunction: fn (*Project, *AppContext) anyerror!void) !void {
+fn build(ctx: *AppContext, args: []const []const u8, builder: anytype) !void {
     const paths = if (args.len > 0) args else blk: {
         const default: []const []const u8 = &.{"."};
         break :blk default;
@@ -83,7 +82,7 @@ fn build(ctx: *AppContext, args: []const []const u8, processFunction: fn (*Proje
         switch (result) {
             .invalid => try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path}),
             .registered => {},
-            .new => |project| try processFunction(project, ctx),
+            .new => |project| try project.build(ctx, builder),
         }
     }
 }

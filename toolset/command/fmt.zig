@@ -37,11 +37,7 @@ pub const Formatter = struct {
     //       Do it in common.TmdFiles.format() ?
     //       Sort args, short dir paths < longer dir paths < file paths.
     fn fmtTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = .{
-            .paths = paths,
-            .allocator = ctx.allocator,
-            .stderr = ctx.stderr,
-        };
+        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
@@ -117,11 +113,7 @@ pub const FormatTester = struct {
     }
 
     fn fmtTestTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = .{
-            .paths = paths,
-            .allocator = ctx.allocator,
-            .stderr = ctx.stderr,
-        };
+        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 

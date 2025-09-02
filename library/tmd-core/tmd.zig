@@ -33,11 +33,11 @@ pub const Doc = struct {
     // The followings are used to track allocations for destroying.
     // ToDo: prefix them with _?
 
-    links: list.List(Link) = .{}, // ToDo: use Link.next instead of List?
+    links: Link.List = .{}, // ToDo: use Link.next instead of List?
 
     _blockTreeNodes: list.List(BlockRedBlack.Node) = .{}, // ToDo: use SinglyLinkedList
     // It is in _blockTreeNodes when exists. So no need to destroy it solely in the end.
-    _freeBlockTreeNodeElement: ?*list.Element(BlockRedBlack.Node) = null,
+    _freeBlockTreeNodeElement: ?*BlockRedBlackNodeList.Element = null,
     _elementAttributes: list.List(ElementAttibutes) = .{}, // ToDo: use SinglyLinkedList
     _baseBlockAttibutes: list.List(BaseBlockAttibutes) = .{}, // ToDo: use SinglyLinkedList
     _codeBlockAttibutes: list.List(CodeBlockAttibutes) = .{}, // ToDo: use SinglyLinkedList
@@ -45,35 +45,36 @@ pub const Doc = struct {
     _contentStreamAttributes: list.List(ContentStreamAttributes) = .{}, // ToDo: use SinglyLinkedList
 
     const BlockRedBlack = tree.RedBlack(*Block, Block);
+    const BlockRedBlackNodeList = list.List(BlockRedBlack.Node);
 
     pub fn parse(tmdData: []const u8, allocator: std.mem.Allocator) !Doc {
         return try @import("tmd_to_doc.zig").parse_tmd(tmdData, allocator, true);
     }
 
     pub fn destroy(doc: *Doc) void {
-        list.destroyListElements(Block, doc.blocks, null, doc.allocator);
+        doc.blocks.destroy(null, doc.allocator);
 
         const T = struct {
             fn destroyLineTokens(line: *Line, a: std.mem.Allocator) void {
                 //if (line.tokens()) |tokens| {
-                //    list.destroyListElements(Token, tokens.*, null, a);
+                //    tokens.*.destroy(null, a);
                 //}
-                list.destroyListElements(Token, line.tokens, null, a);
+                line.tokens.destroy( null, a);
             }
         };
 
-        list.destroyListElements(Line, doc.lines, T.destroyLineTokens, doc.allocator);
+        doc.lines.destroy(T.destroyLineTokens, doc.allocator);
 
-        list.destroyListElements(ElementAttibutes, doc._elementAttributes, null, doc.allocator);
-        list.destroyListElements(BaseBlockAttibutes, doc._baseBlockAttibutes, null, doc.allocator);
-        list.destroyListElements(CodeBlockAttibutes, doc._codeBlockAttibutes, null, doc.allocator);
-        list.destroyListElements(CustomBlockAttibutes, doc._customBlockAttibutes, null, doc.allocator);
-        list.destroyListElements(ContentStreamAttributes, doc._contentStreamAttributes, null, doc.allocator);
+        doc._elementAttributes.destroy(null, doc.allocator);
+        doc._baseBlockAttibutes.destroy(null, doc.allocator);
+        doc._codeBlockAttibutes.destroy(null, doc.allocator);
+        doc._customBlockAttibutes.destroy(null, doc.allocator);
+        doc._contentStreamAttributes.destroy(null, doc.allocator);
 
-        list.destroyListElements(BlockRedBlack.Node, doc._blockTreeNodes, null, doc.allocator);
+        doc._blockTreeNodes.destroy(null, doc.allocator);
 
-        list.destroyListElements(Link, doc.links, null, doc.allocator);
-        list.destroyListElements(*Block, doc.tocHeaders, null, doc.allocator);
+        doc.links.destroy(null, doc.allocator);
+        doc.tocHeaders.destroy(null, doc.allocator);
 
         doc.* = .{ .data = "" };
     }
@@ -249,6 +250,8 @@ pub const Link = struct {
     } = .{},
 
     // ToDo: remove the setXXX pub funcitons.
+
+    const List = list.List(@This());
 
     pub fn isFootnote(self: *const @This()) bool {
         return self.more.isFootnote;
@@ -459,7 +462,9 @@ pub const Block = struct {
         return null;
     }
 
-    pub fn ownerListElement(self: *const @This()) *list.Element(@This()) {
+    const List = list.List(@This());
+
+    fn ownerListElement(self: *const @This()) *Block.List.Element {
         return @alignCast(@fieldParentPtr("value", @constCast(self)));
     }
 
@@ -955,7 +960,9 @@ pub const Line = struct {
         return self.lineType == .attributes;
     }
 
-    pub fn ownerListElement(self: *const @This()) *list.Element(@This()) {
+    const List = list.List(@This());
+
+    fn ownerListElement(self: *const @This()) *Line.List.Element {
         return @alignCast(@fieldParentPtr("value", @constCast(self)));
     }
 
@@ -1387,9 +1394,11 @@ pub const Token = union(enum) {
         return self.end();
     }
 
+    const List = list.List(@This());
+
     // ToDo: if self is const, return const. Possible?
     pub fn next(self: *const @This()) ?*Token {
-        const tokenElement: *const list.Element(Token) = @alignCast(@fieldParentPtr("value", self));
+        const tokenElement: *const Token.List.Element = @alignCast(@fieldParentPtr("value", self));
         if (tokenElement.next) |te| {
             return &te.value;
         }
@@ -1397,7 +1406,7 @@ pub const Token = union(enum) {
     }
 
     pub fn prev(self: *const @This()) ?*Token {
-        const tokenElement: *const list.Element(Token) = @alignCast(@fieldParentPtr("value", self));
+        const tokenElement: *const Token.List.Element = @alignCast(@fieldParentPtr("value", self));
         if (tokenElement.prev) |te| {
             return &te.value;
         }

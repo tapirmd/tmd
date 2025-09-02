@@ -26,8 +26,7 @@ lastBlock: *tmd.Block = undefined,
 pendingTocHeaderBlock: ?*tmd.Block = null,
 
 fn createAndPushBlockElement(parser: *DocParser) !*tmd.Block {
-    var blockElement = try list.createListElement(tmd.Block, parser.tmdDoc.allocator);
-    parser.tmdDoc.blocks.pushTail(blockElement);
+    var blockElement = try parser.tmdDoc.blocks.createElement(parser.tmdDoc.allocator, true);
     parser.tmdDoc.blockCount += 1;
 
     const block = &blockElement.value;
@@ -82,8 +81,7 @@ fn tryToAttributeTheLastBlock(parser: *DocParser) !void {
 }
 
 fn setBlockAttributes(parser: *DocParser, block: *tmd.Block, as: tmd.ElementAttibutes) !void {
-    var blockAttributesElement = try list.createListElement(tmd.ElementAttibutes, parser.tmdDoc.allocator);
-    parser.tmdDoc._elementAttributes.pushTail(blockAttributesElement);
+    var blockAttributesElement = try parser.tmdDoc._elementAttributes.createElement(parser.tmdDoc.allocator, true);
 
     const attrs = &blockAttributesElement.value;
     attrs.* = as;
@@ -95,9 +93,7 @@ fn setBlockAttributes(parser: *DocParser, block: *tmd.Block, as: tmd.ElementAtti
             parser.tmdDoc._freeBlockTreeNodeElement = null;
             break :blk e;
         } else blk: {
-            const BlockRedBlack = tree.RedBlack(*tmd.Block, tmd.Block);
-            const element = try list.createListElement(BlockRedBlack.Node, parser.tmdDoc.allocator);
-            parser.tmdDoc._blockTreeNodes.pushTail(element);
+            const element = try parser.tmdDoc._blockTreeNodes.createElement(parser.tmdDoc.allocator, true);
             break :blk element;
         };
 
@@ -181,8 +177,7 @@ fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
                 // Will correct it at the end of parsing.
                 parser.tmdDoc._headerLevelNeedAdjusted[level - 1] = true;
 
-                const element = try list.createListElement(*tmd.Block, parser.tmdDoc.allocator);
-                parser.tmdDoc.tocHeaders.pushTail(element);
+                const element = try parser.tmdDoc.tocHeaders.createElement(parser.tmdDoc.allocator, true);
                 element.value = headerBlock;
             }
         }
@@ -192,8 +187,7 @@ fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
 }
 
 pub fn createTokenForLine(self: *@This(), line: *tmd.Line) !*tmd.Token {
-    var tokenElement = try list.createListElement(tmd.Token, self.tmdDoc.allocator);
-    line.tokens.pushTail(tokenElement);
+    var tokenElement = try line.tokens.createElement(self.tmdDoc.allocator, true);
     return &tokenElement.value;
 }
 
@@ -252,7 +246,7 @@ fn parse(parser: *DocParser) !void {
     while (lineScanner.proceedToNextLine()) {
         var oldLastBlock = parser.lastBlock;
 
-        var lineElement = try list.createListElement(tmd.Line, allocator);
+        var lineElement = try parser.tmdDoc.lines.createElement(allocator, false);
         var line = &lineElement.value;
         line.* = .{};
 
@@ -309,8 +303,7 @@ fn parse(parser: *DocParser) !void {
                             const playload = parser.tmdDoc.rangeData(playloadRange);
                             const attrs = AttributeParser.parse_code_block_close_playload(playload);
                             if (!std.meta.eql(attrs, .{})) {
-                                var _contentStreamAttributesElement = try list.createListElement(tmd.ContentStreamAttributes, allocator);
-                                parser.tmdDoc._contentStreamAttributes.pushTail(_contentStreamAttributesElement);
+                                var _contentStreamAttributesElement = try parser.tmdDoc._contentStreamAttributes.createElement(allocator, true);
                                 _contentStreamAttributesElement.value = attrs;
                                 //line.lineType.codeBlockEnd.streamAttrs = &_contentStreamAttributesElement.value;
                                 (try parser.createTokenForLine(line)).* = .{
@@ -592,8 +585,7 @@ fn parse(parser: *DocParser) !void {
                         const playload = parser.tmdDoc.rangeData(playloadRange);
                         const attrs = AttributeParser.parse_base_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
-                            var _baseBlockAttibutesElement = try list.createListElement(tmd.BaseBlockAttibutes, allocator);
-                            parser.tmdDoc._baseBlockAttibutes.pushTail(_baseBlockAttibutesElement);
+                            var _baseBlockAttibutesElement = try parser.tmdDoc._baseBlockAttibutes.createElement(allocator, true);
                             _baseBlockAttibutesElement.value = attrs;
                             //baseBlock.blockType.base.openLine.lineType.baseBlockOpen.attrs = &_baseBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{
@@ -674,8 +666,7 @@ fn parse(parser: *DocParser) !void {
                         const playload = parser.tmdDoc.rangeData(playloadRange);
                         const attrs = AttributeParser.parse_code_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
-                            var _codeBlockAttibutesElement = try list.createListElement(tmd.CodeBlockAttibutes, allocator);
-                            parser.tmdDoc._codeBlockAttibutes.pushTail(_codeBlockAttibutesElement);
+                            var _codeBlockAttibutesElement = try parser.tmdDoc._codeBlockAttibutes.createElement(allocator, true);
                             _codeBlockAttibutesElement.value = attrs;
                             //codeBlock.blockType.code.startLine.lineType.codeBlockStart.attrs = &_codeBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{
@@ -705,8 +696,7 @@ fn parse(parser: *DocParser) !void {
                         const playload = parser.tmdDoc.rangeData(playloadRange);
                         const attrs = AttributeParser.parse_custom_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
-                            var _customBlockAttibutesElement = try list.createListElement(tmd.CustomBlockAttibutes, allocator);
-                            parser.tmdDoc._customBlockAttibutes.pushTail(_customBlockAttibutesElement);
+                            var _customBlockAttibutesElement = try parser.tmdDoc._customBlockAttibutes.createElement(allocator, true);
                             _customBlockAttibutesElement.value = attrs;
                             //customBlock.blockType.custom.startLine.lineType.customBlockStart.attrs = &_customBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{

@@ -25,9 +25,16 @@ pub fn readFileIntoBuffer(ctx: AppContext, dir: std.fs.Dir, filePath: []const u8
     return buffer[0..readSize];
 }
 
+pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
+    if (filePath.len > dir.len and std.mem.startsWith(u8, filePath, dir)) {
+        if (filePath[dir.len] == std.fs.path.sep) return true;
+    }
+    return false;
+}
+
 // If dirPath is relative, then it is relative to cwd.
 // If pathToResolve is relative, then it is relative to dirPath.
-pub fn resolveRealPath2(_: *const AppContext, dirPath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]u8 {
     var buffer: [std.fs.max_path_bytes]u8 = undefined;
 
     const validDirPath = validatePath(dirPath, buffer[0..]);
@@ -41,7 +48,7 @@ pub fn resolveRealPath2(_: *const AppContext, dirPath: []const u8, pathToResolve
 }
 
 // If pathToResolve is relative, then it is relative to cwd.
-pub fn resolveRealPath(_: *const AppContext, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPath(pathToResolve: []const u8, allocator: std.mem.Allocator) ![]u8 {
     var buffer: [std.fs.max_path_bytes]u8 = undefined;
 
     const validPathToResolve = validatePath(pathToResolve, buffer[0..]);
@@ -49,7 +56,7 @@ pub fn resolveRealPath(_: *const AppContext, pathToResolve: []const u8, allocato
     return try std.fs.realpathAlloc(allocator, validPathToResolve);
 }
 
-pub fn resolvePathFromFilePath(_: *const AppContext, absFilePath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]const u8 {
     var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     const validFilePath = validatePath(absFilePath, buffer1[0..]);
     const absDirPath = std.fs.path.dirname(validFilePath) orelse return error.NotFilePath;
@@ -60,7 +67,7 @@ pub fn resolvePathFromFilePath(_: *const AppContext, absFilePath: []const u8, pa
     return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
 }
 
-pub fn resolvePathFromAbsDirPath(_: *const AppContext, absDirPath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+pub fn resolvePathFromAbsDirPath(absDirPath: []const u8, pathToResolve: []const u8, allocator: std.mem.Allocator) ![]const u8 {
     var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     const validDirPath = validatePath(absDirPath, buffer1[0..]);
 
