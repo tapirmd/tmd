@@ -9,6 +9,13 @@ pub const GenOptions = @import("doc_to_html.zig").GenOptions;
 pub const GenCallback = @import("doc_to_html.zig").GenCallback;
 pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlock;
 
+pub const MediaExtension = @import("tmd_to_doc-attribute_parser.zig").MediaExtension;
+pub const isValidMediaURL = @import("tmd_to_doc-attribute_parser.zig").isValidMediaURL;
+pub const isLocalURL = @import("tmd_to_doc-attribute_parser.zig").isLocalURL;
+
+pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
+pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
+
 const std = @import("std");
 const builtin = @import("builtin");
 const list = @import("list");
@@ -79,8 +86,8 @@ pub const Doc = struct {
         doc.* = .{ .data = "" };
     }
 
-    pub fn writePageTitle(doc: *const Doc, writer: anytype) !bool {
-        return try @import("doc_to_html.zig").write_doc_title(writer, doc);
+    pub fn writePageTitleInHtmlHead(doc: *const Doc, writer: anytype) !bool {
+        return try @import("doc_to_html.zig").write_doc_title_in_html_head(writer, doc);
     }
 
     pub fn writeHTML(doc: *const Doc, writer: anytype, genOptions: GenOptions, allocator: std.mem.Allocator) !void {

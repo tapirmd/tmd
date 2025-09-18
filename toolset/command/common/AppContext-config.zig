@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const tmd = @import("tmd");
+const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
 const Config = @import("Config.zig");
@@ -46,7 +47,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     try loadedFilesInSession.insert(configFilePath);
     //var hasBase = false;
     if (configEx.basic.@"based-on") |baseConfigPath| if (baseConfigPath.path.len > 0) {
-        const baseFilePath = try AppContext.resolvePathFromFilePath(configFilePath, baseConfigPath.path, ctx.allocator);
+        const baseFilePath = try AppContext.resolvePathFromFilePath(configFilePath, baseConfigPath.path, true, ctx.allocator);
         defer ctx.allocator.free(baseFilePath);
 
         const baseConfigEx = try loadTmdConfigInternal(ctx, baseFilePath, loadedFilesInSession);
@@ -59,7 +60,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     try parseConfigOptions(ctx, configEx);
 
-    if (@import("builtin").mode == .Debug and false) {
+    if (@import("builtin").mode == .Debug and true) {
         std.debug.print("====== {s}\n", .{configFilePath});
         printTmdConfig(&configEx.basic);
     }
@@ -124,7 +125,7 @@ pub fn printTmdConfig(config: *Config) void {
         std.debug.print("   .{s}=", .{structField.name});
         defer std.debug.print(",\n", .{});
         if (@field(config, structField.name)) |unionValue| {
-            std.debug.print("   {{\n", .{});
+            std.debug.print("{{\n", .{});
             defer std.debug.print("   }}", .{});
             const UnionType = @typeInfo(structField.type).optional.child;
             const TagType = std.meta.Tag(UnionType);
@@ -160,7 +161,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         const content, const ownerFilePath = switch (htmlPageTemplate) {
             .data => |data| .{ data, configEx.path },
             .path => |filePath| blk: {
-                const absPath = try AppContext.resolvePathFromFilePath(configEx.path, filePath, ctx.arenaAllocator);
+                const absPath = try AppContext.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
                 const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, Template.maxTemplateSize);
                 break :blk .{ data, absPath };
             },
@@ -169,6 +170,31 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
 
         configEx.basic.@"html-page-template" = .{
             ._parsed = try Template.parseTemplate(content, ownerFilePath, ctx._templateFunctions, ctx.arenaAllocator, ctx.stderr),
+        };
+    }
+
+    if (configEx.basic.favicon) |favicon| {
+        const faviconPath = favicon.path;
+        configEx.basic.favicon = .{
+            ._parsed = try AppContext.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
+        };
+    }
+
+    if (configEx.basic.@"css-files") |cssFiles| {
+        var paths = list.List([]const u8){};
+
+        const data = std.mem.trim(u8, cssFiles.data, " \t\r\n");
+        var it = std.mem.splitAny(u8, data, "\n");
+        while (it.next()) |item| {
+            const line = std.mem.trim(u8, item, "\n");
+            if (line.len == 0) continue;
+            const path = try AppContext.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
+            const element = try paths.createElement(ctx.arenaAllocator, true);
+            element.value = path;
+        }
+
+        configEx.basic.@"css-files" = .{
+            ._parsed = paths,
         };
     }
 }

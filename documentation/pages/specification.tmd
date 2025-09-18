@@ -754,8 +754,8 @@ The URL for a hyperlink can be defined either inside or outside the correspondin
       -  If the matched link (definition) block succeeds to specifiy a URL,
          that URL is used as the hyperlink's URL.
       -  Otherwise, the hyperlink is viewed as broken.
-   +  If no matching blocks are found, the last content token in the corresponding link span
-      is treated as the argument of a custom URL generator.
+   +  If no matching blocks are found, all content tokens within the corresponding link span are
+      collectively treated as the argument for a custom URL generator.
       -  If the URL is successfully generated, the generated URL is used as the hyperlink's URL.
       -  Otherwise, the hyperlink is viewed as broken.
 
@@ -788,15 +788,15 @@ Multiple optional plain usual lines can follow a link line and also belong to
 the same link block starting with the link line.
 
 The sequence of the leading consecutive `=` characters of a link block is called
-a link block leading mark token.
+a **%%link block leading mark token%%**.
 
 The lines within a link block never contain link spans. In other words,
-`__` character sequences will be viewed as content characters in link blocks.
+`__` character sequences in link blocks will be viewed as content characters.
 
 A link block with only one non-blank token
 (its link block leading mark token) is called a %%**bare link block**%%.
 
-Link blocks are used to specify URL for non-self-defined link spans.
+Link blocks are used to specify URLs for non-self-defined link spans.
 Each link block can specify one URL for multiple link spans satisfying certain patterns.
 
 A link block must contain at least two content tokens to specify a URL.

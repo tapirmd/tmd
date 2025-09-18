@@ -4,7 +4,7 @@ const builtin = @import("builtin");
 const tmd = @import("tmd.zig");
 const list = @import("list");
 const tree = @import("tree");
-const LineScanner = @import("tmd_to_doc-line_scanner.zig");
+
 const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 const fns = @import("doc_to_html-fns.zig");
 
@@ -190,9 +190,9 @@ pub const TmdRender = struct {
         return footnote;
     }
 
-    pub fn writeTitleInHtmlHeader(self: *TmdRender, w: anytype) !bool {
+    pub fn writeTitleInHtmlHead(self: *TmdRender, w: anytype) !bool {
         if (self.doc.titleHeader) |titleHeader| {
-            try self.writeUsualContentBlockLinesFornoStyling(w, titleHeader);
+            try self.writeUsualContentBlockLinesForNoStyling(w, titleHeader);
             return true;
         } else {
             try w.writeAll("");
@@ -1096,7 +1096,7 @@ pub const TmdRender = struct {
         }
     };
 
-    fn writeUsualContentBlockLinesFornoStyling(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+    fn writeUsualContentBlockLinesForNoStyling(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
         try self.writeContentBlockLines(w, block, .noStyling);
     }
 
@@ -1199,7 +1199,7 @@ pub const TmdRender = struct {
                                         std.debug.assert(link.textInfo.urlSourceText != null);
 
                                         const t = link.textInfo.urlSourceText.?;
-                                        const linkURL = LineScanner.trim_blanks(self.doc.rangeData(t.range()));
+                                        const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
 
                                         const footnote_id = linkURL[1..];
                                         const footnote = try self.onFootnoteReference(footnote_id);
@@ -1231,7 +1231,7 @@ pub const TmdRender = struct {
                                         std.debug.assert(link.textInfo.urlSourceText != null);
 
                                         const t = link.textInfo.urlSourceText.?;
-                                        const linkURL = LineScanner.trim_blanks(self.doc.rangeData(t.range()));
+                                        const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
 
                                         try w.print(
                                             \\<a href="{s}">

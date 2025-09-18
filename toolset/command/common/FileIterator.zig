@@ -86,7 +86,7 @@ pub fn next(fi: *FileIterator) !?Entry {
                 };
             },
             .directory => {
-                var subDir = try dir.openDir(path, .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+                var subDir = try dir.openDir(path, .{ .iterate = true });
                 if (fi.pathFilterFn(std.fs.path.basename(path))) {
                     const walker = subDir.walk(fi.allocator) catch |err| {
                         subDir.close();

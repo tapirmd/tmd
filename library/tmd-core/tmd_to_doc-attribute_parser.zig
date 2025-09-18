@@ -648,32 +648,37 @@ test "isValidLinkURL" {
     try std.testing.expect(isValidLinkURL("#bar"));
 }
 
-// ToDo: more
-const supportedMediaExts = [_][]const u8{
-    ".png",
-    ".gif",
-    ".jpg",
-    ".jpeg",
+// ToDo: support more
+pub const MediaExtension = enum {
+    @".png",
+    @".gif",
+    @".jpg",
+    @".jpeg",
 };
 
 pub fn isValidMediaURL(src: []const u8) bool {
-    // ToDo: more precisely and performant.
+    const ext = if (std.mem.lastIndexOfScalar(u8, src, '.')) |k| src[k..] else return false;
 
-    //next: {
-    //    //if (std.mem.startsWith(u8, src, "./") break :next;
-    //    //if (std.mem.startsWith(u8, src, "../") break :next;
-    //    if (std.ascii.startsWithIgnoreCase(text, "http")) {
-    //        const t = text[4..];
-    //        if (std.ascii.startsWithIgnoreCase(t, "s://")) break :next;
-    //        if (std.ascii.startsWithIgnoreCase(t, "://")) break :next;
-    //    }
-    //}
+    // return std.meta.stringToEnum(MediaExtension, allocLowerString(ext) != null;
 
-    for (supportedMediaExts) |ext| {
-        if (std.ascii.endsWithIgnoreCase(src, ext)) return src.len > ext.len;
+    const supportedMediaExts = std.meta.fieldNames(MediaExtension);
+    for (supportedMediaExts) |e| {
+        if (std.ascii.eqlIgnoreCase(ext, e)) return true;
     }
 
     return false;
+}
+
+
+// ToDo: need improvement
+pub fn isLocalURL(src: []const u8) bool {
+    if (std.ascii.startsWithIgnoreCase(src, "http")) {
+         const t = src[4..];
+         if (std.ascii.startsWithIgnoreCase(t, "s://")) return false;
+         if (std.ascii.startsWithIgnoreCase(t, "://")) return true;
+    }
+
+    return true;
 }
 
 test "isValidMediaURL" {

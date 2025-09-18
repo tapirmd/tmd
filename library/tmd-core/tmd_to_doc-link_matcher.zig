@@ -5,7 +5,6 @@ const list = @import("list");
 const tree = @import("tree");
 
 const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
-const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 const DocParser = @import("tmd_to_doc-doc_parser.zig");
 
 const LinkMatcher = @This();
@@ -31,7 +30,7 @@ fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
 
 const DummyLinkText = struct {
     pub fn set(_: *DummyLinkText, _: u32, r: u8) bool {
-        return !LineScanner.bytesKindTable[r].isBlank();
+        return !tmd.bytesKindTable[r].isBlank();
     }
 };
 
@@ -542,7 +541,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
             // handle the last text token
             {
-                const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
+                const str = tmd.trimBlanks(self.tokenAsString(lastToken));
                 if (link.linkBlock != null) {
                     if (copyLinkText(&dummyLinkText, 0, str) == 0) {
                         // This link definition will be ignored.
@@ -604,7 +603,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 }
 
                 // handle the last text token
-                const str = LineScanner.trim_blanks(self.tokenAsString(lastToken));
+                const str = tmd.trimBlanks(self.tokenAsString(lastToken));
                 if (link.linkBlock != null) {
                     std.debug.assert(linkTextLen2 == linkTextLen);
 

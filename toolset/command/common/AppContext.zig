@@ -69,17 +69,27 @@ const FileCacheKeyContext = @import("AppContext-render.zig").FileCacheKeyContext
 const initTemplateFunctions = @import("AppContext-render.zig").initTemplateFunctions;
 const renderTmdDoc = @import("AppContext-render.zig").renderTmdDoc;
 
-pub const readFileIntoBuffer = @import("AppContext-fs.zig").readFileIntoBuffer;
-pub const isFileInDir = @import("AppContext-fs.zig").isFileInDir;
-pub const resolveRealPath2 = @import("AppContext-fs.zig").resolveRealPath2;
-pub const resolveRealPath = @import("AppContext-fs.zig").resolveRealPath;
-pub const resolvePathFromFilePath = @import("AppContext-fs.zig").resolvePathFromFilePath;
-pub const resolvePathFromAbsDirPath = @import("AppContext-fs.zig").resolvePathFromAbsDirPath;
-pub const validatePath = @import("AppContext-fs.zig").validatePath;
-pub const validateURL = @import("AppContext-fs.zig").validateURL;
-pub const readFile = @import("AppContext-fs.zig").readFile;
+pub const getLastGitCommitString = @import("AppContext-git.zig").getLastGitCommitString;
 
 pub const regOrGetProject = @import("AppContext-project.zig").regOrGetProject;
 pub const buildOutputDirname = @import("AppContext-project.zig").buildOutputDirname;
 pub const excludeSpecialDir = @import("AppContext-project.zig").excludeSpecialDir;
+
+pub const readFile = @import("AppContext-helper.zig").readFile;
+pub const writeFile = @import("AppContext-helper.zig").writeFile;
+pub const isFileInDir = @import("AppContext-helper.zig").isFileInDir;
+pub const resolveRealPath2 = @import("AppContext-helper.zig").resolveRealPath2;
+pub const resolveRealPath = @import("AppContext-helper.zig").resolveRealPath;
+pub const resolvePathFromFilePath = @import("AppContext-helper.zig").resolvePathFromFilePath;
+pub const resolvePathFromAbsDirPath = @import("AppContext-helper.zig").resolvePathFromAbsDirPath;
+//pub const validateURL = @import("AppContext-helper.zig").validateURL;
+pub const validatePath = @import("AppContext-helper.zig").validatePath;
+pub const validatedPathToPosixPath =  @import("AppContext-helper.zig").validatedPathToPosixPath;
+pub const buildPosixPath = @import("AppContext-helper.zig").buildPosixPath;
+pub const buildPosixPathWithContentHashBase64 = @import("AppContext-helper.zig").buildPosixPathWithContentHashBase64;
+//pub const isStringInList = @import("AppContext-helper.zig").isStringInList;
+pub const buildHashString = @import("AppContext-helper.zig").buildHashString;
+pub const buildHashHexString = @import("AppContext-helper.zig").buildHashHexString;
+pub const buildAssetFilePath = @import("AppContext-helper.zig").buildAssetFilePath;
+pub const buildEmbeddedImageHref = @import("AppContext-helper.zig").buildEmbeddedImageHref;
 

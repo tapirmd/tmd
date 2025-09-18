@@ -5,8 +5,8 @@ const tmd = @import("tmd.zig");
 const list = @import("list");
 const tree = @import("tree");
 
-const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
-const LineScanner = @import("tmd_to_doc-line_scanner.zig");
+//const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
+//const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 const DocDumper = @import("tmd_to_doc-doc_dumper.zig");
 const DocVerifier = @import("tmd_to_doc-doc_verifier.zig");
 const DocParser = @import("tmd_to_doc-doc_parser.zig");

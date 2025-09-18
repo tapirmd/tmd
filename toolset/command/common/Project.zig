@@ -24,8 +24,38 @@ pub fn dirname(project: *const Project) []const u8 {
 }
 
 pub fn title(project: *const Project) []const u8 {
-    return if (project.configEx.basic.@"project-title") |t| t.data else project.dirname();
+    if (project.configEx.basic.@"project-title") |option| {
+        const text = std.mem.trim(u8, option.data, " \t");
+        if (text.len > 0) return text;
+    }
+    return project.dirname();
 }
+
+pub fn navigationArticlePath(project: *const Project) ?[]const u8 {
+    if (project.configEx.basic.@"project-navigation-article") |option| {
+        const path = std.mem.trim(u8, option.path, " \t");
+        if (path.len > 0) return path;
+    }
+    return null;
+}
+
+pub fn coverImagePath(project: *const Project) ?[]const u8 {
+    if (project.configEx.basic.@"project-cover-image") |option| {
+        const path = std.mem.trim(u8, option.path, " \t");
+        if (path.len > 0) return path;
+    }
+    return null;
+}
+
+pub fn confirmProject(project: *const Project) ?[]const u8 {
+    if (project.configEx.basic.@"project-cover-image") |option| {
+        const path = std.mem.trim(u8, option.path, " \t");
+        if (path.len > 0) return path;
+    }
+    return null;
+}
+
+
 
 pub const build = @import("Project-build.zig").build;
 pub const StandaloneHtmlBuilder = @import("Project-build.zig").StandaloneHtmlBuilder;

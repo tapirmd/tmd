@@ -1,5 +1,7 @@
 const std = @import("std");
 
+const list = @import("list");
+
 const Template = @import("Template.zig");
 
 pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
@@ -11,7 +13,7 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
 /// For commands: to-html, run, build
 @"custom-apps": ?union(enum) {
     data: []const u8,
-    _parsed: void,
+    _parsed: void, // ToDo: data might contains paths
 } = null,
 
 /// For commands: to-html, run, build
@@ -28,12 +30,14 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
 
 // For commands: to-html, run, build
 favicon: ?union(enum) {
-    path: []const u8,
+    path: []const u8, // relative to the containing config file
+    _parsed: []const u8, // abs path
 } = null,
 
 // For commands: to-html, run, build
 @"css-files": ?union(enum) {
-    data: []const u8,
+    data: []const u8, // containing paths relative to the containing config file
+    _parsed: list.List([]const u8), // abs paths
 } = null,
 
 // For commands: build
@@ -43,38 +47,18 @@ favicon: ?union(enum) {
 } = null,
 
 // For commands: build
-@"project-authors": ?union(enum) {
-    data: []const u8,
-} = null,
-
-// For commands: build
-@"project-tags": ?union(enum) {
-    data: []const u8,
-} = null,
-
-// For commands: build
 @"project-version": ?union(enum) {
-    data: []const u8,
-} = null,
-
-@"project-language": ?union(enum) {
     data: []const u8,
 } = null,
 
 // For commands: build
 @"project-cover-image": ?union(enum) {
-    path: []const u8,
-    //url: []const u8, // might be not a good idea
+    path: []const u8, // relative to project dir
 } = null,
 
-// Such as: Table of Contents
-@"project-toc-text": ?union(enum) {
-    path: []const u8,
-} = null,
-
-// null means use all files in project-dir
-@"project-navigation-file": ?union(enum) {
-    path: []const u8,
+// null means using all .tmd files in project-dir
+@"project-navigation-article": ?union(enum) {
+    path: []const u8, // relative to project dir
 } = null,
 
 // option: add hash suffix to file names?

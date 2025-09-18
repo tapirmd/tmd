@@ -62,24 +62,18 @@ pub const TemplateFunctions = struct {
     pub fn @"page-title-in-head"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
-        if (!try tfcc.tmdDoc.writePageTitle(tfcc.w)) try tfcc.w.writeAll("Untitled");
+        if (!try tfcc.tmdDoc.writePageTitleInHtmlHead(tfcc.w)) try tfcc.w.writeAll("Untitled");
     }
 
-    pub fn @"project-title-in-head"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
-        if (args != null) return error.TooManyTemplateFunctionArguments;
-
-        if (!try tfcc.tmdDoc.writePageTitle(tfcc.w)) try tfcc.w.writeAll("Untitled");
-    }
-
-    pub fn @"html-snippet-in-body"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"page-content-in-body"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
         try tfcc.tmdDoc.writeHTML(tfcc.w, .{}, tfcc.ctx.allocator);
     }
 
-    pub fn @"file-content"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"embed-file-content"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
         if (args == null) {
-            try tfcc.ctx.stderr.print("function [file-content] needs at least one argument.\n", .{});
+            try tfcc.ctx.stderr.print("function [embed-file-content] needs at least one argument.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         }
 
@@ -161,7 +155,7 @@ fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, a
     const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
     const relativeToPath = if (relativeToFinalConfigFile) tfcc.configEx.path else tfcc.template.ownerFilePath;
 
-    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try AppContext.resolvePathFromFilePath(relativeToPath, filePath, ctx.arenaAllocator);
+    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try AppContext.resolvePathFromFilePath(relativeToPath, filePath, true, ctx.arenaAllocator);
 
     if (std.mem.startsWith(u8, absFilePath, "@")) {
         const asset = absFilePath[1..];
@@ -179,7 +173,7 @@ fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, a
     };
     if (ctx._cachedFileContents.get(cacheKey)) |content| return .{ content, absFilePath };
 
-    const content = try ctx.readFile(absFilePath, ctx.arenaAllocator, maxCachedFileSize);
+    const content = try ctx.readFile(null, absFilePath, .{.alloc = .{.allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize}});
     try ctx._cachedFileContents.put(cacheKey, content);
     return .{ content, absFilePath };
 }

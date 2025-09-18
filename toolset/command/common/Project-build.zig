@@ -14,8 +14,11 @@ pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void
     try session.buildWith(BuilderType);
 }
 
-const maxTmdFileSize = 1 << 22; // 4M
+const maxTmdFileSize = 1 << 20; // 1M
 const bufferSize = maxTmdFileSize * 8;
+
+const maxImageFileSize = 1 << 22; // 4M
+const maxStyleFileSize = 1 << 19;   // 512K
 
 const BuildSession = struct {
     project: *const Project,
@@ -26,31 +29,42 @@ const BuildSession = struct {
 
     projectVersion: []const u8 = undefined,
     buildOutputPath: []const u8 = undefined,
-
-    calTargetArticlePath: *const fn(*const BuildSession, []const u8) anyerror![]const u8 = undefined,
+    buildOutputDir: std.fs.Dir = undefined,
 
     genBuffer: []u8 = undefined,
     
-    tmdGenCustomHandler: TmdGenCustomHandler = undefined,
-    getCustomBlockGenCallback: *const fn (session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback = undefined,
-    getMediaUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback = undefined,
-    getLinkUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback = undefined,
+    //getCustomBlockGenCallback: *const fn (session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback = undefined,
+    //getMediaUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback = undefined,
+    //getLinkUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback = undefined,
 
+    calTargetFilePath: *const fn(*BuildSession, []const u8, FilePurpose) anyerror![]const u8 = undefined,
+
+    //builderContext: *anyopaque = undefined,
+    
     // source abs-file-path to target relative-file-path
     fileMapping: std.StringHashMap([]const u8) = undefined,
     
-    // target relative-file-path to file content
-    targetFiles: std.StringHashMap([]const u8) = undefined,
+    // target relative-file-path to cached file content.
+    // For website mode, asset files (iamge, css, etc.) are not cached.
+    // ToDo: maybe, website mode should not cache article html too.
+    // ToDo2: maybe, no file content should be cached at all (for all modes).
+    targetFileContents: std.StringHashMap([]const u8) = undefined,
 
-    // abs-file-path
-    articleFiles: list.List([]const u8) = .{},
+    // source abs-file-path
+    articleFiles: std.ArrayList([]const u8) = undefined,
+    navArticleIndex: ?usize = null,
 
-    // all are target relative-file-path
-    imageFiles: list.List([]const u8) = .{},
+    // ToDo:
+    // target relative-file-path
+    htmlFiles: std.ArrayList([]const u8) = undefined,
+
+    // target relative-file-path
+    imageFiles: std.ArrayList([]const u8) = undefined,
+    coverImageIndex: ?usize = null,
+    faviconIndex: ?usize = null,
+
+    // target relative-file-path
     cssFiles: list.List([]const u8) = .{},
-    navArticle: []const u8 = "",
-    coverImage: []const u8 = "",
-
        
     fn init(project: *const Project, appContext: *AppContext, arenaAllocator: std.heap.ArenaAllocator) @This() {
         return .{
@@ -64,59 +78,52 @@ const BuildSession = struct {
         self._arenaAllocator.deinit();
     }
 
-    const TmdGenCustomHandler = struct {
-        session: *BuildSession,
-
-        fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
-            const handler: *const @This() = @ptrCast(@alignCast(ctx));
-            return handler.session.getCustomBlockGenCallback(handler.session, doc, custom);
-        }
-
-        fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback {
-            const handler: *const @This() = @ptrCast(@alignCast(ctx));
-            return handler.session.getMediaUrlGenCallback(handler.session, doc, mediaInfoToken);
-        }
-
-        fn getLinkUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
-            const handler: *const @This() = @ptrCast(@alignCast(ctx));
-            return handler.session.getLinkUrlGenCallback(handler.session, doc, link);
-        }
-        
-        fn makeTmdGenOptions(handler: *const @This()) tmd.GenOptions {
-            return .{
-                .callbackContext = handler,
-                .getCustomBlockGenCallback = &getCustomBlockGenCallback,
-                .getMediaUrlGenCallback = &getMediaUrlGenCallback,
-                .getLinkUrlGenCallback = &getLinkUrlGenCallback,
-            };
-        }
-    };
-
     fn buildWith(self: *@This(), BuilderType: type) !void {
         self.arenaAllocator =  self._arenaAllocator.allocator();
 
         try self.confirmProjectVersion();
         try self.confirmBuildOutputPath(BuilderType.buildNameSuffix());
 
-        self.calTargetArticlePath = BuilderType.calTargetArticlePath;
+        std.debug.print("[run] del and mkdir {s}\n", .{self.buildOutputPath});
+        try std.fs.cwd().deleteTree(self.buildOutputPath);
+        self.buildOutputDir = try std.fs.cwd().makeOpenPath(self.buildOutputPath, .{});
+        defer self.buildOutputDir.close();
 
         self.genBuffer = try self.arenaAllocator.alloc(u8, bufferSize);
 
-        self.tmdGenCustomHandler = .{.session = self};
-        self.getCustomBlockGenCallback = BuilderType.getCustomBlockGenCallback;
-        self.getMediaUrlGenCallback = BuilderType.getMediaUrlGenCallback;
-        self.getLinkUrlGenCallback = BuilderType.getLinkUrlGenCallback;
+        //self.getCustomBlockGenCallback = BuilderType.getCustomBlockGenCallback;
+        //self.getMediaUrlGenCallback = BuilderType.getMediaUrlGenCallback;
+        //self.getLinkUrlGenCallback = BuilderType.getLinkUrlGenCallback;
+
+        self.calTargetFilePath = BuilderType.calTargetFilePath;
+
+        //BuilderType.initContextFor(self);
+        //defer BuilderType.deinitContextFor(self);
+
+        self.articleFiles = .init(self.arenaAllocator);
+        self.htmlFiles = .init(self.arenaAllocator);
+        self.imageFiles = .init(self.arenaAllocator);
+        //self.cssFiles
         
         self.fileMapping = .init(self.arenaAllocator);
-        self.targetFiles = .init(self.arenaAllocator);
+        self.targetFileContents = .init(self.arenaAllocator);
 
+        // Some images must be collected before articles.
+        try self.collectSomeImages();
         try self.collectArticles();
+        try self.collectCssFiles();
+
+        try BuilderType.assembleOutputFiles(self);
     }
 
-
-
     fn confirmProjectVersion(self: *@This()) !void {
-        self.projectVersion = "";
+        const project = self.project;
+        self.projectVersion = if (project.configEx.basic.@"project-version") |option| blk: {
+            const version = std.mem.trim(u8, option.data, " \t");
+            if (std.mem.eql(u8, version, "@git-commit")) {
+                break :blk AppContext.getLastGitCommitString(project.path, self.arenaAllocator);
+            } else break :blk version;
+        } else "";
     }
 
     fn confirmBuildOutputPath(self: *@This(), buildNameSuffix: []const u8) !void {
@@ -141,61 +148,66 @@ const BuildSession = struct {
 
         self.buildOutputPath = try self.arenaAllocator.dupe(u8, fbs.getWritten());
 
-        std.debug.print("self.buildOutputPath = {s}\n", .{self.buildOutputPath});
+        //std.debug.print("self.buildOutputPath = {s}\n", .{self.buildOutputPath});
     }
 
     fn collectArticles(self: *@This()) !void {
-        if (self.project.configEx.basic.@"project-navigation-file") |option| {
-            const path = std.mem.trim(u8, option.path, " \t");
-            if (path.len > 0) {
-                if (!std.mem.eql(u8, std.fs.path.extension(path), ".tmd")) {
-                    try self.appContext.stderr.print("Navigation file must be a .tmd extension: {s}\n", .{path});
-                    return error.BadNavigationFile;
-                }
+        // Note that: in epub build,
+        // the navigation file may be also used as a general article file.
+        // This means the file might be rendered as two HTML files.
 
-                const absPath = try AppContext.resolveRealPath(path, self.arenaAllocator);
-                if (!AppContext.isFileInDir(absPath, self.project.path)) {
-                    try self.appContext.stderr.print("Navigation file must be in project path ({s}): {s}.\n", .{self.project.path, absPath});
-                    return error.BadNavigationFile;
-                }
-
-                self.navArticle = try self.tryToRegisterArticle(absPath) orelse unreachable;
-
-                var element = self.articleFiles.head.?;
-                if (builtin.mode == .Debug) {
-                    std.debug.assert(std.meta.eql(element.value, self.navArticle));
-                }
-
-                while (true) {
-                    _ = try self.collectArticle(element.value);
-                    element = element.next orelse break;
-                }
-
-                return;
+        if (self.project.navigationArticlePath()) |path| {
+            if (!std.mem.eql(u8, std.fs.path.extension(path), ".tmd")) {
+                try self.appContext.stderr.print("Navigation file must be a .tmd extension: {s}\n", .{path});
+                return error.BadNavigationFile;
             }
-        } 
 
-        const paths: [1][]const u8 = .{self.project.path};
+            const absPath = try AppContext.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            if (!AppContext.isFileInDir(absPath, self.project.path)) {
+                try self.appContext.stderr.print("Navigation file must be in project path ({s}): {s}.\n", .{self.project.path, absPath});
+                return error.BadNavigationFile;
+            }
 
-        var fi: FileIterator = .init(paths[0..], self.appContext.allocator, self.appContext.stderr, &AppContext.excludeSpecialDir);
-        while (try fi.next()) |entry| {
-            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+            const index = self.articleFiles.items.len;
+            _ = try self.tryToRegisterFile(absPath, .navigationArticle);
+            std.debug.assert(index+1 == self.articleFiles.items.len);
+            self.navArticleIndex = index;
 
-            const path = try AppContext.resolveRealPath2(entry.dirPath, entry.filePath, self.arenaAllocator);
-            _ = try self.tryToRegisterArticle(path);
-            try self.collectArticle(path);
+            var i: usize = 0;
+            while (i < self.articleFiles.items.len) {
+                _ = try self.collectArticle(self.articleFiles.items[i]);
+                i += 1;
+            }
+
+            return;
         }
 
-        // construct nav.tmd ...
+        try self.appContext.stderr.print("Now, navigation file must be specified.\n", .{});
+        return error.NavigationUnspecified;
+
+        //const paths: [1][]const u8 = .{self.project.path};
+        //
+        //var fi: FileIterator = .init(paths[0..], self.appContext.allocator, self.appContext.stderr, &AppContext.excludeSpecialDir);
+        //while (try fi.next()) |entry| {
+        //    if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+        //
+        //    const path = try AppContext.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
+        //    _ = try self.tryToRegisterFile(path, .contentArticle);
+        //    try self.collectArticle(path);
+        //}
+        //
+        //// construct nav.tmd ...
+        //self.navArticle = try self.constructNavigationArticle();
     }
 
+    // An article must be registered before being collected.
     fn collectArticle(self: *@This(), absPath: []const u8) !void {
         const targetPath = self.fileMapping.get(absPath) orelse return error.ArticleNotRegistered;
-        if (self.targetFiles.get(targetPath)) |_| return error.ArticleAlreadyCollected;
+        if (self.targetFileContents.get(targetPath)) |_| return error.ArticleAlreadyCollected;
 
         var remainingBuffer = self.genBuffer;
 
-        const tmdContent = try self.appContext.readFileIntoBuffer(std.fs.cwd(), absPath, remainingBuffer[0..maxTmdFileSize]);
+        const tmdContent = try self.appContext.readFile(std.fs.cwd(), absPath, .{.buffer = remainingBuffer[0..maxTmdFileSize]});
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
@@ -204,150 +216,368 @@ const BuildSession = struct {
         const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
         // defer tmdDoc.destroy(); // unnecessary
 
-        const genOptions = self.tmdGenCustomHandler.makeTmdGenOptions();
-        var fbs = std.io.fixedBufferStream(remainingBuffer);
+        const renderBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
+        var fbs = std.io.fixedBufferStream(renderBuffer);
+        var tmdGenCustomHandler: TmdGenCustomHandler = .init(self, absPath);
+        const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
         try tmdDoc.writeHTML(fbs.writer(), genOptions, self.appContext.allocator);
 
         const htmlSnippet = try self.arenaAllocator.dupe(u8, fbs.getWritten());
-        try self.targetFiles.put(targetPath, htmlSnippet);
+        try self.targetFileContents.put(targetPath, htmlSnippet);
     }
 
-    fn tryToRegisterArticle(self: *@This(), absPath: []const u8) !?[]const u8 {
-        if (self.fileMapping.contains(absPath)) return null;
+    // Now, use a simple design to avoid implementation complexity.
+    // <img .../> element is not supported in title as TOC item now.
+    // To support it, the implmentation will be much complex.
+    // The TmdGenCustomHandler type needs an extra field: 
+    //     navPath: ?[]const u8,
+    //
+    // To support 3 cases:
+    // 1. Full navigation file, which contains 1+ .tmd file references.
+    // 2. Partial navigaiton file, only contains head part,
+    //    no .tmd file references. Append all iterated tmd files.
+    // 3. No navigation file.
+    //    Append all iterated tmd files.
+    //
+    // ToDo: this is not used. Now only support the first case.
+    const NavigationFileRenderer = struct {
+        buffer: std.ArrayList(u8),
 
-        // ToDo: tolerate file-out-of-project error and collect it to
-        //       show in the warning list at the end of the build.
-        const targetPath = try self.calTargetArticlePath(self, absPath);
+        fn start() !void {
+        }
 
+        fn end() !void {
+        }
+
+        fn writeTitleAsTocItem() !void {
+        }
+    };
+
+    fn collectSomeImages(self: *@This()) !void {
+        if (self.project.coverImagePath()) |path| {
+            const absPath = try AppContext.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            
+            const index = self.imageFiles.items.len;
+            _ = try self.tryToRegisterFile(absPath, .image);
+            std.debug.assert(index+1 == self.imageFiles.items.len);
+            self.coverImageIndex = index;
+        }
+
+        if (self.project.configEx.basic.favicon) |option| {
+            const absPath = option._parsed;
+
+            const index = self.imageFiles.items.len;
+            _ = try self.tryToRegisterFile(absPath, .image);
+            std.debug.assert(index+1 == self.imageFiles.items.len);
+            self.faviconIndex = index;
+        }
+    }
+
+    fn collectCssFiles(self: *@This()) !void {
+        if (self.project.configEx.basic.@"css-files") |option| {
+            const paths = option._parsed;
+
+            var element = paths.head;
+            while (element) |e| {
+                const absPath = e.value;
+                _ = try self.tryToRegisterFile(absPath, .css);
+                element = e.next;
+            }
+        }
+    }
+
+    fn tryToRegisterFile(self: *@This(), absPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+        if (self.fileMapping.get(absPath)) |targetPath| return targetPath;
+
+        const targetPath = try self.calTargetFilePath(self, absPath, filePurpose);
         try self.fileMapping.put(absPath, targetPath);
+
+        switch (filePurpose) {
+            .navigationArticle, .contentArticle => try self.articleFiles.append(absPath),
+            .html => try self.htmlFiles.append(targetPath),
+            .image => try self.imageFiles.append(targetPath),
+            .css => {
+                const element = try self.cssFiles.createElement(self.arenaAllocator, true);
+                element.value = targetPath;
+            },
+        }
+
         
-        const element = try self.articleFiles.createElement(self.arenaAllocator, true);
-        element.value = absPath;
+        if (targetPath.len <= 256) std.debug.print(
+            \\[register] {s}: {s}
+            \\    -> {s}
+            \\
+            , .{@tagName(filePurpose), absPath, targetPath})
+        else std.debug.print(
+            \\[register] {s}: {s}
+            \\    -> {s} ({} bytes)
+            \\
+            , .{@tagName(filePurpose), absPath, targetPath[0..64], targetPath.len});
 
         return targetPath;
     }
-
-
 };
 
-pub const StaticWebsiteBuilder = struct {
-    // .tmd -> .html
-    // image.ext -> image-HASH.ext
-    // .css -> .css
+const TmdGenCustomHandler = struct {
+    session: *BuildSession,
+    docPath: []const u8,
 
-    fn buildNameSuffix() []const u8 {
-        return "-website";
+    fn init(bs: *BuildSession, docAbsPath: []const u8) TmdGenCustomHandler {
+        return .{
+            .session = bs,
+            .docPath = docAbsPath,
+        };
+    }
+    
+    fn makeTmdGenOptions(handler: *const @This()) tmd.GenOptions {
+        return .{
+            .callbackContext = handler,
+            .getCustomBlockGenCallback = &getCustomBlockGenCallback,
+            .getMediaUrlGenCallback = &getMediaUrlGenCallback,
+            .getLinkUrlGenCallback = &getLinkUrlGenCallback,
+        };
     }
 
-    fn calTargetArticlePath(session: *const BuildSession, sourceAbsPath: []const u8) ![]const u8 {
-        const project = session.project;
-        if (!AppContext.isFileInDir(sourceAbsPath, project.path)) return error.FileOutOfProject;
-        return sourceAbsPath[project.path.len..];
-    }
-
-    fn getCustomBlockGenCallback(session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
-        _ = session;
+    fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+        const handler: *const @This() = @ptrCast(@alignCast(ctx));
+        _ = handler;
         _ = doc;
         _ = custom;
 
         return null;
     }
 
-    fn getMediaUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, mediaToken: tmd.Token) ?tmd.GenCallback {
-        _ = session;
+    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback {
+        const handler: *const @This() = @ptrCast(@alignCast(ctx));
+        _ = handler;
         _ = doc;
-        _ = mediaToken;
+        _ = mediaInfoToken;
         
         return null;
     }
 
-    fn getLinkUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
-        _ = session;
-        _ = doc;
-        _ = link;
+    fn getLinkUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
+        const handler: *const @This() = @ptrCast(@alignCast(ctx));
+        _ = handler;
+
+        // doc should has .path field, might be blank for memory data.
+
+        const t = link.textInfo.urlSourceText.?;
+        const urlSource = tmd.trimBlanks(doc.rangeData(t.range()));
         
+        std.debug.print("> link: urlConfirmed={}, urlSource={s} \n", .{link.urlConfirmed(), urlSource});
+
         return null;
     }
+};
 
+const FilePurpose = enum {
+    navigationArticle,
+    contentArticle,
+    html,
+    image,
+    css,
+};
 
+pub const StaticWebsiteBuilder = struct {
+    //const Context = struct {
+    //    //outputDir: std.fs.Dir,
+    //    //outputArticlesDir: std.fs.Dir,
+    //    //outputImagesDir: std.fs.Dir,
+    //    //outputCssDir: std.fs.Dir,
+    //};
+    //
+    //fn initContextFor(session: *const BuildSession) !void {
+    //    const ctx = try session.arenaAllocator.create(Context);
+    //    //const outputDir = try std.fs.openDirAbsolute(session.buildOutputPath, .{});
+    //    //ctx.* = {
+    //    //    .outputDir = outputDir,
+    //    //    .outputArticlesDir = try outputDir.makeOpenPath(articlesDirname),
+    //   //    .outputImagesDir = try outputDir.makeOpenPath(imagesDirname),
+    //    //    .outputCssDir = try outputDir.makeOpenPath(cssDirname),
+    //    //};
+    //    session.builderContext = ctx;
+    //}
+    //
+    //fn deinitContextFor(session: *const BuildSession) void {
+    //    const ctx = @ptrCast(@alignCast(session.builderContext));
+    //    //ctx.outputArticlesDir.close();
+    //    //ctx.outputImagesDir.close();
+    //    //ctx.outputCssDir.close();
+    //    //ctx.outputDir.close();
+    //    _ = ctx;
+    //}
+
+    fn buildNameSuffix() []const u8 {
+        return "-website";
+    }
+
+    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+        switch (filePurpose) {
+            .navigationArticle, .contentArticle => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+
+                const relPath = sourceAbsPath[project.path.len+1..];
+                const ext = std.fs.path.extension(relPath);
+                return try std.mem.concat(session.arenaAllocator, u8, &.{relPath[0..relPath.len-ext.len], ".html"});
+            },
+            .html => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+
+                const relPath = sourceAbsPath[project.path.len+1..];
+                return try std.fs.path.join(session.arenaAllocator, &.{"@html", relPath});
+            },
+            .image => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize}});
+                defer session.appContext.allocator.free(content);
+
+                const targetPath = try AppContext.buildAssetFilePath("@images", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                try AppContext.writeFile(session.buildOutputDir, targetPath, content);
+                //try session.targetFileContents.put(targetPath, "");
+                return targetPath;
+            },
+            .css => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize}});
+                defer session.appContext.allocator.free(content);
+
+                const targetPath = try AppContext.buildAssetFilePath("@css", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                try AppContext.writeFile(session.buildOutputDir, targetPath, content);
+                //try session.targetFileContents.put(targetPath, "");
+                return targetPath;
+            },
+        }
+    }
+
+    fn assembleOutputFiles(session: *BuildSession) !void {
+        _ = session;
+    }
 };
 
 pub const EpubBuilder = struct {
     // .tmd -> .xhtml
-    // image.ext -> image.ext
+    // image.ext -> images/image-HASH.ext
     // .css -> .css
 
     fn buildNameSuffix() []const u8 {
         return ".epub";
     }
 
-    fn calTargetArticlePath(session: *const BuildSession, sourceAbsPath: []const u8) ![]const u8 {
-        return try StaticWebsiteBuilder.calTargetArticlePath(session, sourceAbsPath);
+    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+        switch (filePurpose) {
+            .navigationArticle => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+                const basename = std.fs.path.basename(sourceAbsPath);
+                const ext = std.fs.path.extension(basename);
+                return std.mem.concat(session.arenaAllocator, u8, &.{basename[0..basename.len-ext.len], ".xhtml"});
+            },
+            .contentArticle => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+
+                const relPath = sourceAbsPath[project.path.len+1..];
+                const ext = std.fs.path.extension(relPath);
+                return AppContext.buildPosixPath("tmd/", relPath[0..relPath.len-ext.len], ".xhtml", session.arenaAllocator);
+            },
+            .html => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+                const relPath = sourceAbsPath[project.path.len+1..];
+                const ext = std.fs.path.extension(relPath);
+                const targetPath = AppContext.buildPosixPath("html/", relPath[0..relPath.len-ext.len], ".xhtml", session.arenaAllocator);
+
+                return targetPath;
+            },
+            .image => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.arenaAllocator, .maxFileSize = maxImageFileSize}});
+                const targetPath = try AppContext.buildPosixPathWithContentHashBase64("images/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                try session.targetFileContents.put(targetPath, content);
+                return targetPath;
+            },
+            .css => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.arenaAllocator, .maxFileSize = maxStyleFileSize}});
+                const targetPath = try AppContext.buildPosixPathWithContentHashBase64("css/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                try session.targetFileContents.put(targetPath, content);
+                return targetPath;
+            },
+        }
     }
 
-    fn getCustomBlockGenCallback(session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+    fn assembleOutputFiles(session: *BuildSession) !void {
         _ = session;
-        _ = doc;
-        _ = custom;
-
-        return null;
-    }
-
-    fn getMediaUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, mediaToken: tmd.Token) ?tmd.GenCallback {
-        _ = session;
-        _ = doc;
-        _ = mediaToken;
-        
-        return null;
-    }
-
-    fn getLinkUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
-        _ = session;
-        _ = doc;
-        _ = link;
-        
-        return null;
     }
 };
 
 pub const StandaloneHtmlBuilder = struct {
-    // .tmd -> #article-anchor
+    // .tmd -> #foo/bar.tmd
     // image.ext -> inline base64 string
-    //   - https://x.com/i/grok/share/2X2ge6HIngibFO8fbyIFYxQAz
-    //   - https://g.co/gemini/share/7518b55d3bbb
     // .css -> inline
 
     fn buildNameSuffix() []const u8 {
         return "-standalone.html";
     }
 
-    fn calTargetArticlePath(session: *const BuildSession, sourceAbsPath: []const u8) ![]const u8 {
-        const relPath = try StaticWebsiteBuilder.calTargetArticlePath(session, sourceAbsPath);
-        return std.mem.concat(session.arenaAllocator, u8, &.{"#", relPath});
+    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+        switch (filePurpose) {
+            .navigationArticle, .contentArticle, .html => {
+                const project = session.project;
+                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{session.project.path, sourceAbsPath});
+                    return error.FileOutOfProject;
+                }
+                return try std.mem.concat(session.arenaAllocator, u8, &.{"#", sourceAbsPath[project.path.len+1..]});
+            },
+            .image => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize}});
+                defer session.appContext.allocator.free(content);
+
+                const targetPath = try AppContext.buildEmbeddedImageHref(std.fs.path.extension(sourceAbsPath), content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                //try session.targetFileContents.put(targetPath, "");
+                return targetPath;
+            },
+            .css => {
+                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{.alloc = .{.allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize}});
+                defer session.appContext.allocator.free(content);
+
+                //const targetPath = try AppContext.buildHashHexString(content, session.arenaAllocator);
+                const targetPath = try AppContext.buildHashString(content, session.arenaAllocator);
+                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+
+                try session.targetFileContents.put(targetPath, content);
+                return targetPath;
+            },
+        }
     }
 
-    fn getCustomBlockGenCallback(session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+    fn assembleOutputFiles(session: *BuildSession) !void {
         _ = session;
-        _ = doc;
-        _ = custom;
-
-        return null;
-    }
-
-    fn getMediaUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, mediaToken: tmd.Token) ?tmd.GenCallback {
-        _ = session;
-        _ = doc;
-        _ = mediaToken;
-        
-        return null;
-    }
-
-    fn getLinkUrlGenCallback(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
-        _ = session;
-        _ = doc;
-        _ = link;
-        
-        return null;
     }
 };
 

@@ -202,11 +202,11 @@ pub fn build(b: *std.Build) !void {
             const needle = "<wasm-file-as-base64-string>";
 
             const theBuild = step.owner;
-            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir("", .{});
             defer dir.close();
             const oldContent = try dir.readFileAlloc(theBuild.allocator, "tmd-with-wasm-template.js", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
+                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
                 const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
                 const wasmContent = try libDir.readFileAlloc(theBuild.allocator, wasmFileName, 1 << 19);
                 const file = try libDir.createFile(self.dest_sub_path, .{ .truncate = true });
@@ -268,11 +268,11 @@ pub fn build(b: *std.Build) !void {
 
             const jsLibFileName = self.jsLibInstallArtifact.dest_sub_path;
             const theBuild = step.owner;
-            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir("", .{ .no_follow = true, .access_sub_paths = false, .iterate = true });
+            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir("", .{});
             defer dir.close();
             const oldContent = try dir.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{ .no_follow = true, .access_sub_paths = true, .iterate = false });
+                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
                 const file = try dir.createFile("play.html", .{ .truncate = true });
                 defer file.close();

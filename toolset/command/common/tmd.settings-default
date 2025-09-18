@@ -10,11 +10,11 @@
 <title>{{{ page-title-in-head }}}</title>
 <link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @favicon }}">
 <style>
-{{ file-content @css }}
+{{ embed-file-content @css }}
 </style>
 </head>
 <body>
-{{{ html-snippet-in-body }}}
+{{{ page-content-in-body }}}
 </body>
 </html>
 """
