@@ -28,7 +28,7 @@ test "line end type" {
                     var remaining = html;
                     for (self.expectedURIs, 1..) |expected, i| {
                         const range = retrieveFirstLinkURL(remaining) orelse {
-                            //std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
+                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
                             return error.TooLessLinks;
                         };
                         const uri = remaining[range.start..range.end];

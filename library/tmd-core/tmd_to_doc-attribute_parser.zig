@@ -612,40 +612,174 @@ test "parse_custom_block_open_playload" {
     });
 }
 
-pub fn isValidLinkURL(text: []const u8) bool {
-    // ToDo: more precisely and performant.
+// .relative media urls must end with supported extensions.
+// media urls can also have the fragment part.
+pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
+    var url: tmd.URL = .{};
 
-    if (std.ascii.startsWithIgnoreCase(text, "#")) return true;
-    if (std.ascii.startsWithIgnoreCase(text, "http")) {
-        const t = text[4..];
-        if (std.ascii.startsWithIgnoreCase(t, "s://")) return true;
-        if (std.ascii.startsWithIgnoreCase(t, "://")) return true;
+    const text = std.mem.trim(u8, urlText, " \t");
+    if (std.mem.indexOfAny(u8, text, "# \t")) |k| {
+        url.base = text[0..k];
+
+        if (text[k] == '#') {
+            if (potentailFootnoteRef and k == 0) url.manner = .footnote;
+
+            const remaining = text[k..];
+            if (std.mem.indexOfAnyPos(u8, remaining, 1, " \t")) |q| {
+                url.fragment = remaining[0..q];
+                url.title = std.mem.trimLeft(u8, remaining[q+1..], " \t");
+            } else url.fragment = remaining;
+        } else {
+            url.title = std.mem.trimLeft(u8, text[k+1..], " \t");
+        }
+    } else {
+        url.base = text;
     }
 
-    const t = if (std.mem.indexOfScalar(u8, text, '#')) |k| blk: {
-        const t = text[0..k];
-        //if (std.ascii.endsWithIgnoreCase(t, ".tmd")) return true;
-        break :blk t;
-    } else text;
+    if (url.manner == .undetermined) {
+        const base = url.base;
+        if (base.len > 0 and base[0] != '/' and base[0] != '\\') {
+            if (std.mem.indexOf(u8, base, "://")) |k| {
+                if (k > 0) url.manner = .absolute;
+            } else {
+                if (endsWithValidContentExtension(base)
+                    and std.mem.indexOfScalar(u8, base, '?') == null) url.manner = .relative;
+            }
+        }
+    }
 
-    if (std.ascii.endsWithIgnoreCase(t, ".htm")) return true;
-    if (std.ascii.endsWithIgnoreCase(t, ".html")) return true;
-
-    return false;
+    return url;
 }
 
-test "isValidLinkURL" {
-    try std.testing.expect(isValidLinkURL("http://aaa"));
-    try std.testing.expect(isValidLinkURL("https://aaa"));
-    try std.testing.expect(false == isValidLinkURL("http:"));
-    try std.testing.expect(false == isValidLinkURL("https"));
-    try std.testing.expect(isValidLinkURL("foo.htm"));
-    try std.testing.expect(isValidLinkURL("foo.html#bar"));
-    try std.testing.expect(isValidLinkURL("foo.htm#bar"));
-    try std.testing.expect(isValidLinkURL("foo.html"));
-    //try std.testing.expect(isValidLinkURL("foo.tmd#")); // ToDo
-    try std.testing.expect(isValidLinkURL("#"));
-    try std.testing.expect(isValidLinkURL("#bar"));
+fn compareURLs(a: tmd.URL, b: tmd.URL) bool {
+    if (a.manner != b.manner) return false;
+    if (!std.mem.eql(u8, a.base, b.base)) return false;
+    if (!std.mem.eql(u8, a.fragment, b.fragment)) return false;
+    if (!std.mem.eql(u8, a.title, b.title)) return false;
+    return true;
+}
+
+test "parseLinkURL" {
+    try std.testing.expect(compareURLs(
+        parseLinkURL("http://aaa/foo.png", false),
+        .{
+            .manner = .absolute,
+            .base = "http://aaa/foo.png",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("//google.com/foo.jpg", false),
+        .{
+            .manner = .undetermined,
+            .base = "//google.com/foo.jpg",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("/bar/foo.jpg", false),
+        .{
+            .manner = .undetermined,
+            .base = "/bar/foo.jpg",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.jpg", false),
+        .{
+            .manner = .relative,
+            .base = "bar/foo.jpg",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.jpg?zoo##park#", false),
+        .{
+            .manner = .undetermined,
+            .base = "bar/foo.jpg?zoo",
+            .fragment = "##park#",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.jpg?##park#", false),
+        .{
+            .manner = .undetermined,
+            .base = "bar/foo.jpg?",
+            .fragment = "##park#",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.jpg##park#", false),
+        .{
+            .manner = .relative,
+            .base = "bar/foo.jpg",
+            .fragment = "##park#",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.jpg##park#", true),
+        .{
+            .manner = .relative,
+            .base = "bar/foo.jpg",
+            .fragment = "##park#",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("../bar/foo.JPEG#..300:500", true),
+        .{
+            .manner = .relative,
+            .base = "../bar/foo.JPEG",
+            .fragment = "#..300:500",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.tmd#section-1", true),
+        .{
+            .manner = .relative,
+            .base = "bar/foo.tmd",
+            .fragment = "#section-1",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.HTM", true),
+        .{
+            .manner = .relative,
+            .base = "bar/foo.HTM",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("bar/foo.htmx", false),
+        .{
+            .manner = .undetermined,
+            .base = "bar/foo.htmx",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL("##park#", true),
+        .{
+            .manner = .footnote,
+            .fragment = "##park#",
+        }
+    ));
+    try std.testing.expect(compareURLs(
+        parseLinkURL(" #foo ", true),
+        .{
+            .manner = .footnote,
+            .fragment = "#foo",
+        }
+    ));
+}
+
+pub fn endsWithValidContentExtension(text: []const u8) bool {
+    if (std.ascii.endsWithIgnoreCase(text, ".tmd")) return true;
+    if (std.ascii.endsWithIgnoreCase(text, ".htm")) return true;
+    if (std.ascii.endsWithIgnoreCase(text, ".html")) return true;
+    return endsWithValidMediaExtension(text);
+}
+
+test "endsWithValidContentExtension" {
+    try std.testing.expect(endsWithValidContentExtension("http://aaa/foo.png"));
+    try std.testing.expect(endsWithValidContentExtension("bar.tmd"));
+    try std.testing.expect(endsWithValidContentExtension("./a.html"));
+    try std.testing.expect(endsWithValidContentExtension("../b.htm"));
+    try std.testing.expect(endsWithValidContentExtension("../c.asp") == false);
+    try std.testing.expect(endsWithValidContentExtension("https://example.com/p") == false);
 }
 
 // ToDo: support more
@@ -656,45 +790,26 @@ pub const MediaExtension = enum {
     @".jpeg",
 };
 
-pub fn isValidMediaURL(src: []const u8) bool {
-    const ext = if (std.mem.lastIndexOfScalar(u8, src, '.')) |k| src[k..] else return false;
-
-    // return std.meta.stringToEnum(MediaExtension, allocLowerString(ext) != null;
-
+pub fn endsWithValidMediaExtension(text: []const u8) bool {
     const supportedMediaExts = std.meta.fieldNames(MediaExtension);
     for (supportedMediaExts) |e| {
-        if (std.ascii.eqlIgnoreCase(ext, e)) return true;
+        if (std.ascii.endsWithIgnoreCase(text, e)) return true;
     }
-
     return false;
 }
 
+test "endsWithValidMediaExtension" {
+    try std.testing.expect(endsWithValidMediaExtension("foo.png"));
+    try std.testing.expect(endsWithValidMediaExtension("bar.PNG"));
+    try std.testing.expect(endsWithValidMediaExtension("foo.Jpeg"));
+    try std.testing.expect(endsWithValidMediaExtension("bar.JPG"));
+    try std.testing.expect(endsWithValidMediaExtension("bar.JPG"));
+    try std.testing.expect(endsWithValidMediaExtension("f.gif"));
+    try std.testing.expect(endsWithValidMediaExtension("b.GIF"));
 
-// ToDo: need improvement
-pub fn isLocalURL(src: []const u8) bool {
-    if (std.ascii.startsWithIgnoreCase(src, "http")) {
-         const t = src[4..];
-         if (std.ascii.startsWithIgnoreCase(t, "s://")) return false;
-         if (std.ascii.startsWithIgnoreCase(t, "://")) return true;
-    }
 
-    return true;
-}
-
-test "isValidMediaURL" {
-    try std.testing.expect(isValidMediaURL("foo.png"));
-    try std.testing.expect(isValidMediaURL("bar.PNG"));
-    try std.testing.expect(isValidMediaURL("foo.Jpeg"));
-    try std.testing.expect(isValidMediaURL("bar.JPG"));
-    try std.testing.expect(isValidMediaURL("bar.JPG"));
-    try std.testing.expect(isValidMediaURL("f.gif"));
-    try std.testing.expect(isValidMediaURL("b.GIF"));
-
-    try std.testing.expect(!isValidMediaURL(".gif"));
-    try std.testing.expect(!isValidMediaURL(".GIF"));
-    try std.testing.expect(!isValidMediaURL("PNG"));
-    try std.testing.expect(!isValidMediaURL(".jpeg"));
-    try std.testing.expect(!isValidMediaURL("foo.xyz"));
+    try std.testing.expect(!endsWithValidMediaExtension("PNG"));
+    try std.testing.expect(!endsWithValidMediaExtension("foo.xyz"));
 }
 
 // ToDo: support media size and placeholder texts.

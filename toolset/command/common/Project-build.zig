@@ -360,12 +360,9 @@ const TmdGenCustomHandler = struct {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
         _ = handler;
 
-        // doc should has .path field, might be blank for memory data.
+        _ = doc;
+        _ = link;
 
-        const t = link.textInfo.urlSourceText.?;
-        const urlSource = tmd.trimBlanks(doc.rangeData(t.range()));
-        
-        std.debug.print("> link: urlConfirmed={}, urlSource={s} \n", .{link.urlConfirmed(), urlSource});
 
         return null;
     }

@@ -121,12 +121,15 @@ fn open_new_link(self: *ContentParser, linkBlock: ?*tmd.Block) !*tmd.Link {
 
     var linkElement = try self.docParser.tmdDoc.links.createElement(self.docParser.tmdDoc.allocator, true);
     const link = &linkElement.value;
-    link.* = .{
-        .linkBlock = linkBlock,
-        .textInfo = .{
-            .firstPlainText = null,
-        },
-    };
+    if (linkBlock) |block| {
+        link.* = .{
+            .owner = .{.block = block},
+        };
+    } else {
+        link.* = .{
+            .owner = .{.hyper = undefined}, // will be modified in caller function
+        };
+    }
     self.blockSession.lastLink = link;
 
     return link;
@@ -158,8 +161,8 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
     };
 
     if (self.blockSession.lastLink) |link| {
-        if (link.textInfo.firstPlainText == null) {
-            link.textInfo.firstPlainText = token;
+        if (link.firstPlainText == null) {
+            link.firstPlainText = token;
         } else if (self.blockSession.lastPlainTextToken) |text| {
             text.content.nextInLink = token;
         } else unreachable;
@@ -548,6 +551,8 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                                         .link = link,
                                     },
                                 };
+
+                                link.owner.hyper = token;
                             }
 
                             const openMark = try self.open_span(spanMarkType, textEnd, markLen, isSecondary);

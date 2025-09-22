@@ -1005,7 +1005,7 @@ pub const TmdRender = struct {
         }
 
         blk: {
-            const streamAttrs = block.blockType.code._contentStreamAttributes();
+            const streamAttrs = block.blockType.code.contentStreamAttributes();
             const content = streamAttrs.content;
             if (content.len == 0) break :blk;
             if (std.mem.startsWith(u8, content, "./") or std.mem.startsWith(u8, content, "../")) {
@@ -1130,18 +1130,17 @@ pub const TmdRender = struct {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
                     .content => blk: {
                         if (tracker.activeLinkInfo) |linkInfo| {
-                            const link = linkInfo.link;
+                            const url = linkInfo.link.url orelse unreachable;
                             if (!tracker.firstPlainTextInLink) {
-                                std.debug.assert(!link.isFootnote());
-                                std.debug.assert(link.urlSourceSet());
+                                std.debug.assert(url.manner != .footnote);
 
-                                if (link.textInfo.urlSourceText) |sourceText| {
+                                if (url.sourceText) |sourceText| {
                                     if (sourceText == token) break :blk;
                                 }
                             } else {
                                 tracker.firstPlainTextInLink = false;
 
-                                if (link.isFootnote()) {
+                                if (url.manner == .footnote) {
                                     if (usage == .general) {
                                         if (tracker.linkFootnote.block) |_| {
                                             try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
@@ -1194,14 +1193,17 @@ pub const TmdRender = struct {
                                 const linkInfo = tracker.activeLinkInfo orelse unreachable;
                                 const link = linkInfo.link;
                                 if (usage == .general) blk: {
-                                    if (link.isFootnote()) {
-                                        std.debug.assert(link.urlConfirmed());
-                                        std.debug.assert(link.textInfo.urlSourceText != null);
+                                    const url = link.url orelse unreachable;
+                                    if (url.manner == .footnote) {
+                                        std.debug.assert(link.url != null);
+                                        std.debug.assert(url.fragment.len > 0);
+                                        //std.debug.assert(url.sourceText != null);
 
-                                        const t = link.textInfo.urlSourceText.?;
-                                        const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
+                                        //const t = url.sourceText.?;
+                                        //const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
 
-                                        const footnote_id = linkURL[1..];
+                                        //const footnote_id = linkURL[1..];
+                                        const footnote_id = url.fragment[1..];
                                         const footnote = try self.onFootnoteReference(footnote_id);
                                         tracker.linkFootnote = footnote;
 
@@ -1227,26 +1229,41 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    if (link.urlConfirmed()) {
-                                        std.debug.assert(link.textInfo.urlSourceText != null);
+                                    //if (link.urlConfirmed()) {
+                                    //    std.debug.assert(link.url.sourceText != null);
+                                    //
+                                    //    const t = link.url.sourceText.?;
+                                    //    const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
+                                    //
+                                    //    try w.print(
+                                    //        \\<a href="{s}">
+                                    //    , .{linkURL});
+                                    //} else {
+                                    //    std.debug.assert(link.url.manner != .absolute);
+                                    //    std.debug.assert(!link.isFootnote());
+                                    //
+                                    //    // ToDo: call custom callback to try to generate a url.
+                                    //
+                                    //    try w.writeAll(
+                                    //        \\<span class="tmd-broken-link">
+                                    //    );
+                                    //
+                                    //    tracker.brokenLinkConfirmed = true;
+                                    //}
 
-                                        const t = link.textInfo.urlSourceText.?;
-                                        const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
+                                    switch (url.manner) {
+                                        .absolute, .relative => {
+                                            try w.print(
+                                                \\<a href="{s}{s}">
+                                            , .{url.base, url.fragment});
+                                        },
+                                        else => {
+                                            try w.writeAll(
+                                                \\<span class="tmd-broken-link">
+                                            );
 
-                                        try w.print(
-                                            \\<a href="{s}">
-                                        , .{linkURL});
-                                    } else {
-                                        std.debug.assert(!link.urlConfirmed());
-                                        std.debug.assert(!link.isFootnote());
-
-                                        // ToDo: call custom callback to try to generate a url.
-
-                                        try w.writeAll(
-                                            \\<span class="tmd-broken-link">
-                                        );
-
-                                        tracker.brokenLinkConfirmed = true;
+                                            tracker.brokenLinkConfirmed = true;
+                                        },
                                     }
                                 }
 
@@ -1295,7 +1312,7 @@ pub const TmdRender = struct {
                                         const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
                                         const src = AttributeParser.parse_media_info(mediaInfo);
                                         
-                                        if (!AttributeParser.isValidMediaURL(src)) break :writeMedia;
+                                        if (!AttributeParser.endsWithValidMediaExtension(src)) break :writeMedia;
 
                                         try w.writeAll("<img src=\"");
                                         try fns.writeHtmlAttributeValue(w, src);
@@ -1376,7 +1393,7 @@ pub const TmdRender = struct {
                             try w.writeAll("</span>");
                         } else {
                             try w.writeAll("</a>");
-                            if (link.isFootnote()) {
+                            if (link.url.?.manner == .footnote) {
                                 try w.writeAll("</sup>");
                             }
                         }

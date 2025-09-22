@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const tmd = @import("tmd.zig");
 const list = @import("list");
@@ -11,9 +12,17 @@ const LinkMatcher = @This();
 
 tmdData: []const u8,
 links: *list.List(tmd.Link),
+urls: *list.List(tmd.URL),
 allocator: std.mem.Allocator,
 
-// Match link definitions.
+pub fn init(doc: *tmd.Doc) LinkMatcher {
+    return LinkMatcher{
+        .tmdData = doc.data,
+        .links = &doc.links,
+        .urls = &doc._urls,
+        .allocator = doc.allocator,
+    };
+}
 
 fn tokenAsString(self: *const LinkMatcher, contentToken: *const tmd.Token) []const u8 {
     return self.tmdData[contentToken.start()..contentToken.end()];
@@ -374,11 +383,25 @@ fn Patricia(comptime TextType: type) type {
             return null;
         }
 
-        fn setUrlSourceForNode(node: *Node, urlSource: ?*tmd.Token, confirmed: bool) void {
+        //fn setUrlSourceForNode(node: *Node, urlSource: ?*tmd.Token, confirmed: bool) void {
+        //    var le = node.value.links.head;
+        //    while (le) |linkInfoElement| {
+        //        if (!linkInfoElement.value.urlSourceSet()) {
+        //            linkInfoElement.value.setSourceOfURL(urlSource, confirmed);
+        //        }
+        //        le = linkInfoElement.next;
+        //    }
+        //
+        //    if (node.value.deeperTree.count == 0) {
+        //        // ToDo: delete the node (not necessarily).
+        //    }
+        //}
+
+        fn setUrlSourceForNode(node: *Node, url: *tmd.URL) void {
             var le = node.value.links.head;
             while (le) |linkInfoElement| {
-                if (!linkInfoElement.value.urlSourceSet()) {
-                    linkInfoElement.value.setSourceOfURL(urlSource, confirmed);
+                if (linkInfoElement.value.url == null) {
+                    linkInfoElement.value.url = url;
                 }
                 le = linkInfoElement.next;
             }
@@ -388,18 +411,32 @@ fn Patricia(comptime TextType: type) type {
             }
         }
 
-        fn setUrlSourceForTreeNodes(theTree: *Tree, urlSource: ?*tmd.Token, confirmed: bool) void {
+        //fn setUrlSourceForTreeNodes(theTree: *Tree, urlSource: ?*tmd.Token, confirmed: bool) void {
+        //    const NodeHandler = struct {
+        //        urlSource: ?*tmd.Token,
+        //        confirmed: bool,
+        //
+        //        pub fn onNode(h: @This(), node: *Node) void {
+        //            setUrlSourceForTreeNodes(&node.value.deeperTree, h.urlSource, h.confirmed);
+        //            setUrlSourceForNode(node, h.urlSource, h.confirmed);
+        //        }
+        //    };
+        //
+        //    const handler = NodeHandler{ .urlSource = urlSource, .confirmed = confirmed };
+        //    theTree.traverseNodes(handler);
+        //}
+
+        fn setUrlSourceForTreeNodes(theTree: *Tree, url: *tmd.URL) void {
             const NodeHandler = struct {
-                urlSource: ?*tmd.Token,
-                confirmed: bool,
+                url: *tmd.URL,
 
                 pub fn onNode(h: @This(), node: *Node) void {
-                    setUrlSourceForTreeNodes(&node.value.deeperTree, h.urlSource, h.confirmed);
-                    setUrlSourceForNode(node, h.urlSource, h.confirmed);
+                    setUrlSourceForTreeNodes(&node.value.deeperTree, h.url);
+                    setUrlSourceForNode(node, h.url);
                 }
             };
 
-            const handler = NodeHandler{ .urlSource = urlSource, .confirmed = confirmed };
+            const handler = NodeHandler{ .url = url };
             theTree.traverseNodes(handler);
         }
     };
@@ -437,10 +474,11 @@ const Matcher = struct {
 
     fn doForLinkDefinition(self: @This(), linkDef: *LinkForTree) void {
         const link = linkDef.getLink();
-        std.debug.assert(link.linkBlock != null);
+        std.debug.assert(link.owner == .block);
 
-        const urlSource = link.textInfo.urlSourceText.?;
-        const confirmed = link.urlConfirmed();
+        //const urlSource = link.url.sourceText.?;
+        //const confirmed = link.urlConfirmed();
+        const url = link.url.?;
 
         const linkText = linkDef.revisedLinkText.asString();
 
@@ -450,8 +488,10 @@ const Matcher = struct {
             if (linkText.len == ddd.len) {
                 // all matching
 
-                NormalPatricia.setUrlSourceForTreeNodes(&self.normalPatricia.topTree, urlSource, confirmed);
-                //InvertedPatricia.setUrlSourceForTreeNodes(&self.invertedPatricia.topTree, urlSource, confirmed);
+                //NormalPatricia.setUrlSourceForTreeNodes(&self.normalPatricia.topTree, urlSource, confirmed);
+                ////InvertedPatricia.setUrlSourceForTreeNodes(&self.invertedPatricia.topTree, urlSource, confirmed);
+                NormalPatricia.setUrlSourceForTreeNodes(&self.normalPatricia.topTree, url);
+                //InvertedPatricia.setUrlSourceForTreeNodes(&self.invertedPatricia.topTree, url);
 
                 self.normalPatricia.clear();
                 self.invertedPatricia.clear();
@@ -460,8 +500,10 @@ const Matcher = struct {
 
                 const revisedLinkText = linkDef.revisedLinkText.prefix(linkDef.revisedLinkText.len - @as(u32, ddd.len));
                 if (self.normalPatricia.searchLinkInfo(revisedLinkText, true)) |node| {
-                    NormalPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
-                    NormalPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    //NormalPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
+                    //NormalPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    NormalPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, url);
+                    NormalPatricia.setUrlSourceForNode(node, url);
                 }
             }
         } else {
@@ -470,19 +512,32 @@ const Matcher = struct {
 
                 const revisedLinkText = linkDef.revisedLinkText.suffix(@intCast(ddd.len));
                 if (self.invertedPatricia.searchLinkInfo(revisedLinkText.invert(), true)) |node| {
-                    InvertedPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
-                    InvertedPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    //InvertedPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
+                    //InvertedPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    InvertedPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, url);
+                    InvertedPatricia.setUrlSourceForNode(node, url);
                 }
             } else {
                 // exact matching
 
                 if (self.normalPatricia.searchLinkInfo(linkDef.revisedLinkText, false)) |node| {
-                    NormalPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    //NormalPatricia.setUrlSourceForNode(node, urlSource, confirmed);
+                    NormalPatricia.setUrlSourceForNode(node, url);
                 }
             }
         }
     }
 };
+
+fn setLinkURL(self: *const LinkMatcher, link: *tmd.Link, url: tmd.URL) !*tmd.URL {
+    std.debug.assert(link.url == null);
+
+    const urlElement = try self.urls.createElement(self.allocator, true);
+    urlElement.value = url;
+    link.url = &urlElement.value;
+
+    return &urlElement.value;
+}
 
 pub fn matchLinks(self: *const LinkMatcher) !void {
     const links = self.links;
@@ -507,21 +562,23 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
     // The top-to-bottom pass.
     while (true) {
         const link = &linkElement.value;
-        std.debug.assert(!link.urlSourceSet());
+        std.debug.assert(link.url == null);
         blk: {
-            const firstTextToken = if (link.textInfo.firstPlainText) |first| first else {
+            const firstTextToken = if (link.firstPlainText) |first| first else {
                 // The link should be ignored in rendering.
 
                 //std.debug.print("ignored for no content tokens\n", .{});
-                link.setSourceOfURL(null, true);
+                //link.setSourceOfURL(null, true);
+                _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
 
-                if (link.linkBlock) |linkBlock| {
+                if (link.linkBlock()) |linkBlock| {
                     if (linkBlock.isBare()) {
                         normalPatricia.clear();
                         invertedPatricia.clear();
 
-                        const theElement = try self.allocator.create(LinkForTree.List.Element);
-                        linksForTree.pushTail(theElement);
+                        //const theElement = try self.allocator.create(LinkForTree.List.Element);
+                        //linksForTree.pushTail(theElement);
+                        const theElement = try linksForTree.createElement(self.allocator, true);
                         theElement.value.setLinkAndText(link, .{});
                     }
                 }
@@ -542,34 +599,52 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             // handle the last text token
             {
                 const str = tmd.trimBlanks(self.tokenAsString(lastToken));
-                if (link.linkBlock != null) {
+                if (link.linkBlock() != null) {
                     if (copyLinkText(&dummyLinkText, 0, str) == 0) {
                         // This link definition will be ignored.
 
                         //std.debug.print("ignored for blank link definition\n", .{});
-                        link.setSourceOfURL(null, false);
+                        //link.setSourceOfURL(null, false);
+                        _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
                         break :blk;
                     }
-                } else if (AttributeParser.isValidLinkURL(str)) {
-                    // For built-in cases, no need to call callback to determine the url.
+                } else {
+                    //if (AttributeParser.isValidLinkURL(str)) {
+                    //    // For built-in cases, no need to call callback to determine the url.
+                    //
+                    //    //std.debug.print("self defined url: {s}\n", .{str});
+                    //    link.setSourceOfURL(lastToken, true);
+                    //
+                    //    if (lastToken == firstTextToken and std.mem.startsWith(u8, str, "#") and !std.mem.startsWith(u8, str[1..], "#")) {
+                    //        link.setFootnoteManner();
+                    //    }
+                    //
+                    //    break :blk;
+                    //}
+                    const url = AttributeParser.parseLinkURL(str, lastToken == firstTextToken);
+                    if (url.manner != .undetermined) {
+                        // This is a self-defined hyperlink.
 
-                    //std.debug.print("self defined url: {s}\n", .{str});
-                    link.setSourceOfURL(lastToken, true);
+                        //std.debug.print("self defined url: {s}\n", .{str});
+                        (try self.setLinkURL(link, url)).sourceText = lastToken;
 
-                    if (lastToken == firstTextToken and std.mem.startsWith(u8, str, "#") and !std.mem.startsWith(u8, str[1..], "#")) {
-                        link.setFootnote(true);
+                        break :blk;
                     }
 
-                    break :blk;
-                } else {
+                    // The URL of the hyperlink needs to be matched by a link definition
+                    // or determined by a custom handler.
+
                     linkTextLen = copyLinkText(&dummyLinkText, linkTextLen, str);
                 }
 
                 if (linkTextLen == 0) {
-                    // The link should be ignored in rendering.
+                    // For link definition, it will not match any hyperlinks.
+                    // For hyperlink, it will not match any definitions.
 
                     //std.debug.print("ignored for blank link text\n", .{});
-                    link.setSourceOfURL(null, true);
+                    //link.setSourceOfURL(null, true);
+                    _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
+
                     break :blk;
                 }
             }
@@ -581,14 +656,15 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 .len = linkTextLen,
                 .text = textPtr,
             };
-            //defer std.debug.print("====={}: ||{s}||\n", .{link.linkBlock != null, revisedLinkText.asString()});
+            //defer std.debug.print("====={}: ||{s}||\n", .{link.linkBlock() != null, revisedLinkText.asString()});
 
-            const theElement = try self.allocator.create(LinkForTree.List.Element);
-            linksForTree.pushTail(theElement);
+            //const theElement = try self.allocator.create(LinkForTree.List.Element);
+            //linksForTree.pushTail(theElement);
+            const theElement = try linksForTree.createElement(self.allocator, true);
             theElement.value.setLinkAndText(link, revisedLinkText);
             const linkForTree = &theElement.value;
 
-            const confirmed = while (true) { // ToDo: use a labled non-loop block
+            const url = while (true) { // ToDo: use a labled non-loop block
                 var realLinkText = RealLinkText{
                     .text = textPtr, // == revisedLinkText.text,
                 };
@@ -604,16 +680,18 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                 // handle the last text token
                 const str = tmd.trimBlanks(self.tokenAsString(lastToken));
-                if (link.linkBlock != null) {
+                if (link.linkBlock() != null) {
                     std.debug.assert(linkTextLen2 == linkTextLen);
 
                     //std.debug.print("    222 linkText = {s}\n", .{revisedLinkText.asString()});
 
                     //std.debug.print("==== /{s}/, {}\n", .{ str, AttributeParserisValidLinkURL(str) });
 
-                    break AttributeParser.isValidLinkURL(str);
+                    break AttributeParser.parseLinkURL(str, false);
                 } else {
-                    std.debug.assert(!AttributeParser.isValidLinkURL(str));
+                    if (builtin.mode == .Debug) {
+                        std.debug.assert(AttributeParser.parseLinkURL(str, false).manner == .undetermined);
+                    }
 
                     // For a link whose url is not built-in determined,
                     // all of its text tokens are used as link texts.
@@ -629,9 +707,11 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 }
             };
 
-            std.debug.assert(link.linkBlock != null);
+            std.debug.assert(link.linkBlock() != null);
 
-            link.setSourceOfURL(lastToken, confirmed);
+            //link.setSourceOfURL(lastToken, confirmed);
+            (try self.setLinkURL(link, url)).sourceText = lastToken;
+
             matcher.doForLinkDefinition(linkForTree);
         }
 
@@ -649,16 +729,16 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         while (element) |theElement| {
             const linkForTree = &theElement.value;
             const link = linkForTree.getLink();
-            if (link.linkBlock) |linkBlock| {
+            if (link.linkBlock()) |linkBlock| {
                 if (linkBlock.isBare()) {
                     normalPatricia.clear();
                     invertedPatricia.clear();
                 } else {
-                    std.debug.assert(link.urlSourceSet());
+                    std.debug.assert(link.url != null);
 
                     matcher.doForLinkDefinition(linkForTree);
                 }
-            } else if (!link.urlSourceSet()) {
+            } else if (link.url == null) {
                 try normalPatricia.putLinkInfo(linkForTree.revisedLinkText, &linkForTree.linkInfoElementNormal);
                 try invertedPatricia.putLinkInfo(linkForTree.revisedLinkText.invert(), &linkForTree.linkInfoElementInverted);
             }
@@ -671,8 +751,9 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         var element = linksForTree.head;
         while (element) |theElement| {
             const link = theElement.value.getLink();
-            if (!link.urlSourceSet()) {
-                link.setSourceOfURL(link.textInfo.firstPlainText, false);
+            if (link.url == null) {
+                //link.setSourceOfURL(link.firstPlainText, false);
+                (try self.setLinkURL(link, .{})).sourceText = link.firstPlainText;
             }
             element = theElement.next;
         }

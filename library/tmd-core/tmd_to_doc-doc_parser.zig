@@ -207,12 +207,8 @@ fn onParseEnd(parser: *DocParser) !void {
 
 pub fn parseAll(parser: *DocParser) !void {
     try parser.parse();
-
-    const matcher = LinkMatcher{
-        .tmdData = parser.tmdDoc.data,
-        .links = &parser.tmdDoc.links,
-        .allocator = parser.tmdDoc.allocator,
-    };
+    
+    const matcher: LinkMatcher = .init(parser.tmdDoc);
     try matcher.matchLinks(); // ToDo: same effect when being put in the above else-block.
 }
 

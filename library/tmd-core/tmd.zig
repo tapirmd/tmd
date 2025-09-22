@@ -10,8 +10,8 @@ pub const GenCallback = @import("doc_to_html.zig").GenCallback;
 pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlock;
 
 pub const MediaExtension = @import("tmd_to_doc-attribute_parser.zig").MediaExtension;
-pub const isValidMediaURL = @import("tmd_to_doc-attribute_parser.zig").isValidMediaURL;
-pub const isLocalURL = @import("tmd_to_doc-attribute_parser.zig").isLocalURL;
+pub const endsWithValidContentExtension = @import("tmd_to_doc-attribute_parser.zig").endsWithValidContentExtension;
+pub const endsWithValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").endsWithValidMediaExtension;
 
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
 pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
@@ -45,6 +45,7 @@ pub const Doc = struct {
     _blockTreeNodes: list.List(BlockRedBlack.Node) = .{}, // ToDo: use SinglyLinkedList
     // It is in _blockTreeNodes when exists. So no need to destroy it solely in the end.
     _freeBlockTreeNodeElement: ?*BlockRedBlackNodeList.Element = null,
+    _urls: list.List(URL) = .{}, // ToDo: use SinglyLinkedList
     _elementAttributes: list.List(ElementAttibutes) = .{}, // ToDo: use SinglyLinkedList
     _baseBlockAttibutes: list.List(BaseBlockAttibutes) = .{}, // ToDo: use SinglyLinkedList
     _codeBlockAttibutes: list.List(CodeBlockAttibutes) = .{}, // ToDo: use SinglyLinkedList
@@ -73,6 +74,7 @@ pub const Doc = struct {
         doc.lines.destroy(T.destroyLineTokens, doc.allocator);
 
         doc._elementAttributes.destroy(null, doc.allocator);
+        doc._urls.destroy(null, doc.allocator);
         doc._baseBlockAttibutes.destroy(null, doc.allocator);
         doc._codeBlockAttibutes.destroy(null, doc.allocator);
         doc._customBlockAttibutes.destroy(null, doc.allocator);
@@ -228,73 +230,114 @@ pub const ElementAttibutes = struct {
     }
 };
 
+
+// The definition is not the same as web URL.
+pub const URL = struct {
+    manner: enum {
+        undetermined, //
+        absolute, // .base contains :// (not support //xxx.yyy/...)
+        relative, // relative ablolute paths (/foo/bar) are not supported.
+        footnote, // __#[id]__. __#__ means all footnotes.
+        invalid,  // should only be set by custom handlers
+    } = .undetermined,
+
+    // ToDo: need it?
+    // determinedByCustomHandler: bool = false,
+
+    // !!! Don't refactor off this field. It provides
+    //     a simple and robust way to detect whether or not
+    //     the link text of a hyperlink ends in rendering.
+    //
+    //     It can also be used as the map key for custom link
+    //     presentations in user custom callback handler code.
+    //     (But now custom handlers should user *URL as map key.)
+    //
+    // This is the head of a list. See Token.PlainText.nextInLink.
+    // It is only valid when .more.urlSourceSet == true.
+    sourceText: ?*Token = null, // null for a blank link span
+
+    // Without the fragment part.
+    base: []const u8 = "",
+
+    // The ending part starting with #, if it exists.
+    // The meanings of this part for doc and media are different.
+    fragment: []const u8 = "",
+
+    // The part after the first space.
+    // Tiptool for <a>, 
+    title: []const u8 = "",
+};
+
 pub const Link = struct {
+
+    const List = list.List(@This());
+    
     // ToDo: use pointer? Memory will be more fragmental.
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
 
-    // ToDo: put this field in LinkInfo token.
-    //       And ref LinkInfo token here.
-    //       So that we can find LinkInfo from Link, and vice verse.
-    linkBlock: ?*Block = null, // non-null for link definition
-
-    // ToDo: since .firstPlainText is only a temporatiy value,
-    //       just replace this union with .urlSourceText.
-    textInfo: packed union {
-        // This is only used for link matching.
-        firstPlainText: ?*Token, // null for a blank link span
-
-        // This is a list, it is the head.
-        // Surely, if urlConfirmed, it is the only one in the list.
-        urlSourceText: ?*Token, // null for a blank link span
+    owner: union(enum) {
+        block: *Block, // for link definition. (.blockType == .link)
+        hyper: *Token, // for hyperlink. Token.LinkInfo.
+        media: *Token, // Token.LeadingSpanMark. (.more.markType == .media)
     },
 
-    more: packed struct {
-        urlSourceSet: bool = false,
-        urlConfirmed: bool = false,
-        //blankSourceOfURL: bool = false,
-        isFootnote: bool = false,
-    } = .{},
+    // This is the head of a list. See Token.PlainText.nextInLink.
+    firstPlainText: ?*Token = null, // null for a blank link span
 
-    // ToDo: remove the setXXX pub funcitons.
+    // null means .sourceText has not been determined.
+    url: ?*URL = null,
 
-    const List = list.List(@This());
+    //more: packed struct {
+    //    urlSourceSet: bool = false,
+    //    urlConfirmed: bool = false,
+    //    //blankSourceOfURL: bool = false,
+    //    //isFootnote: bool = false,
+    //} = .{},
 
-    pub fn isFootnote(self: *const @This()) bool {
-        return self.more.isFootnote;
-    }
+    // ToDo: remove the setXXX pub funcitons. Use fileds directly.
 
-    pub fn setFootnote(self: *@This(), is: bool) void {
-        self.more.isFootnote = is;
-    }
-
-    pub fn urlConfirmed(self: *const @This()) bool {
-        return self.more.urlConfirmed;
-    }
-
-    pub fn urlSourceSet(self: *@This()) bool {
-        return self.more.urlSourceSet;
-    }
-
-    pub fn setSourceOfURL(self: *@This(), urlSource: ?*Token, confirmed: bool) void {
-        std.debug.assert(!self.urlSourceSet());
-
-        self.more.urlConfirmed = confirmed;
-        self.textInfo = .{
-            .urlSourceText = urlSource,
+    pub fn linkBlock(self: *const @This()) ?*Block {
+        return switch (self.owner) {
+            .block => |block| block,
+            else => null,
         };
-
-        self.more.urlSourceSet = true;
     }
+
+    //pub fn isFootnote(self: *const @This()) bool {
+    //    return self.url.manner == .footnote;
+    //}
+
+    //pub fn setFootnoteManner(self: *@This()) void {
+    //    self.url.manner = .footnote;
+    //    //self.more.isFootnote = is;
+    //}
+
+    //pub fn urlConfirmed(self: *const @This()) bool {
+    //    return self.more.urlConfirmed;
+    //}
+
+    //pub fn urlSourceSet(self: *@This()) bool {
+    //    return self.more.urlSourceSet;
+    //}
+
+    //pub fn setSourceOfURL(self: *@This(), urlSource: ?*Token, confirmed: bool) void {
+    //    std.debug.assert(!self.urlSourceSet());
+    //
+    //    self.more.urlConfirmed = confirmed;
+    //    self.url.sourceText = urlSource;
+    //
+    //    self.more.urlSourceSet = true;
+    //}
 
     // ToDo: support blankSourceOfURL? Maybe not a good idea.
+    //       (what does this mean? The last token of a hyperlink
+    //       is a blank text token? href="" ?)
     //pub fn confirmBlankSourceOfURL(self: *@This()) void {
     //    std.debug.assert(!self.urlSourceSet());
     //
     //    self.more.urlConfirmed = true;
-    //    self.textInfo = .{
-    //        .urlSourceText = null,
-    //    };
+    //    self.url.sourceText = null;
     //    self.more.blankSourceOfURL = true;
     //
     //    self.more.urlSourceSet = true;
@@ -762,7 +805,7 @@ pub const BlockType = union(enum) {
             return .{};
         }
 
-        pub fn _contentStreamAttributes(self: @This()) ContentStreamAttributes {
+        pub fn contentStreamAttributes(self: @This()) ContentStreamAttributes {
             switch (self.endLine.lineType) {
                 .codeBlockEnd => {
                     if (self.endLine.extraInfo()) |info| {
@@ -1230,6 +1273,10 @@ pub const Token = union(enum) {
     //    attrs: *MediaAttributes,
     //},
     evenBackticks: struct {
+        // `` means a void char.
+        // ```` means (pairCount-1) non-collapsable spaces?
+        // ^```` means pairCount ` chars.
+        
         start: DocSize,
         pairCount: DocSize,
         more: packed struct {
@@ -1238,9 +1285,6 @@ pub const Token = union(enum) {
 
         // nextInLink: ?*Token = null, // ToDo: put .pairCount in .more to save space for this.
 
-        // `` means a void char.
-        // ```` means (pairCount-1) non-collapsable spaces?
-        // ^```` means pairCount ` chars.
     },
     spanMark: struct {
         // For a close mark, this might be the start of the attached blanks.
@@ -1266,12 +1310,26 @@ pub const Token = union(enum) {
     linkInfo: struct {
         link: *Link,
 
-        //fn followingOpenLinkSpanMark(self: *const @This()) *SpanMark {
-        //    const token: *const Token = @alignCast(@fieldParentPtr("linkInfo", self));
-        //    const m = token.followingSpanMark();
-        //    std.debug.assert(m.markType == .link and m.more.open == true);
-        //    return m;
-        //}
+        // ToDo: now here wastes a usize-size memory.
+        //       Can be used to support future potential self-defiend-image-link,
+        //       to avoid parse some image url definitions twice.
+        //
+        //          mediaLeadingToken: ?*LeadingSpanMark,
+        //
+        //       For example, in the following two cases, the hyperlink and the image
+        //       share the same link.
+        //
+        //       '''
+        //       __
+        //       && clickable-image.png
+        //       __
+        //
+        //       __
+        //       && clickable image
+        //       __
+        //
+        //       === clickable image: foo.png
+        //       '''
     },
     leadingSpanMark: struct {
         start: DocSize,

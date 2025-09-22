@@ -742,8 +742,10 @@ Below, we will refer to text spans with link style as %%**link spans**%% (or jus
 A not-empty link span will be rendered as a hyperlink in HTML output.
 *  If the link span contains only one content token,
    that token is used as the text of the hyperlink.
-*  If the link span contains multiple content tokens,
-   all tokens except the last one are used as the link text of the hyperlink.
+*  If the link span contains multiple content tokens and if the last content token
+   is a valid URL (see blow), then the content tokens except the last one
+   are used as the text of the hyperlink.
+*  Otherwise, all content tokens in the link span are used as the link text of the hyperlink.
 
 The URL for a hyperlink can be defined either inside or outside the corresponding link span.
 *  If the last content token of a link span is a valid URL (see below),
@@ -764,6 +766,7 @@ The URL for a hyperlink can be defined either inside or outside the correspondin
 A content token is a valid URL if its text
 *  starts with `http://` (ignore case), or
 *  starts with `https://` (ignore case), or
+*  ends with `.tmd[#fragment]` (ignore case), or
 *  ends with `.htm[#fragment]` (ignore case), or
 *  ends with `.html[#fragment]` (ignore case), or
 *  is `#[fragment]`.
