@@ -271,7 +271,7 @@ test "block attributes" {
     , struct {
         fn check(doc: *const tmd.Doc) !bool {
             try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
-            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaTokens == false);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens == false);
             return true;
         }
     }.check));
@@ -282,7 +282,7 @@ test "block attributes" {
     , struct {
         fn check(doc: *const tmd.Doc) !bool {
             try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
-            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaTokens == false);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens == false);
             return true;
         }
     }.check));
@@ -290,23 +290,50 @@ test "block attributes" {
     try std.testing.expect(try all.DocChecker.check(
         \\ ;;;
         \\ && example.png
-        \\
-    , struct {
-        fn check(doc: *const tmd.Doc) !bool {
-            try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
-            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaTokens == false);
-            return true;
-        }
-    }.check));
-
-    try std.testing.expect(try all.DocChecker.check(
-        \\ ;;; ``
         \\ && example.png
         \\
     , struct {
         fn check(doc: *const tmd.Doc) !bool {
             try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
-            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaTokens);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens == false);
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ __
+        \\ && example.png
+        \\ **
+        \\ && example.png
+        \\
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens == false);
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ ** ** %% %%
+        \\ && example.png
+        \\
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens);
+            return true;
+        }
+    }.check));
+
+    try std.testing.expect(try all.DocChecker.check(
+        \\ ``
+        \\ && example.png
+        \\
+    , struct {
+        fn check(doc: *const tmd.Doc) !bool {
+            try std.testing.expect(doc.rootBlock().next().?.blockType == .usual);
+            try std.testing.expect(doc.rootBlock().next().?.more.hasNonMediaContentTokens);
             return true;
         }
     }.check));

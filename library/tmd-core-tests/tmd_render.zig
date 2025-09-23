@@ -11,6 +11,7 @@ test "tmd render" {
                 pub fn checkFn(self: @This(), html: []const u8) !bool {
                     for (self.expectedHtmlTags) |expected| {
                         if (std.mem.indexOf(u8, html, expected) == null) {
+                            //std.debug.print("<<<{s}\n>>>\n", .{html});
                             return error.ExpectedTagNotFound;
                         }
                     }

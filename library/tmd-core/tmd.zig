@@ -9,9 +9,13 @@ pub const GenOptions = @import("doc_to_html.zig").GenOptions;
 pub const GenCallback = @import("doc_to_html.zig").GenCallback;
 pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlock;
 
-pub const MediaExtension = @import("tmd_to_doc-attribute_parser.zig").MediaExtension;
-pub const endsWithValidContentExtension = @import("tmd_to_doc-attribute_parser.zig").endsWithValidContentExtension;
-pub const endsWithValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").endsWithValidMediaExtension;
+pub const parseLinkURL = @import("tmd_to_doc-attribute_parser.zig").parseLinkURL;
+pub const Extension = @import("tmd_to_doc-attribute_parser.zig").Extension;
+pub const extensionInfo = @import("tmd_to_doc-attribute_parser.zig").extensionInfo;
+pub const validTextExtensions = @import("tmd_to_doc-attribute_parser.zig").validTextExtensions;
+pub const checkValidTextExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidTextExtension;
+pub const validMediaExtensions = @import("tmd_to_doc-attribute_parser.zig").validMediaExtensions;
+pub const checkValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidMediaExtension;
 
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
 pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
@@ -134,7 +138,7 @@ pub const Doc = struct {
         self.blocksByID.traverseNodes(handler);
     }
 
-    pub fn firstLine(self: *const @This()) ?*Line {
+    pub fn firstLine(self: *const @This()) ?*const Line {
         return if (self.lines.head) |le| &le.value else null;
     }
 
@@ -233,10 +237,10 @@ pub const ElementAttibutes = struct {
 
 // The definition is not the same as web URL.
 pub const URL = struct {
-    manner: enum {
+    manner: union(enum) {
         undetermined, //
         absolute, // .base contains :// (not support //xxx.yyy/...)
-        relative, // relative ablolute paths (/foo/bar) are not supported.
+        relative: struct{tmdFile: bool}, // relative ablolute paths (/foo/bar) are not supported.
         footnote, // __#[id]__. __#__ means all footnotes.
         invalid,  // should only be set by custom handlers
     } = .undetermined,
@@ -254,7 +258,7 @@ pub const URL = struct {
     //
     // This is the head of a list. See Token.PlainText.nextInLink.
     // It is only valid when .more.urlSourceSet == true.
-    sourceText: ?*Token = null, // null for a blank link span
+    sourceText: ?*const Token = null, // null for a blank link span
 
     // Without the fragment part.
     base: []const u8 = "",
@@ -269,18 +273,20 @@ pub const URL = struct {
 };
 
 pub const Link = struct {
-
     const List = list.List(@This());
+
+    pub const Owner = union(enum) {
+        block: *Block, // for link definition. (.blockType == .link)
+        hyper: *Token, // for hyperlink. Token.LinkInfo.
+        media: *Token, // for media. Token.LinkInfo.
+    };
+    
     
     // ToDo: use pointer? Memory will be more fragmental.
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
 
-    owner: union(enum) {
-        block: *Block, // for link definition. (.blockType == .link)
-        hyper: *Token, // for hyperlink. Token.LinkInfo.
-        media: *Token, // Token.LeadingSpanMark. (.more.markType == .media)
-    },
+    owner: Owner,
 
     // This is the head of a list. See Token.PlainText.nextInLink.
     firstPlainText: ?*Token = null, // null for a blank link span
@@ -401,7 +407,7 @@ pub const Block = struct {
 
     more: packed struct {
         // for .usual atom blocks only
-        hasNonMediaTokens: bool = false,
+        hasNonMediaContentTokens: bool = false,
     } = .{},
 
     pub const default: Block = .{ .blockType = undefined };
@@ -424,7 +430,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn startLine(self: *const @This()) *Line {
+    pub fn startLine(self: *const @This()) *const Line {
         return switch (self.blockType) {
             inline else => |bt| {
                 if (@hasDecl(@TypeOf(bt), "Atom")) {
@@ -447,7 +453,7 @@ pub const Block = struct {
         };
     }
 
-    pub fn endLine(self: *const @This()) *Line {
+    pub fn endLine(self: *const @This()) *const Line {
         return switch (self.blockType) {
             inline else => |bt| {
                 if (@hasDecl(@TypeOf(bt), "Atom")) {
@@ -514,15 +520,23 @@ pub const Block = struct {
 
     const List = list.List(@This());
 
-    fn ownerListElement(self: *const @This()) *Block.List.Element {
-        return @alignCast(@fieldParentPtr("value", @constCast(self)));
+    fn ownerListElement(self: *const @This()) *const Block.List.Element {
+        return @alignCast(@fieldParentPtr("value", self));
     }
 
-    pub fn next(self: *const @This()) ?*Block {
+    //pub fn next(self: *const @This()) ?*const Block {
+    //    return &(self.ownerListElement().next orelse return null).value;
+    //}
+
+    //pub fn prev(self: *const @This()) ?*const Block {
+    //    return &(self.ownerListElement().prev orelse return null).value;
+    //}
+
+    pub fn next(self: anytype) ?@TypeOf(self) {
         return &(self.ownerListElement().next orelse return null).value;
     }
 
-    pub fn prev(self: *const @This()) ?*Block {
+    pub fn prev(self: anytype) ?@TypeOf(self) {
         return &(self.ownerListElement().prev orelse return null).value;
     }
 
@@ -539,7 +553,7 @@ pub const Block = struct {
         return null;
     }
 
-    pub fn nextSibling(self: *const @This()) ?*Block {
+    pub fn nextSibling(self: *const @This()) ?*const Block {
         return switch (self.blockType) {
             .root => null,
             .base => |base| blk: {
@@ -640,9 +654,9 @@ pub const BlockType = union(enum) {
             return self.list.blockType.list.lastBullet == self.ownerBlock();
         }
 
-        pub fn ownerBlock(self: *const @This()) *Block {
-            const blockType: *BlockType = @alignCast(@fieldParentPtr("item", @constCast(self)));
-            return blockType.ownerBlock();
+        pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
+            const bt: if (isConst(@TypeOf(self))) *const BlockType else *BlockType = @alignCast(@fieldParentPtr("item", self));
+            return bt.ownerBlock();
         }
     },
 
@@ -889,10 +903,17 @@ pub const BlockType = union(enum) {
         }
     },
 
-    pub fn ownerBlock(self: *const @This()) *Block {
-        return @alignCast(@fieldParentPtr("blockType", @constCast(self)));
+    pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
+        return @alignCast(@fieldParentPtr("blockType", self));
     }
 };
+
+fn isConst(Ptr: type) bool {
+    return switch (@typeInfo(Ptr)) {
+        .pointer => |p| p.is_const,
+        else => @compileError("Ptr must be a pointer type."),
+    };
+}
 
 fn voidOr(T: type) type {
     const ValueType = if (builtin.mode == .Debug) T else void;
@@ -1012,15 +1033,15 @@ pub const Line = struct {
 
     const List = list.List(@This());
 
-    fn ownerListElement(self: *const @This()) *Line.List.Element {
-        return @alignCast(@fieldParentPtr("value", @constCast(self)));
+    fn ownerListElement(self: *const @This()) *const Line.List.Element {
+        return @alignCast(@fieldParentPtr("value", self));
     }
 
-    pub fn next(self: *const @This()) ?*Line {
+    pub fn next(self: *const @This()) ?*const Line {
         return &(self.ownerListElement().next orelse return null).value;
     }
 
-    pub fn prev(self: *const @This()) ?*Line {
+    pub fn prev(self: *const @This()) ?*const Line {
         return &(self.ownerListElement().prev orelse return null).value;
     }
 
@@ -1242,7 +1263,7 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 
 pub const Token = union(enum) {
     // Same results as using std.meta.TagPayload(Token, .XXX)
-    pub const PlainText = std.meta.FieldType(Token, .content);
+    pub const PlainText = std.meta.FieldType(Token, .plaintext);
     pub const CommentText = std.meta.FieldType(Token, .commentText);
     pub const EvenBackticks = std.meta.FieldType(Token, .evenBackticks);
     pub const SpanMark = std.meta.FieldType(Token, .spanMark);
@@ -1252,13 +1273,14 @@ pub const Token = union(enum) {
     pub const LineTypeMark = std.meta.FieldType(Token, .lineTypeMark);
     pub const Extra = std.meta.FieldType(Token, .extra);
 
-    content: struct {
+    plaintext: struct {
         start: DocSize,
         // The value should be the same as the start of the next token, or end of line.
         // But it is good to keep it here, to verify the this value is the same as ....
         end: DocSize,
 
         // The last one might be a URL source of a self-defined link.
+        // Might be .plaintext or .evenBackticks.
         nextInLink: ?*Token = null,
     },
     commentText: struct {
@@ -1278,13 +1300,14 @@ pub const Token = union(enum) {
         // ^```` means pairCount ` chars.
         
         start: DocSize,
-        pairCount: DocSize,
         more: packed struct {
+            pairCount: DocSize,
             secondary: bool,
         },
 
-        // nextInLink: ?*Token = null, // ToDo: put .pairCount in .more to save space for this.
-
+        // The last one might be a URL source of a self-defined link.
+        // Might be content or evenBackticks.
+        nextInLink: ?*Token = null,
     },
     spanMark: struct {
         // For a close mark, this might be the start of the attached blanks.
@@ -1298,7 +1321,13 @@ pub const Token = union(enum) {
         more: packed struct {
             open: bool,
             secondary: bool = false,
-            blankSpan: bool, // enclose no texts (contents or evenBackticks or treatEndAsSpace)
+            // Enclose no texts (contents or evenBackticks or treatEndAsSpace).
+            // The value should be equal to the corresponding open/close mark.
+            // The value is for render optimization purpose, to skip rendering
+            // some blank mark spans.
+            // Note that, even if this value is true, void (``) and some collapsed
+            // spaces will not get rendered.
+            blankSpan: bool, 
         },
 
         pub fn typeName(self: @This()) []const u8 {
@@ -1311,8 +1340,8 @@ pub const Token = union(enum) {
         link: *Link,
 
         // ToDo: now here wastes a usize-size memory.
-        //       Can be used to support future potential self-defiend-image-link,
-        //       to avoid parse some image url definitions twice.
+        //       Optimization: Can be used to support future potential
+        //       self-defiend-image-link, to avoid parsing some image url definitions twice.
         //
         //          mediaLeadingToken: ?*LeadingSpanMark,
         //
@@ -1330,6 +1359,14 @@ pub const Token = union(enum) {
         //
         //       === clickable image: foo.png
         //       '''
+        //
+        //  [rethink]: The link should be created for the hyperlink
+        //             and be shared with the enclosed image span.
+        //             
+        //             Now, a LinkInfo token followings the meida
+        //             LeadingSpanMark token. Maybe the former
+        //             can be mergerd into the latter, by removing
+        //             .more.markLen field. (Looks not a good idea.)
     },
     leadingSpanMark: struct {
         start: DocSize,
@@ -1339,7 +1376,7 @@ pub const Token = union(enum) {
             markType: LineSpanMarkType,
 
             // when isBare is false,
-            // * for .media, the next token is a .content token.
+            // * for .media, if it is not bare, the next two tokens are .linkInfo and .plaintext tokens.
             // * for .comment and .anchor, the next token is a .commentText token.
             isBare: bool = false,
         },
@@ -1422,11 +1459,11 @@ pub const Token = union(enum) {
             .commentText => |t| {
                 return t.end;
             },
-            .content => |t| {
+            .plaintext => |t| {
                 return t.end;
             },
             .evenBackticks => |s| {
-                var e = self.start() + (s.pairCount << 1);
+                var e = self.start() + (s.more.pairCount << 1);
                 if (s.more.secondary) e += 1;
                 return e;
             },
@@ -1476,6 +1513,13 @@ pub const Token = union(enum) {
             return &te.value;
         }
         return null;
+    }
+
+    pub fn nextContentTokenInLink(self: *const @This()) ?*const Token {
+        return switch (self.*) {
+            inline .plaintext, .evenBackticks => |t| t.nextInLink,
+            else => unreachable,
+        };
     }
 
     //fn followingSpanMark(self: *const @This()) *SpanMark {

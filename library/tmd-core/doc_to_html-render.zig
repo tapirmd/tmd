@@ -9,6 +9,7 @@ const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 const fns = @import("doc_to_html-fns.zig");
 
 pub const GenOptions = struct {
+    renderedExtension: []const u8 = ".html",
     renderRoot: bool = true,
     identSuffix: []const u8 = "", // for forum posts etc. To avoid id duplications.
     autoIdentSuffix: []const u8 = "", // to avoid some auto id duplication. Should only be used when identPrefix is blank.
@@ -24,7 +25,7 @@ pub const GenOptions = struct {
     getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?GenCallback = null,
+    getMediaUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
     getLinkUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
 };
 
@@ -154,9 +155,9 @@ pub const TmdRender = struct {
         return null;
     }
 
-    fn getMediaUrlGenCallback(self: *const TmdRender, infoToken: tmd.Token) ?GenCallback {
+    fn getMediaUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) ?GenCallback {
         if (self.options.getMediaUrlGenCallback) |get| {
-            if (get(self.options.callbackContext, self.doc, infoToken)) |callback| return callback;
+            if (get(self.options.callbackContext, self.doc, link)) |callback| return callback;
         }
         return null;
     }
@@ -616,7 +617,7 @@ pub const TmdRender = struct {
         col: u32,
         endRow: u32,
         endCol: u32,
-        block: *tmd.Block,
+        block: *const tmd.Block,
         next: ?*TableCell = null,
 
         // Used to sort column-major table cells.
@@ -646,9 +647,9 @@ pub const TmdRender = struct {
         }
     };
 
-    fn collectTableCells(self: *TmdRender, firstTableChild: *tmd.Block) ![]TableCell {
+    fn collectTableCells(self: *TmdRender, firstTableChild: *const tmd.Block) ![]TableCell {
         var numCells: usize = 0;
-        var firstNonLineChild: ?*tmd.Block = null;
+        var firstNonLineChild: ?*const tmd.Block = null;
         var child = firstTableChild;
         while (true) {
             check: {
@@ -838,7 +839,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlock_RowOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *tmd.Block) !void {
+    fn renderTableBlock_RowOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
         const cells = try self.collectTableCells(firstChild);
         if (cells.len == 0) {
             try self.renderTableBlocks_WithoutCells(w, tableBlock);
@@ -868,7 +869,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlock_ColumnOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *tmd.Block) !void {
+    fn renderTableBlock_ColumnOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
         const cells = try self.collectTableCells(firstChild);
         if (cells.len == 0) {
             try self.renderTableBlocks_WithoutCells(w, tableBlock);
@@ -1086,7 +1087,7 @@ pub const TmdRender = struct {
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
         // These are only valid when activeLinkInfo != null.
         firstPlainTextInLink: bool = undefined,
-        linkFootnote: *Footnote = undefined,
+        linkFootnote: ?*Footnote = undefined,
         brokenLinkConfirmed: bool = undefined,
 
         fn onLinkInfo(self: *@This(), linkInfo: *tmd.Token.LinkInfo) void {
@@ -1128,7 +1129,7 @@ pub const TmdRender = struct {
                 const token = &tokenElement.value;
                 switch (token.*) {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
-                    .content => blk: {
+                    .plaintext => blk: {
                         if (tracker.activeLinkInfo) |linkInfo| {
                             const url = linkInfo.link.url orelse unreachable;
                             if (!tracker.firstPlainTextInLink) {
@@ -1142,10 +1143,17 @@ pub const TmdRender = struct {
 
                                 if (url.manner == .footnote) {
                                     if (usage == .general) {
-                                        if (tracker.linkFootnote.block) |_| {
-                                            try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
+                                        //if (tracker.linkFootnote.block) |_| {
+                                        //    try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
+                                        //} else {
+                                        //    try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                        //}
+                                        if (tracker.linkFootnote) |ft| {
+                                            std.debug.assert(tracker.brokenLinkConfirmed == (ft.block == null));
+                                            const sign = if (tracker.brokenLinkConfirmed) "?" else "";
+                                            try w.print("[{}]{s}", .{ft.orderIndex, sign});
                                         } else {
-                                            try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                            try w.print("[...]", .{});
                                         }
                                     }
                                     break :blk;
@@ -1162,15 +1170,15 @@ pub const TmdRender = struct {
                         if (m.more.secondary) {
                             //try w.writeAll("&ZeroWidthSpace;"); // ToDo: write the code utf value instead
 
-                            for (0..m.pairCount) |_| {
+                            for (0..m.more.pairCount) |_| {
                                 try w.writeAll("`");
                             }
                         } else if (usage == .noStyling) {
-                            if (m.pairCount > 1) {
+                            if (m.more.pairCount > 1) {
                                 try w.writeAll(" ");
                             }
                         } else {
-                            for (1..m.pairCount) |_| {
+                            for (1..m.more.pairCount) |_| {
                                 //try w.writeAll("&nbsp;");
                                 try w.writeAll("&#160;"); // better in epub
                             }
@@ -1204,14 +1212,23 @@ pub const TmdRender = struct {
 
                                         //const footnote_id = linkURL[1..];
                                         const footnote_id = url.fragment[1..];
-                                        const footnote = try self.onFootnoteReference(footnote_id);
-                                        tracker.linkFootnote = footnote;
+                                        if (footnote_id.len == 0) {
+                                            tracker.linkFootnote = null;
 
-                                        if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+                                            try w.print(
+                                                \\<sup><a href="#fn{s}:">
+                                            , .{ self.options.identSuffix });
+                                        } else {
+                                            const footnote = try self.onFootnoteReference(footnote_id);
+                                            tracker.linkFootnote = footnote;
+                                            tracker.brokenLinkConfirmed = footnote.block == null;
 
-                                        try w.print(
-                                            \\<sup><a id="fn:{s}{s}:ref-{}" href="#fn:{s}{s}">
-                                        , .{ footnote_id, self.options.identSuffix, footnote.refWrittenCount, footnote_id, self.options.identSuffix });
+                                            if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+
+                                            try w.print(
+                                                \\<sup><a id="fn{s}:{s}:ref-{}" href="#fn{s}:{s}">
+                                            , .{ self.options.identSuffix, footnote_id, footnote.refWrittenCount, self.options.identSuffix, footnote_id });
+                                        }
                                         
                                         break :blk;
                                     }
@@ -1251,11 +1268,39 @@ pub const TmdRender = struct {
                                     //    tracker.brokenLinkConfirmed = true;
                                     //}
 
-                                    switch (url.manner) {
-                                        .absolute, .relative => {
-                                            try w.print(
-                                                \\<a href="{s}{s}">
-                                            , .{url.base, url.fragment});
+                                    sw: switch (url.manner) {
+                                        .absolute => {
+                                            //try w.print(
+                                            //    \\<a href="{s}{s}">
+                                            //, .{url.base, url.fragment});
+
+                                            try w.writeAll(
+                                                \\<a href="
+                                            );
+                                            try fns.writeHtmlAttributeValue(w, url.base);
+                                            try fns.writeHtmlAttributeValue(w, url.fragment);
+                                            try w.writeAll(
+                                                \\">
+                                            );
+                                        },
+                                        .relative => |v| {
+                                            if (v.tmdFile) {
+                                                const ext = std.fs.path.extension(url.base);
+                                                const baseWithoutExt = url.base[0..url.base.len-ext.len];
+                                                //try w.print(
+                                                //    \\<a href="{s}{s}{s}">
+                                                //, .{baseWithoutExt, self.options.renderedExtension, url.fragment});
+
+                                                try w.writeAll(
+                                                    \\<a href="
+                                                );
+                                                try fns.writeHtmlAttributeValue(w, baseWithoutExt);
+                                                try fns.writeHtmlAttributeValue(w, self.options.renderedExtension);
+                                                try fns.writeHtmlAttributeValue(w, url.fragment);
+                                                try w.writeAll(
+                                                    \\">
+                                                );
+                                           } else continue :sw .absolute;
                                         },
                                         else => {
                                             try w.writeAll(
@@ -1288,34 +1333,68 @@ pub const TmdRender = struct {
                             },
                             .comment => break,
                             .media => blk: {
-                                if (tracker.activeLinkInfo) |_| {
-                                    tracker.firstPlainTextInLink = false;
-                                }
                                 if (m.more.isBare) {
                                     try w.writeAll(" ");
                                     break :blk;
                                 }
+                                if (tracker.activeLinkInfo) |_| {
+                                    tracker.firstPlainTextInLink = false;
+                                }
                                 if (usage == .noStyling) break :blk;
 
-                                const mediaInfoElement = tokenElement.next.?;
-                                const isInline = inHeader or block.more.hasNonMediaTokens;
+                                const isInline = inHeader or block.more.hasNonMediaContentTokens;
 
+                                //const mediaInfoElement = tokenElement.next.?;
+                                //writeMedia: {
+                                //    const mediaInfoToken = mediaInfoElement.value;
+                                //    std.debug.assert(mediaInfoToken == .plaintext);
+                                //
+                                //    if (self.getMediaUrlGenCallback(mediaInfoToken)) |callback| {
+                                //        try w.writeAll("<img src=\"");
+                                //        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
+                                //        try callback.gen(aw);
+                                //    } else {
+                                //        const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
+                                //        const src = AttributeParser.parse_media_info(mediaInfo);
+                                //      
+                                //        if (!AttributeParser.endsWithValidMediaExtension(src)) break :writeMedia;
+                                //
+                                //        try w.writeAll("<img src=\"");
+                                //        try fns.writeHtmlAttributeValue(w, src);
+                                //    }
+                                //
+                                //    if (isInline) {
+                                //        try w.writeAll("\" class=\"tmd-inline-media\"/>");
+                                //    } else {
+                                //        try w.writeAll("\" class=\"tmd-media\"/>");
+                                //    }
+                                //}
+                                //
+                                //element = mediaInfoElement.next;
+                                //continue;
+
+                                const linkInfoElement = tokenElement.next.?;
+                                const linkInfoToken = &linkInfoElement.value;
+                                std.debug.assert(linkInfoToken.* == .linkInfo);
+
+                                const link = linkInfoToken.linkInfo.link;
+                                const url = link.url orelse unreachable;
                                 writeMedia: {
-                                    const mediaInfoToken = mediaInfoElement.value;
-                                    std.debug.assert(mediaInfoToken == .content);
-
-                                    if (self.getMediaUrlGenCallback(mediaInfoToken)) |callback| {
+                                    if (self.getMediaUrlGenCallback(link)) |callback| {
                                         try w.writeAll("<img src=\"");
                                         const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
                                         try callback.gen(aw);
-                                    } else {
-                                        const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
-                                        const src = AttributeParser.parse_media_info(mediaInfo);
-                                        
-                                        if (!AttributeParser.endsWithValidMediaExtension(src)) break :writeMedia;
+                                    } else switch (url.manner) {
+                                        .absolute, .relative => {
+                                            const src = url.base;
+                                            try w.writeAll("<img src=\"");
+                                            try fns.writeHtmlAttributeValue(w, src);
 
-                                        try w.writeAll("<img src=\"");
-                                        try fns.writeHtmlAttributeValue(w, src);
+                                            // ToDo: size info is in url.fragment
+                                        },
+                                        else => {
+                                            break :writeMedia;
+                                        },
                                     }
 
                                     if (isInline) {
@@ -1325,7 +1404,8 @@ pub const TmdRender = struct {
                                     }
                                 }
 
-                                element = mediaInfoElement.next;
+                                std.debug.assert(linkInfoElement.next.?.value == .plaintext);
+                                element = linkInfoElement.next.?.next; // skip the media specification text token
                                 continue;
                             },
                         }
@@ -1634,14 +1714,14 @@ pub const TmdRender = struct {
     fn _writeFootnotes(self: *TmdRender, w: anytype) !void {
         if (self.footnoteNodes.empty()) return;
 
-        try w.writeAll("\n<ol class=\"tmd-list tmd-footnotes\">\n");
+        try w.print("\n<ol class=\"tmd-list tmd-footnotes\" id=\"fn{s}:\">\n", .{self.options.identSuffix});
 
         var listElement = self.footnoteNodes.head;
         while (listElement) |element| {
             defer listElement = element.next;
             const footnote = element.value.value;
 
-            try w.print("<li id=\"fn:{s}{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ footnote.id, self.options.identSuffix });
+            try w.print("<li id=\"fn{s}:{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ self.options.identSuffix, footnote.id });
             const missing_flag = if (footnote.block) |block| blk: {
                 switch (block.blockType) {
                     // .item can't have ID now.
@@ -1653,7 +1733,7 @@ pub const TmdRender = struct {
             } else "?";
 
             for (1..footnote.refCount + 1) |n| {
-                try w.print("<a href=\"#fn:{s}{s}:ref-{}\">↩︎{s}</a>", .{ footnote.id, self.options.identSuffix, n, missing_flag });
+                try w.print("<a href=\"#fn{s}:{s}:ref-{}\">↩︎{s}</a>", .{ self.options.identSuffix, footnote.id, n, missing_flag });
             }
             try w.writeAll("</li>\n");
         }

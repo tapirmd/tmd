@@ -347,11 +347,11 @@ const TmdGenCustomHandler = struct {
         return null;
     }
 
-    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback {
+    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
         _ = handler;
         _ = doc;
-        _ = mediaInfoToken;
+        _ = link;
         
         return null;
     }

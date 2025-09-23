@@ -25,7 +25,18 @@ pub fn init(doc: *tmd.Doc) LinkMatcher {
 }
 
 fn tokenAsString(self: *const LinkMatcher, contentToken: *const tmd.Token) []const u8 {
-    return self.tmdData[contentToken.start()..contentToken.end()];
+    switch (contentToken.*) {
+        .plaintext => return self.tmdData[contentToken.start()..contentToken.end()],
+        .evenBackticks => |t| {
+            if (t.more.secondary) {
+                const start = contentToken.start() + 1;
+                const end = start + t.more.pairCount;
+                return self.tmdData[start..end];
+            }
+            return "";
+        },
+        else => unreachable,
+    }
 }
 
 fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
@@ -564,7 +575,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         const link = &linkElement.value;
         std.debug.assert(link.url == null);
         blk: {
-            const firstTextToken = if (link.firstPlainText) |first| first else {
+            const firstTextToken: *const tmd.Token = if (link.firstPlainText) |first| first else {
                 // The link should be ignored in rendering.
 
                 //std.debug.print("ignored for no content tokens\n", .{});
@@ -590,7 +601,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             var lastToken = firstTextToken;
             // count sum length without the last text token
             var dummyLinkText = DummyLinkText{};
-            while (lastToken.content.nextInLink) |nextToken| {
+            while (lastToken.nextContentTokenInLink()) |nextToken| {
                 defer lastToken = nextToken;
                 const str = self.tokenAsString(lastToken);
                 linkTextLen = copyLinkText(&dummyLinkText, linkTextLen, str);
@@ -672,7 +683,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 var linkTextLen2: u32 = 0;
                 lastToken = firstTextToken;
                 // build text data without the last text token
-                while (lastToken.content.nextInLink) |nextToken| {
+                while (lastToken.nextContentTokenInLink()) |nextToken| {
                     defer lastToken = nextToken;
                     const str = self.tokenAsString(lastToken);
                     linkTextLen2 = copyLinkText(&realLinkText, linkTextLen2, str);

@@ -83,9 +83,24 @@ pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
                 try w.writeAll("&quot;");
                 last = i + 1;
             },
-            '\'' => {
+            //'\'' => {
+            //    try w.writeAll(text[last..i]);
+            //    try w.writeAll("&apos;");
+            //    last = i + 1;
+            //},
+            '&' => {
                 try w.writeAll(text[last..i]);
-                try w.writeAll("&apos;");
+                try w.writeAll("&amp;");
+                last = i + 1;
+            },
+            '<' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&lt;");
+                last = i + 1;
+            },
+            '>' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&gt;");
                 last = i + 1;
             },
             else => {},

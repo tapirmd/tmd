@@ -27,12 +27,12 @@ test "line end type" {
                 pub fn checkFn(self: @This(), html: []const u8) !bool {
                     var remaining = html;
                     for (self.expectedURIs, 1..) |expected, i| {
-                        const range = retrieveFirstLinkURL(remaining) orelse {
-                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
-                            return error.TooLessLinks;
-                        };
+                        const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
-                        if (!std.mem.eql(u8, uri, expected)) return false;
+                        if (!std.mem.eql(u8, uri, expected)) {
+                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
+                            return false;
+                        }
                         remaining = remaining[range.end + closeNeedle.len ..];
                         if (i == self.expectedURIs.len) {
                             if (retrieveFirstLinkURL(remaining) != null) return error.TooManyLinks;
@@ -50,6 +50,41 @@ test "line end type" {
         \\world
         \\
     , &.{}));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.tmd ___ __ 
+        \\// here, the ___ is the title of the link.
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.html",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.htm
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.htm",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.png
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.png",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__
+        \\&& bar.png
+        \\__
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.png",
+    }));
 
     try std.testing.expect(try LinkChecker.check(
         \\__foo__
