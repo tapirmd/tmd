@@ -2,7 +2,7 @@ const std = @import("std");
 
 const tmd = @import("tmd.zig");
 
-pub fn writeOpenTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8, endAndWriteNewLine: ?bool) !void {
+pub fn writeOpenTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, endAndWriteNewLine: ?bool) !void {
     std.debug.assert(tag.len > 0);
 
     try w.writeAll("<");
@@ -23,7 +23,7 @@ pub fn writeCloseTag(w: anytype, tag: []const u8, writeNewLine: bool) !void {
     if (writeNewLine) try w.writeAll("\n");
 }
 
-pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8, writeNewLine: bool) !void {
+pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, writeNewLine: bool) !void {
     std.debug.assert(tag.len > 0);
 
     try w.writeAll("<");
@@ -34,7 +34,7 @@ pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []cons
     if (writeNewLine) try w.writeAll("\n");
 }
 
-pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, attributes: ?*tmd.ElementAttibutes, identSuffix: []const u8) !void {
+pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8) !void {
     if (attributes) |as| {
         if (as.id.len != 0) try writeID(w, as.id, identSuffix);
         try writeClasses(w, classesSeperatedBySpace, as.classes);

@@ -113,7 +113,7 @@ pub const Doc = struct {
         } else unreachable;
     }
 
-    pub fn blockByID(self: *const @This(), id: []const u8) ?*Block {
+    pub fn blockByID(self: *const @This(), id: []const u8) ?*const Block {
         var a = ElementAttibutes{
             .id = id,
         };
@@ -303,7 +303,7 @@ pub const Link = struct {
 
     // ToDo: remove the setXXX pub funcitons. Use fileds directly.
 
-    pub fn linkBlock(self: *const @This()) ?*Block {
+    pub fn linkBlock(self: *const @This()) ?*const Block {
         return switch (self.owner) {
             .block => |block| block,
             else => null,
@@ -504,7 +504,7 @@ pub const Block = struct {
     }
 
     // Only atom blocks and base blocks may be footer blocks.
-    pub fn footerAttibutes(self: *const @This()) ?*ElementAttibutes {
+    pub fn footerAttibutes(self: *const @This()) ?*const ElementAttibutes {
         //if (self.isContainer()) unreachable;
         if (self.isContainer()) return null;
 
@@ -1045,22 +1045,24 @@ pub const Line = struct {
         return &(self.ownerListElement().prev orelse return null).value;
     }
 
-    pub fn containerMarkToken(self: *const @This()) ?*Token {
+    pub fn containerMarkToken(self: *const @This()) ?*const Token {
         if (self.firstTokenOf(.containerMark_or_others)) |token| {
             if (token.* == .containerMark) return token;
         }
         return null;
     }
 
-    pub fn lineTypeMarkToken(self: *const @This()) ?*Token {
+    pub fn lineTypeMarkToken(self: *const @This()) ?*const Token {
         if (self.firstTokenOf(.lineTypeMark_or_others)) |token| {
             if (token.* == .lineTypeMark) return token;
         }
         return null;
     }
 
-    pub fn extraInfo(self: *const @This()) ?*Token.Extra.Info {
-        if (self.firstTokenOf(.extra_or_others)) |token| {
+    fn extraInfo(self: *@This()) ?*Token.Extra.Info {
+        if (self.firstTokenOf(.extra_or_others)) |constToken| {
+            // ToDo: we can make firstTokenOf support adaptive const-ness result.
+            const token = @constCast(constToken);
             if (token.* == .extra) {
                 std.debug.assert(token.next().?.* == .lineTypeMark);
                 return &token.extra.info;
@@ -1069,12 +1071,12 @@ pub const Line = struct {
         return null;
     }
 
-    pub fn firstInlineToken(self: *const @This()) ?*Token {
+    pub fn firstInlineToken(self: *const @This()) ?*const Token {
         return self.firstTokenOf(.others);
     }
 
     // Currently, .others means inline style or content tokens.
-    pub fn firstTokenOf(self: *const @This(), tokenKind: enum { any, containerMark_or_others, extra_or_others, lineTypeMark_or_others, others }) ?*Token {
+    pub fn firstTokenOf(self: *const @This(), tokenKind: enum { any, containerMark_or_others, extra_or_others, lineTypeMark_or_others, others }) ?*const Token {
         var tokenElement = self.tokens.head;
         switch (tokenKind) {
             .any, .containerMark_or_others => {
@@ -1506,7 +1508,7 @@ pub const Token = union(enum) {
     const List = list.List(@This());
 
     // ToDo: if self is const, return const. Possible?
-    pub fn next(self: *const @This()) ?*Token {
+    pub fn next(self: *const @This()) ?*const Token {
         const tokenElement: *const Token.List.Element = @alignCast(@fieldParentPtr("value", self));
         if (tokenElement.next) |te| {
             return &te.value;
@@ -1514,7 +1516,7 @@ pub const Token = union(enum) {
         return null;
     }
 
-    pub fn prev(self: *const @This()) ?*Token {
+    pub fn prev(self: *const @This()) ?*const Token {
         const tokenElement: *const Token.List.Element = @alignCast(@fieldParentPtr("value", self));
         if (tokenElement.prev) |te| {
             return &te.value;

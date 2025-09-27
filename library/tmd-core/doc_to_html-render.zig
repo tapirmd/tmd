@@ -102,7 +102,7 @@ pub const TmdRender = struct {
         orderIndex: u32 = undefined,
         refCount: u32 = undefined,
         refWrittenCount: u32 = undefined,
-        block: ?*tmd.Block = undefined,
+        block: ?*const tmd.Block = undefined,
 
         pub fn compare(x: *const @This(), y: *const @This()) isize {
             return switch (std.mem.order(u8, x.id, y.id)) {
