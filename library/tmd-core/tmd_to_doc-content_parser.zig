@@ -192,7 +192,9 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
     token.* = .{
         .plaintext = .{
             .start = @intCast(start),
-            .end = @intCast(end),
+            .more = . {
+                .textLen = @intCast(end - start),
+            },
         },
     };
 

@@ -1275,9 +1275,14 @@ pub const Token = union(enum) {
 
     plaintext: struct {
         start: DocSize,
-        // The value should be the same as the start of the next token, or end of line.
-        // But it is good to keep it here, to verify the this value is the same as ....
-        end: DocSize,
+
+        more: packed struct {
+            // (start+textLen) should be the same as the start of the next token, or end of line.
+            // But it is good to keep it here, to verify the this value is the same as ....
+            textLen: DocSize,
+
+            // followedByLineEndSpaceInLink: bool,
+        },
 
         // The last one might be a URL source of a self-defined link.
         // Might be .plaintext or .evenBackticks.
@@ -1303,6 +1308,8 @@ pub const Token = union(enum) {
         more: packed struct {
             pairCount: DocSize,
             secondary: bool,
+
+            // followedByLineEndSpaceInLink: bool,
         },
 
         // The last one might be a URL source of a self-defined link.
@@ -1460,7 +1467,7 @@ pub const Token = union(enum) {
                 return t.end;
             },
             .plaintext => |t| {
-                return t.end;
+                return t.start + t.more.textLen;
             },
             .evenBackticks => |s| {
                 var e = self.start() + (s.more.pairCount << 1);
