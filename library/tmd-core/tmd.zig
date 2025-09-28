@@ -71,7 +71,7 @@ pub const Doc = struct {
                 //if (line.tokens()) |tokens| {
                 //    tokens.*.destroy(null, a);
                 //}
-                line.tokens.destroy( null, a);
+                line.tokens.destroy(null, a);
             }
         };
 
@@ -234,15 +234,14 @@ pub const ElementAttibutes = struct {
     }
 };
 
-
 // The definition is not the same as web URL.
 pub const URL = struct {
     manner: union(enum) {
         undetermined, //
         absolute, // .base contains :// (not support //xxx.yyy/...)
-        relative: struct{tmdFile: bool}, // relative ablolute paths (/foo/bar) are not supported.
+        relative: struct { tmdFile: bool }, // relative ablolute paths (/foo/bar) are not supported.
         footnote, // __#[id]__. __#__ means all footnotes.
-        invalid,  // should only be set by custom handlers
+        invalid, // should only be set by custom handlers
     } = .undetermined,
 
     // ToDo: need it?
@@ -268,7 +267,7 @@ pub const URL = struct {
     fragment: []const u8 = "",
 
     // The part after the first space.
-    // Tiptool for <a>, 
+    // Tiptool for <a>,
     title: []const u8 = "",
 };
 
@@ -280,8 +279,7 @@ pub const Link = struct {
         hyper: *Token, // for hyperlink. Token.LinkInfo.
         media: *Token, // for media. Token.LinkInfo.
     };
-    
-    
+
     // ToDo: use pointer? Memory will be more fragmental.
     // ToDo: now this field is never set.
     // attrs: ElementAttibutes = .{},
@@ -1283,7 +1281,7 @@ pub const Token = union(enum) {
             // But it is good to keep it here, to verify the this value is the same as ....
             textLen: DocSize,
 
-            // followedByLineEndSpaceInLink: bool,
+            followedByLineEndSpaceInLink: bool = false,
         },
 
         // The last one might be a URL source of a self-defined link.
@@ -1305,13 +1303,17 @@ pub const Token = union(enum) {
         // `` means a void char.
         // ```` means (pairCount-1) non-collapsable spaces?
         // ^```` means pairCount ` chars.
-        
+
         start: DocSize,
         more: packed struct {
             pairCount: DocSize,
             secondary: bool,
 
-            // followedByLineEndSpaceInLink: bool,
+            followedByLineEndSpaceInLink: bool = false,
+
+            comptime {
+                std.debug.assert(@sizeOf(@This()) <= @sizeOf(u32));
+            }
         },
 
         // The last one might be a URL source of a self-defined link.
@@ -1336,7 +1338,7 @@ pub const Token = union(enum) {
             // some blank mark spans.
             // Note that, even if this value is true, void (``) and some collapsed
             // spaces will not get rendered.
-            blankSpan: bool, 
+            blankSpan: bool,
         },
 
         pub fn typeName(self: @This()) []const u8 {
@@ -1371,7 +1373,7 @@ pub const Token = union(enum) {
         //
         //  [rethink]: The link should be created for the hyperlink
         //             and be shared with the enclosed image span.
-        //             
+        //
         //             Now, a LinkInfo token followings the meida
         //             LeadingSpanMark token. Maybe the former
         //             can be mergerd into the latter, by removing
@@ -1527,6 +1529,13 @@ pub const Token = union(enum) {
     pub fn nextContentTokenInLink(self: *const @This()) ?*const Token {
         return switch (self.*) {
             inline .plaintext, .evenBackticks => |t| t.nextInLink,
+            else => unreachable,
+        };
+    }
+
+    pub fn followedByLineEndSpaceInLink(self: *const @This()) bool {
+        return switch (self.*) {
+            inline .plaintext, .evenBackticks => |t| t.more.followedByLineEndSpaceInLink,
             else => unreachable,
         };
     }

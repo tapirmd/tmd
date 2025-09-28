@@ -44,7 +44,7 @@ pub fn start(root: *tmd.Block, doc: *tmd.Doc) BlockArranger {
 }
 
 // This function should not be callsed deferredly.
-pub fn end(self: *BlockArranger) void {
+pub fn done(self: *BlockArranger) void {
     while (self.tryToCloseCurrentBaseBlock()) |_| {}
 }
 

@@ -36,9 +36,9 @@ pub const GenCallback_HtmlBlock = struct {
             line = line.next() orelse unreachable;
         }
     }
-    
+
     pub fn asGenBacklback(self: *GenCallback_HtmlBlock, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) render.GenCallback {
-        self.* = .{.doc = doc, .custom = custom};
+        self.* = .{ .doc = doc, .custom = custom };
         return .init(self);
     }
 };

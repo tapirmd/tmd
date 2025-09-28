@@ -24,7 +24,7 @@ pub const bytesKindTable = blk: {
         spanMark: tmd.SpanMarkType,
         others: struct {
             // The current implementation assumes that all TMD doc are UTF8 encoded.
-            isCjkSpaceStart: bool = false, // U+3000 (e3 80 80 in UTF8)
+            // isCjkSpaceStart: bool = false, // U+3000 (e3 80 80 in UTF8)
         },
 
         const ByteKind = @This();
@@ -67,7 +67,7 @@ pub const bytesKindTable = blk: {
     table['$'] = .{ .spanMark = .supsub };
     table['`'] = .{ .spanMark = .code };
 
-    table[0xE3] = .{ .others = .{ .isCjkSpaceStart = true } };
+    //table[0xE3] = .{ .others = .{ .isCjkSpaceStart = true } };
 
     break :blk table;
 };
@@ -188,12 +188,12 @@ pub fn readUntilLineEnd(ls: *LineScanner) u32 {
                 break;
             },
             .blank => continue,
-            .others => |others| {
-                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
-                    index += 2;
-                    continue;
-                }
-            },
+            //.others => |others| {
+            //    if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+            //        index += 2;
+            //        continue;
+            //    }
+            //},
             else => {},
         }
         blankStart = index + 1;
@@ -230,12 +230,12 @@ pub fn readUntilSpanMarkChar(ls: *LineScanner, specifiedChar: ?u8) u32 {
                 break;
             },
             .blank => continue,
-            .others => |others| {
-                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
-                    index += 2;
-                    continue;
-                }
-            },
+            //.others => |others| {
+            //    if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+            //        index += 2;
+            //        continue;
+            //    }
+            //},
             else => {},
         }
         blankStart = index + 1;
@@ -262,13 +262,13 @@ pub fn readUntilNotBlank(ls: *LineScanner) u32 {
                 if (blank.isSpace) numSpaces += 1;
                 continue;
             },
-            .others => |others| {
-                if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
-                    numSpaces += 1;
-                    index += 2;
-                    continue;
-                }
-            },
+            //.others => |others| {
+            //    if (others.isCjkSpaceStart and ls.peekIndex(index + 1) == 0x80 and ls.peekIndex(index + 2) == 0x80) {
+            //        numSpaces += 1;
+            //        index += 2;
+            //        continue;
+            //    }
+            //},
             .lineEnd => {
                 if (index > 0 and data[index - 1] == '\r') {
                     ls.lineEnd = .rn;

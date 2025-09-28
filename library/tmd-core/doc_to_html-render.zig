@@ -25,8 +25,8 @@ pub const GenOptions = struct {
     getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
-    getLinkUrlGenCallback: ?*const fn(context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
+    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
+    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
 };
 
 pub const GenCallback = struct {
@@ -1151,7 +1151,7 @@ pub const TmdRender = struct {
                                         if (tracker.linkFootnote) |ft| {
                                             std.debug.assert(tracker.brokenLinkConfirmed == (ft.block == null));
                                             const sign = if (tracker.brokenLinkConfirmed) "?" else "";
-                                            try w.print("[{}]{s}", .{ft.orderIndex, sign});
+                                            try w.print("[{}]{s}", .{ ft.orderIndex, sign });
                                         } else {
                                             try w.print("[...]", .{});
                                         }
@@ -1217,7 +1217,7 @@ pub const TmdRender = struct {
 
                                             try w.print(
                                                 \\<sup><a href="#fn{s}:">
-                                            , .{ self.options.identSuffix });
+                                            , .{self.options.identSuffix});
                                         } else {
                                             const footnote = try self.onFootnoteReference(footnote_id);
                                             tracker.linkFootnote = footnote;
@@ -1229,10 +1229,10 @@ pub const TmdRender = struct {
                                                 \\<sup><a id="fn{s}:{s}:ref-{}" href="#fn{s}:{s}">
                                             , .{ self.options.identSuffix, footnote_id, footnote.refWrittenCount, self.options.identSuffix, footnote_id });
                                         }
-                                        
+
                                         break :blk;
                                     }
-                                    
+
                                     if (self.getLinkUrlGenCallback(link)) |callback| {
                                         try w.writeAll(
                                             \\<a href="
@@ -1286,7 +1286,7 @@ pub const TmdRender = struct {
                                         .relative => |v| {
                                             if (v.tmdFile) {
                                                 const ext = std.fs.path.extension(url.base);
-                                                const baseWithoutExt = url.base[0..url.base.len-ext.len];
+                                                const baseWithoutExt = url.base[0 .. url.base.len - ext.len];
                                                 //try w.print(
                                                 //    \\<a href="{s}{s}{s}">
                                                 //, .{baseWithoutExt, self.options.renderedExtension, url.fragment});
@@ -1300,7 +1300,7 @@ pub const TmdRender = struct {
                                                 try w.writeAll(
                                                     \\">
                                                 );
-                                           } else continue :sw .absolute;
+                                            } else continue :sw .absolute;
                                         },
                                         else => {
                                             try w.writeAll(
@@ -1356,7 +1356,7 @@ pub const TmdRender = struct {
                                 //    } else {
                                 //        const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
                                 //        const src = AttributeParser.parse_media_info(mediaInfo);
-                                //      
+                                //
                                 //        if (!AttributeParser.endsWithValidMediaExtension(src)) break :writeMedia;
                                 //
                                 //        try w.writeAll("<img src=\"");

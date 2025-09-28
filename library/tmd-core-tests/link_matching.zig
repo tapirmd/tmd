@@ -30,7 +30,7 @@ test "line end type" {
                         const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
                         if (!std.mem.eql(u8, uri, expected)) {
-                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
+                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{ self.data, html });
                             return false;
                         }
                         remaining = remaining[range.end + closeNeedle.len ..];
@@ -278,16 +278,16 @@ test "line end type" {
         \\__foo bar__
         \\__foo bar foo__
         \\
-        \\=== foobar... :: https://go101.org
+        \\=== foo bar... :: https://go101.org
         \\
         \\__foo zzz foo__
         \\__foo bar foo bar__
-        \\__foo zzz foo bar__
+        \\__foo         zzz foo bar__
         \\__foo bar foo bar foo__
-        \\__foo zzz foo bar foo__
-        \\__foo zzz foo zzz foo__
+        \\__foo  zzz    foo bar foo__
+        \\__foo    zzz foo zzz foo__
         \\
-        \\=== foozzz... :: https://phyard.com
+        \\=== foo    zzz... :: https://phyard.com
         \\
     , &.{
         "https://tapirgames.com",
@@ -300,5 +300,35 @@ test "line end type" {
         "https://go101.org",
         "https://phyard.com",
         "https://phyard.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo  bar :: https://google.com
+        \\=== foobar :: https://tapirgames.com
+        \\
+        \\__foo
+        \\bar__
+        \\__foo``
+        \\bar__
+        \\
+    , &.{
+        "https://google.com",
+        "https://tapirgames.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo
+        \\    bar :: https://google.com
+        \\=== foo
+        \\    ``bar :: https://tapirgames.com
+        \\
+        \\__foo
+        \\bar__
+        \\__foo``
+        \\bar__
+        \\
+    , &.{
+        "https://google.com",
+        "https://tapirgames.com",
     }));
 }

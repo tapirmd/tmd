@@ -1,16 +1,15 @@
 
-### TapirMD (Tapir's Markdown) Format Specification
+### TapirMD (Tapir's Markup Document) Language Format Specification
 
 !  { ><
    :: The specification is written in TapirMD (source is available __here__).
    }
        === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
 
-__TapirMD__ is a powerful, next-generation markup language
-that simplifies content creation.
-It builds on Markdown's straightforward syntax,
-offering enhanced specificity and greater control
-over formatting __#note-markdown__.
+__TapirMD__ is a powerful, next-generation markup language that
+simplifies content creation.
+Inspired by Markdown's straightforward syntax, it offers
+enhanced specificity and greater control over formatting __#note-markdown__.
 
     === TapirMD:: index.html
 
@@ -829,10 +828,16 @@ And
    But the ones before a bare link block which is before the link span will never get matched.
 
 How matching texts are generated:
-*  All content tokens of a link span are combined into a single matching text,
-   with all blank characters removed.
-*  All content tokens of a link block, except the last one,
-   are combined into a single matching text, with all blank characters removed.
+*  All content tokens of a link span are combined into a single text.
+   All content tokens of a link block, except the last one,
+   are combined into a single text.
+*  If a __line-end space__ is bewteen two combined content tokens, it is viewed as
+   a ASCII Space character and also combined.
+*  All leading and trailing blank characters of final combined single texts are trimmed.
+   Successive middle whitespace characters are collapsed into one ASCII Space character (Unicode: U+0020).
+*  The final processed texts are used as matching texts.
+
+   === line-end space:: #line-end-spacing
 
 How matching works depends on the structure of matching texts of link blocks:
 *  If the matching text of a link block consists solely of three dots (`...`),
@@ -1490,6 +1495,7 @@ They should be escaped in header and usual blocks.
 
 @@@ #note-markdown
 Markdown is known for its limited capabilities and lack of strict specification.
+And in my opinion, its syntax is inconsistent despite being quite simple.
 
 @@@ #note-gen-targets
 Without relying on interactive UI elements, a TapirMD document can easily be

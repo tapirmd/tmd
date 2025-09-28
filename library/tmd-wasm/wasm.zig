@@ -238,8 +238,8 @@ fn generateHTML() ![]const u8 {
             return null;
         }
     };
-    var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{.doc = &tmdDoc, .custom = undefined};
-    const handler = CustomHandler {
+    var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{ .doc = &tmdDoc, .custom = undefined };
+    const handler = CustomHandler{
         .htmlGenCallback = &htmlGenCallback,
     };
 
@@ -247,7 +247,7 @@ fn generateHTML() ![]const u8 {
         .renderRoot = renderRoot,
         .identSuffix = identSuffix,
         .autoIdentSuffix = autoIdentSuffix,
-        
+
         .callbackContext = &handler,
         .getCustomBlockGenCallback = if (supportHTML) CustomHandler.getCustomBlockGenCallback else null,
     };

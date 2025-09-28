@@ -52,7 +52,7 @@ pub const Formatter = struct {
 
         // load file
 
-        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{.buffer  = remainingBuffer[0..maxTmdFileSize]});
+        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] });
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         // parse file
@@ -126,7 +126,7 @@ pub const FormatTester = struct {
     fn fmtTestFile(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
         // load file
 
-        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{.buffer = buffer[0..maxTmdFileSize]});
+        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{ .buffer = buffer[0..maxTmdFileSize] });
         var remainingBuffer = buffer[tmdContent.len..];
 
         // parse file

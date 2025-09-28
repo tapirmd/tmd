@@ -62,4 +62,3 @@ favicon: ?union(enum) {
 } = null,
 
 // option: add hash suffix to file names?
-

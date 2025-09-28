@@ -84,7 +84,7 @@ pub const resolvePathFromFilePath = @import("AppContext-helper.zig").resolvePath
 pub const resolvePathFromAbsDirPath = @import("AppContext-helper.zig").resolvePathFromAbsDirPath;
 //pub const validateURL = @import("AppContext-helper.zig").validateURL;
 pub const validatePath = @import("AppContext-helper.zig").validatePath;
-pub const validatedPathToPosixPath =  @import("AppContext-helper.zig").validatedPathToPosixPath;
+pub const validatedPathToPosixPath = @import("AppContext-helper.zig").validatedPathToPosixPath;
 pub const buildPosixPath = @import("AppContext-helper.zig").buildPosixPath;
 pub const buildPosixPathWithContentHashBase64 = @import("AppContext-helper.zig").buildPosixPathWithContentHashBase64;
 //pub const isStringInList = @import("AppContext-helper.zig").isStringInList;
@@ -92,4 +92,3 @@ pub const buildHashString = @import("AppContext-helper.zig").buildHashString;
 pub const buildHashHexString = @import("AppContext-helper.zig").buildHashHexString;
 pub const buildAssetFilePath = @import("AppContext-helper.zig").buildAssetFilePath;
 pub const buildEmbeddedImageHref = @import("AppContext-helper.zig").buildEmbeddedImageHref;
-

@@ -36,6 +36,7 @@ blockSession: struct {
     //
     // The line is a previous line. It might not be the last line.
     lineWithPending_treatEndAsSpace: ?*tmd.Line = null,
+    lastContentTokenWithPending_followedByLineEndSpaceInLink: ?*tmd.Token = null, // on the above line
 } = .{},
 
 lineSession: struct {
@@ -64,6 +65,10 @@ pub fn init(docParser: *DocParser) ContentParser {
     };
 }
 
+fn span_status(self: *ContentParser, markType: tmd.SpanMarkType) *SpanStatus {
+    return &self.blockSession.spanStatuses[markType.asInt()];
+}
+
 pub fn initMore(self: *ContentParser) void {
     self.codeSpanStatus = self.span_status(.code);
     self.linkSpanStatus = self.span_status(.link);
@@ -78,8 +83,8 @@ pub fn deinit(_: *ContentParser) void {
     //       and that function should not be called deferredly.
 }
 
-fn span_status(self: *ContentParser, markType: tmd.SpanMarkType) *SpanStatus {
-    return &self.blockSession.spanStatuses[markType.asInt()];
+pub fn done(self: *ContentParser) void {
+    self.end_atom_block();
 }
 
 pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
@@ -91,13 +96,12 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
     self.bolockSessionValid = true;
 
     if (atomBlock.blockType == .link) {
-        _ = try self.open_new_link(.{.block = atomBlock}, true);
+        _ = try self.open_new_link(.{ .block = atomBlock }, true);
     }
 }
 
-pub fn end_atom_block(self: *ContentParser) void {
+fn end_atom_block(self: *ContentParser) void {
     if (self.bolockSessionValid) {
-
         self.close_opening_spans(); // for the last block
 
         //if (self.blockSession.endLine) |line| {
@@ -192,7 +196,7 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
     token.* = .{
         .plaintext = .{
             .start = @intCast(start),
-            .more = . {
+            .more = .{
                 .textLen = @intCast(end - start),
             },
         },
@@ -205,10 +209,14 @@ fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Tok
     return token;
 }
 
-fn create_media_spec_text_token(self: *ContentParser, start: u32, end: u32,) !*tmd.Token {
+fn create_media_spec_text_token(
+    self: *ContentParser,
+    start: u32,
+    end: u32,
+) !*tmd.Token {
     const backup = self.blockSession.atomBlock.more.hasNonMediaContentTokens;
     defer self.blockSession.atomBlock.more.hasNonMediaContentTokens = backup;
-    
+
     return self.create_plain_text_token(start, end);
 }
 
@@ -320,7 +328,7 @@ fn create_even_backticks_span(self: *ContentParser, markStart: u32, pairCount: u
     //}
     //self.blockSession.atomBlock.more.hasNonMediaContentTokens = true;
 
-    // 3rd version. Yes, any evenBacktick tokens are content tokens!
+    // 3rd version. Yes, any evenBackticks tokens are content tokens!
     self.on_new_content_token(token);
     if (isSecondary or pairCount > 1) {
         // can be put into on_new_content_token or not. Now put it here.
@@ -427,7 +435,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     break :parse_tokens textEnd;
                 },
                 .media => {
-                    const link = try self.open_new_link(.{.media = undefined}, false); // will be modified below
+                    const link = try self.open_new_link(.{ .media = undefined }, false); // will be modified below
 
                     // Media needs 2 tokens to store information.
                     const token = try self.create_token();
@@ -603,7 +611,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             } else std.debug.assert(textEnd == textStart);
 
                             if (isLinkMark and !isSecondary) {
-                                const link = try self.open_new_link(.{.hyper = undefined}, true); // will be modified below
+                                const link = try self.open_new_link(.{ .hyper = undefined }, true); // will be modified below
 
                                 // Hyperlink needs 2 tokens to store information.
                                 const token = try self.create_token();
@@ -684,6 +692,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
         if (self.blockSession.lineWithPending_treatEndAsSpace) |line| handle: {
             if (cancelPending) {
                 self.blockSession.lineWithPending_treatEndAsSpace = null;
+                self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink = null;
                 break :handle;
             }
 
@@ -704,8 +713,17 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
             std.debug.assert(!line.treatEndAsSpace);
             line.treatEndAsSpace = asSpace;
+            if (asSpace) {
+                self.blockSession.atomBlock.more.hasNonMediaContentTokens = true;
+                if (self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink) |t| {
+                    switch (t.*) {
+                        inline .plaintext, .evenBackticks => |*ct| ct.more.followedByLineEndSpaceInLink = true,
+                        else => unreachable,
+                    }
+                }
+            }
             self.blockSession.lineWithPending_treatEndAsSpace = null;
-            if (asSpace) self.blockSession.atomBlock.more.hasNonMediaContentTokens = true;
+            self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink = null;
         }
 
         if (tryToPendLine) handle: {
@@ -719,6 +737,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
             const contentToken = self.lineSession.lastContentToken orelse break :handle;
 
             std.debug.assert(self.blockSession.lineWithPending_treatEndAsSpace == null);
+            std.debug.assert(self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink == null);
 
             const shouldPend = switch (contentToken.*) {
                 .plaintext => blk: {
@@ -736,6 +755,13 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
             if (shouldPend) {
                 self.blockSession.lineWithPending_treatEndAsSpace = self.lineSession.currentLine;
+
+                if (self.blockSession.lastLink != null) {
+                    if (self.blockSession.lastContentToken) |t| {
+                        std.debug.assert(t == self.lineSession.lastContentToken);
+                        self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink = t;
+                    }
+                }
             }
         }
     } else {} // possible for the first lines

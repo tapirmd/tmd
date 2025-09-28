@@ -1010,11 +1010,10 @@ fn parse(parser: *DocParser) !void {
     // Meaningful only for code snippet block (and popential later custom app block).
     try parser.setEndLineForAtomBlock(currentAtomBlock);
 
+    //try contentParser.on_new_atom_block(currentAtomBlock);
+    contentParser.done();
 
-    //try contentParser.on_new_atom_block(currentAtomBlock); 
-    contentParser.end_atom_block();
-
-    blockArranger.end();
+    blockArranger.done();
 
     try parser.onParseEnd();
 }

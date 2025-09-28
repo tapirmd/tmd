@@ -125,8 +125,8 @@ pub const RenderChecker = struct {
                 return null;
             }
         };
-        var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{.doc = &tmdDoc, .custom = undefined};
-        const handler = CustomHandler {
+        var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{ .doc = &tmdDoc, .custom = undefined };
+        const handler = CustomHandler{
             .htmlGenCallback = &htmlGenCallback,
         };
 

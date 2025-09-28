@@ -150,11 +150,8 @@ pub fn List(comptime Value: type) type {
             if (push) self.pushTail(element);
             return element;
         }
-
     };
 }
-
-
 
 test "list" {
     const T = struct {

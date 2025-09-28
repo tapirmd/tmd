@@ -4,15 +4,13 @@ const tmd = @import("tmd");
 
 const AppContext = @import("AppContext.zig");
 
-pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8,
-        manner: union(enum) {
-            buffer: []u8,
-            alloc: struct {
-                allocator: std.mem.Allocator,
-                maxFileSize: usize,
-            },
-        }) ![]u8 {
-    
+pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8, manner: union(enum) {
+    buffer: []u8,
+    alloc: struct {
+        allocator: std.mem.Allocator,
+        maxFileSize: usize,
+    },
+}) ![]u8 {
     const dir = inputDir orelse std.fs.cwd();
     const file = dir.openFile(filePath, .{}) catch |err| {
         if (err == error.FileNotFound) {
@@ -23,7 +21,7 @@ pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8,
     defer file.close();
 
     const stat = try file.stat();
-    
+
     switch (manner) {
         .buffer => |buffer| {
             if (stat.size > buffer.len) {
@@ -49,9 +47,8 @@ pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8,
                 return error.FileSizeNotMatch;
             }
             return content;
-        }
+        },
     }
-
 }
 
 pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []const u8) !void {
@@ -61,7 +58,7 @@ pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []con
 
     var file = try dir.createFile(filePath, .{});
     defer file.close();
-    
+
     try file.writeAll(fileContent);
 }
 
@@ -85,7 +82,7 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 
         return try dir.realpathAlloc(allocator, validPathToResolve);
     }
-    
+
     return try dir.realpathAlloc(allocator, pathToResolve);
 }
 
@@ -96,7 +93,7 @@ pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator:
         const validPathToResolve = validatePath(pathToResolve, buffer[0..]);
         return try std.fs.realpathAlloc(allocator, validPathToResolve);
     }
-    
+
     return try std.fs.realpathAlloc(allocator, pathToResolve);
 }
 
@@ -112,7 +109,7 @@ pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u
         const validPathToResolve = validatePath(pathToResolve, buffer2[0..]);
         return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
     }
-    
+
     return try std.fs.path.resolve(allocator, &.{ absDirPath, pathToResolve });
 }
 
@@ -170,16 +167,16 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
 
 // prefix and suffix have already used posix seperator.
 // validatedPath uses OS specified seperator.
-pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8,  allocator: std.mem.Allocator) ![]u8 {
-    const out = try std.mem.concat(allocator, u8, &.{prefix, validatedPath, suffix});
+pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]u8 {
+    const out = try std.mem.concat(allocator, u8, &.{ prefix, validatedPath, suffix });
     if (std.fs.path.sep != std.fs.path.sep_posix) {
-        std.mem.replaceScalar(u8, out[prefix.len..prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
+        std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
     }
     return out;
 }
 
 // prefix has already used posix seperator.
-pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8,  allocator: std.mem.Allocator) ![]u8 {
+pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]u8 {
     const hash = sha256Hash(fileContent);
     const encoder = std.base64.standard_no_pad.Encoder;
     const encoded_len = encoder.calcSize(hash.len);
@@ -187,7 +184,7 @@ pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []c
     const sep = "-";
 
     const ext = std.fs.path.extension(fileBasename);
-    const barename = fileBasename[0..fileBasename.len-ext.len];
+    const barename = fileBasename[0 .. fileBasename.len - ext.len];
 
     const n = prefix.len + barename.len + sep.len;
 
@@ -200,7 +197,7 @@ pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []c
         info = info[barename.len..];
         @memcpy(info[0..sep.len], sep);
 
-        info = out[out.len-ext.len..];
+        info = out[out.len - ext.len ..];
         @memcpy(info[0..ext.len], ext);
     }
     {
@@ -256,20 +253,20 @@ pub fn buildHashHexString(fileContent: []const u8, allocator: std.mem.Allocator)
 // All other parts will be lowered case, so that the output is wholly lowered-case.
 pub fn buildAssetFilePath(folder: []const u8, sep: u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
     const hashHexStr = hashHex(fileContent);
-    
+
     const ext = std.fs.path.extension(fileBasename);
-    const filename = fileBasename[0..fileBasename.len - ext.len];
+    const filename = fileBasename[0 .. fileBasename.len - ext.len];
 
     const sepStr: [1]u8 = .{sep};
-    const out = try std.mem.concat(allocator, u8, &.{folder, &sepStr, filename, "-", hashHexStr[0..], ext});
+    const out = try std.mem.concat(allocator, u8, &.{ folder, &sepStr, filename, "-", hashHexStr[0..], ext });
     {
         const n = folder.len + sepStr.len;
-        const outFilename = out[n..n+filename.len];
+        const outFilename = out[n .. n + filename.len];
         _ = std.ascii.lowerString(outFilename, outFilename);
     }
     {
         const n = out.len - ext.len;
-        const outExt = out[n..n+ext.len];
+        const outExt = out[n .. n + ext.len];
         _ = std.ascii.lowerString(outExt, outExt);
     }
     return out;

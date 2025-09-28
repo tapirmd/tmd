@@ -7,7 +7,7 @@ const FileIterator = @This();
 paths: []const []const u8,
 allocator: std.mem.Allocator,
 stderr: std.fs.File.Writer,
-pathFilterFn: *const fn([]const u8) bool,
+pathFilterFn: *const fn ([]const u8) bool,
 
 _curIndex: usize = 0,
 
@@ -19,7 +19,7 @@ pub fn init(
     paths: []const []const u8,
     allocator: std.mem.Allocator,
     stderr: std.fs.File.Writer,
-    pathFilter: ?*const fn([]const u8) bool,
+    pathFilter: ?*const fn ([]const u8) bool,
 ) FileIterator {
     return .{
         .paths = paths,

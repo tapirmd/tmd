@@ -173,7 +173,7 @@ fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, a
     };
     if (ctx._cachedFileContents.get(cacheKey)) |content| return .{ content, absFilePath };
 
-    const content = try ctx.readFile(null, absFilePath, .{.alloc = .{.allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize}});
+    const content = try ctx.readFile(null, absFilePath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize } });
     try ctx._cachedFileContents.put(cacheKey, content);
     return .{ content, absFilePath };
 }

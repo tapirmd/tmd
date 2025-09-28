@@ -4,8 +4,6 @@ const AppContext = @import("AppContext.zig");
 
 const Project = @This();
 
-
-
 path: []const u8,
 
 // .configEx.path might be "" (for default config),
@@ -15,8 +13,6 @@ configEx: *AppContext.ConfigEx,
 // If tmd.workspace file is not found in self+ancestor directories,
 // then .workspacePath == .path.
 workspacePath: []const u8,
-
-
 
 pub fn dirname(project: *const Project) []const u8 {
     const basename = std.fs.path.basename(project.path);
@@ -55,13 +51,9 @@ pub fn confirmProject(project: *const Project) ?[]const u8 {
     return null;
 }
 
-
-
 pub const build = @import("Project-build.zig").build;
 pub const StandaloneHtmlBuilder = @import("Project-build.zig").StandaloneHtmlBuilder;
 pub const EpubBuilder = @import("Project-build.zig").EpubBuilder;
 pub const StaticWebsiteBuilder = @import("Project-build.zig").StaticWebsiteBuilder;
 
 pub const run = @import("Project-run.zig").run;
-
-
