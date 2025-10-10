@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const AppContext = @import("AppContext.zig");
+const util = @import("util.zig");
 
 const FileIterator = @This();
 
@@ -66,7 +66,7 @@ pub fn next(fi: *FileIterator) !?Entry {
     var buffer: [std.fs.max_path_bytes]u8 = undefined;
     const dir = std.fs.cwd();
     while (fi._curIndex < fi.paths.len) {
-        const path = AppContext.validatePath(fi.paths[fi._curIndex], buffer[0..]);
+        const path = util.validatePath(fi.paths[fi._curIndex], buffer[0..]);
 
         const stat = dir.statFile(path) catch |err| {
             if (err == error.FileNotFound) {

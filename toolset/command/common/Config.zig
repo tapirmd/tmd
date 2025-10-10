@@ -2,9 +2,9 @@ const std = @import("std");
 
 const list = @import("list");
 
-const Template = @import("Template.zig");
+const DocTemplate = @import("DocTemplate.zig");
 
-pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
+pub const maxConfigFileSize = DocTemplate.maxTemplateSize + 32 * 1024;
 
 @"based-on": ?union(enum) {
     path: []const u8,
@@ -13,19 +13,20 @@ pub const maxConfigFileSize = Template.maxTemplateSize + 32 * 1024;
 /// For commands: to-html, run, build
 @"custom-apps": ?union(enum) {
     data: []const u8,
-    _parsed: void, // ToDo: data might contains paths
+    //_parsed: void, // ToDo: data might contains paths
 } = null,
 
 /// For commands: to-html, run, build
 @"enabled-apps": ?union(enum) {
     data: []const u8,
+    // _parsed: // ToDo
 } = null,
 
 // For commands: to-html, run, build
 @"html-page-template": ?union(enum) {
     data: []const u8,
     path: []const u8,
-    _parsed: *Template, // ToDo: move to Ex?
+    _parsed: *DocTemplate, // ToDo: move to Ex?
 } = null,
 
 // For commands: to-html, run, build

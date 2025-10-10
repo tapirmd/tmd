@@ -24,14 +24,15 @@ test "line end type" {
                     return .{ .start = offset, .end = offset + end };
                 }
 
-                pub fn checkFn(self: @This(), html: []const u8) !bool {
+                pub fn checkFn(self: @This(), html: []const u8) !void {
+                    errdefer std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{ self.data, html });
+
                     var remaining = html;
                     for (self.expectedURIs, 1..) |expected, i| {
                         const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
                         if (!std.mem.eql(u8, uri, expected)) {
-                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{ self.data, html });
-                            return false;
+                            return error.UnmatchedLinkURL;
                         }
                         remaining = remaining[range.end + closeNeedle.len ..];
                         if (i == self.expectedURIs.len) {
@@ -39,7 +40,6 @@ test "line end type" {
                             break;
                         }
                     }
-                    return true;
                 }
             }{ .data = data, .expectedURIs = expectedURIs });
         }
@@ -331,4 +331,50 @@ test "line end type" {
         "https://google.com",
         "https://tapirgames.com",
     }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\foo __#foo__
+        \\
+        \\All footnotes __ # __
+        \\
+    , &.{
+        "#fn:foo",
+        "#fn:",
+        "#fn:foo:ref-1",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__c `` #ccc __ 
+        \\
+        \\__d `` #ddd __ 
+        \\
+        \\__e `` #eee __ 
+        \\
+    , &.{
+        "#ccc",
+        "#ddd",
+        "#eee",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__`` #ccc __ 
+        \\
+        \\__```` #ddd __ 
+        \\
+        \\__^`` #eee __ 
+        \\
+    , &.{
+        "#ccc",
+        "#ddd",
+        "#eee",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__a.html ``__ 
+        \\
+        \\__a.html ````__ 
+        \\
+        \\__a.html ^``__ 
+        \\
+    , &.{}));
 }

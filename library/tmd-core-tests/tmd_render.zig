@@ -8,14 +8,13 @@ test "tmd render" {
             return all.RenderChecker.check(data, struct {
                 expectedHtmlTags: []const []const u8,
 
-                pub fn checkFn(self: @This(), html: []const u8) !bool {
+                pub fn checkFn(self: @This(), html: []const u8) !void {
                     for (self.expectedHtmlTags) |expected| {
                         if (std.mem.indexOf(u8, html, expected) == null) {
                             //std.debug.print("<<<{s}\n>>>\n", .{html});
                             return error.ExpectedTagNotFound;
                         }
                     }
-                    return true;
                 }
             }{ .expectedHtmlTags = expectedHtmlTags });
         }

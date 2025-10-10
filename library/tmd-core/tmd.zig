@@ -11,10 +11,10 @@ pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlo
 
 pub const parseLinkURL = @import("tmd_to_doc-attribute_parser.zig").parseLinkURL;
 pub const Extension = @import("tmd_to_doc-attribute_parser.zig").Extension;
-pub const extensionInfo = @import("tmd_to_doc-attribute_parser.zig").extensionInfo;
-pub const validTextExtensions = @import("tmd_to_doc-attribute_parser.zig").validTextExtensions;
+pub const extensionMimeType = @import("tmd_to_doc-attribute_parser.zig").extensionMimeType;
+pub const validTextExtensions = &@import("tmd_to_doc-attribute_parser.zig").validTextExtensions;
 pub const checkValidTextExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidTextExtension;
-pub const validMediaExtensions = @import("tmd_to_doc-attribute_parser.zig").validMediaExtensions;
+pub const validMediaExtensions = &@import("tmd_to_doc-attribute_parser.zig").validMediaExtensions;
 pub const checkValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidMediaExtension;
 
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;

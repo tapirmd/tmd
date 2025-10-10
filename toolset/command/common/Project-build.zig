@@ -7,6 +7,7 @@ const list = @import("list");
 const AppContext = @import("AppContext.zig");
 const FileIterator = @import("FileIterator.zig");
 const Project = @import("Project.zig");
+const util = @import("util.zig");
 
 pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void {
     var session: BuildSession = .init(project, ctx, .init(ctx.allocator));
@@ -32,10 +33,6 @@ const BuildSession = struct {
     buildOutputDir: std.fs.Dir = undefined,
 
     genBuffer: []u8 = undefined,
-
-    //getCustomBlockGenCallback: *const fn (session: *BuildSession, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback = undefined,
-    //getMediaUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, mediaInfoToken: tmd.Token) ?tmd.GenCallback = undefined,
-    //getLinkUrlGenCallback: *const fn(session: *BuildSession, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback = undefined,
 
     calTargetFilePath: *const fn (*BuildSession, []const u8, FilePurpose) anyerror![]const u8 = undefined,
 
@@ -91,10 +88,6 @@ const BuildSession = struct {
 
         self.genBuffer = try self.arenaAllocator.alloc(u8, bufferSize);
 
-        //self.getCustomBlockGenCallback = BuilderType.getCustomBlockGenCallback;
-        //self.getMediaUrlGenCallback = BuilderType.getMediaUrlGenCallback;
-        //self.getLinkUrlGenCallback = BuilderType.getLinkUrlGenCallback;
-
         self.calTargetFilePath = BuilderType.calTargetFilePath;
 
         //BuilderType.initContextFor(self);
@@ -110,8 +103,8 @@ const BuildSession = struct {
 
         // Some images must be collected before articles.
         try self.collectSomeImages();
-        try self.collectArticles();
         try self.collectCssFiles();
+        try self.collectArticles();
 
         try BuilderType.assembleOutputFiles(self);
     }
@@ -162,8 +155,8 @@ const BuildSession = struct {
                 return error.BadNavigationFile;
             }
 
-            const absPath = try AppContext.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
-            if (!AppContext.isFileInDir(absPath, self.project.path)) {
+            const absPath = try util.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            if (!util.isFileInDir(absPath, self.project.path)) {
                 try self.appContext.stderr.print("Navigation file must be in project path ({s}): {s}.\n", .{ self.project.path, absPath });
                 return error.BadNavigationFile;
             }
@@ -191,7 +184,7 @@ const BuildSession = struct {
         //while (try fi.next()) |entry| {
         //    if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
         //
-        //    const path = try AppContext.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
+        //    const path = try util.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
         //    _ = try self.tryToRegisterFile(path, .contentArticle);
         //    try self.collectArticle(path);
         //}
@@ -207,7 +200,7 @@ const BuildSession = struct {
 
         var remainingBuffer = self.genBuffer;
 
-        const tmdContent = try self.appContext.readFile(std.fs.cwd(), absPath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] });
+        const tmdContent = try util.readFile(std.fs.cwd(), absPath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, self.appContext.stderr);
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
@@ -216,10 +209,13 @@ const BuildSession = struct {
         const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
         // defer tmdDoc.destroy(); // unnecessary
 
+        var stringWriterCallBack: TmdGenCustomHandler.GenCallback_StringWriter = undefined;
+        var htmlBlockCallBack: tmd.GenCallback_HtmlBlock = undefined;
+        var tmdGenCustomHandler: TmdGenCustomHandler = .init(self, absPath, &htmlBlockCallBack, &stringWriterCallBack);
+        const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
+
         const renderBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
         var fbs = std.io.fixedBufferStream(renderBuffer);
-        var tmdGenCustomHandler: TmdGenCustomHandler = .init(self, absPath);
-        const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
         try tmdDoc.writeHTML(fbs.writer(), genOptions, self.appContext.allocator);
 
         const htmlSnippet = try self.arenaAllocator.dupe(u8, fbs.getWritten());
@@ -252,7 +248,7 @@ const BuildSession = struct {
 
     fn collectSomeImages(self: *@This()) !void {
         if (self.project.coverImagePath()) |path| {
-            const absPath = try AppContext.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            const absPath = try util.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
 
             const index = self.imageFiles.items.len;
             _ = try self.tryToRegisterFile(absPath, .image);
@@ -291,7 +287,7 @@ const BuildSession = struct {
 
         switch (filePurpose) {
             .navigationArticle, .contentArticle => try self.articleFiles.append(absPath),
-            .html => try self.htmlFiles.append(targetPath),
+            //.html => try self.htmlFiles.append(targetPath),
             .image => try self.imageFiles.append(targetPath),
             .css => {
                 const element = try self.cssFiles.createElement(self.arenaAllocator, true);
@@ -317,10 +313,15 @@ const TmdGenCustomHandler = struct {
     session: *BuildSession,
     docPath: []const u8,
 
-    fn init(bs: *BuildSession, docAbsPath: []const u8) TmdGenCustomHandler {
+    stringWriter: *GenCallback_StringWriter,
+    htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
+
+    fn init(bs: *BuildSession, docAbsPath: []const u8, htmlBlockCallBack: *tmd.GenCallback_HtmlBlock, sw: *GenCallback_StringWriter) TmdGenCustomHandler {
         return .{
             .session = bs,
             .docPath = docAbsPath,
+            .htmlBlockCallBack = htmlBlockCallBack,
+            .stringWriter = sw,
         };
     }
 
@@ -333,39 +334,78 @@ const TmdGenCustomHandler = struct {
         };
     }
 
-    fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+    const GenCallback_StringWriter = struct {
+        text: []const u8 = "",
+
+        pub fn gen(self: *const @This(), aw: std.io.AnyWriter) !void {
+            try aw.writeAll(self.text);
+        }
+    };
+
+    fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-        _ = handler;
-        _ = doc;
-        _ = custom;
+
+        const supportHtmlCustomBlock = true; // ToDo
+
+        const attrs = custom.attributes();
+        if (supportHtmlCustomBlock and std.mem.eql(u8, attrs.app, "html")) {
+            return handler.htmlBlockCallBack.asGenBacklback(doc, custom);
+        }
 
         return null;
     }
 
-    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
+    fn getLinkUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-        _ = handler;
-        _ = doc;
-        _ = link;
 
-        return null;
+        _ = doc;
+
+        const url = link.url.?;
+        const targetPath = switch (url.manner) {
+            .relative => |v| blk: {
+                if (v.tmdFile) {
+                    const absPath = try util.resolvePathFromFilePath(handler.docPath, url.base, true, handler.session.arenaAllocator);
+                    break :blk try handler.session.tryToRegisterFile(absPath, .contentArticle);
+                }
+
+                //if (url.base.len > 0) {
+                //    // ToDo: .tmdFile -> .fileExtension
+                //    // ToDo: support media links
+                //    return error.UnsupportedDocFormat;
+                //}
+
+                return null;
+            },
+            else => return null,
+        };
+
+        handler.stringWriter.* = .{ .text = targetPath };
+        return .init(handler.stringWriter);
     }
 
-    fn getLinkUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?tmd.GenCallback {
+    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-        _ = handler;
 
         _ = doc;
-        _ = link;
 
-        return null;
+        const url = link.url.?;
+        const targetPath = switch (url.manner) {
+            .relative => blk: {
+                const absPath = try util.resolvePathFromFilePath(handler.docPath, url.base, true, handler.session.arenaAllocator);
+                break :blk try handler.session.tryToRegisterFile(absPath, .image);
+            },
+            else => return null,
+        };
+
+        handler.stringWriter.* = .{ .text = targetPath };
+        return .init(handler.stringWriter);
     }
 };
 
 const FilePurpose = enum {
-    navigationArticle,
-    contentArticle,
-    html,
+    navigationArticle, // tmd file
+    contentArticle, // tmd file
+    //html,
     image,
     css,
 };
@@ -407,7 +447,7 @@ pub const StaticWebsiteBuilder = struct {
         switch (filePurpose) {
             .navigationArticle, .contentArticle => {
                 const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                if (!util.isFileInDir(sourceAbsPath, project.path)) {
                     try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
                     return error.FileOutOfProject;
                 }
@@ -416,35 +456,35 @@ pub const StaticWebsiteBuilder = struct {
                 const ext = std.fs.path.extension(relPath);
                 return try std.mem.concat(session.arenaAllocator, u8, &.{ relPath[0 .. relPath.len - ext.len], ".html" });
             },
-            .html => {
-                const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
-                }
-
-                const relPath = sourceAbsPath[project.path.len + 1 ..];
-                return try std.fs.path.join(session.arenaAllocator, &.{ "@html", relPath });
-            },
+            //.html => {
+            //    const project = session.project;
+            //    if (!util.isFileInDir(sourceAbsPath, project.path)) {
+            //        try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+            //        return error.FileOutOfProject;
+            //    }
+            //
+            //    const relPath = sourceAbsPath[project.path.len + 1 ..];
+            //    return try std.fs.path.join(session.arenaAllocator, &.{ "@html", relPath });
+            //},
             .image => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize } });
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize } }, session.appContext.stderr);
                 defer session.appContext.allocator.free(content);
 
-                const targetPath = try AppContext.buildAssetFilePath("@images", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                const targetPath = try util.buildAssetFilePath("@images", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
-                try AppContext.writeFile(session.buildOutputDir, targetPath, content);
+                try util.writeFile(session.buildOutputDir, targetPath, content);
                 //try session.targetFileContents.put(targetPath, "");
                 return targetPath;
             },
             .css => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize } });
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize } }, session.appContext.stderr);
                 defer session.appContext.allocator.free(content);
 
-                const targetPath = try AppContext.buildAssetFilePath("@css", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                const targetPath = try util.buildAssetFilePath("@css", std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
-                try AppContext.writeFile(session.buildOutputDir, targetPath, content);
+                try util.writeFile(session.buildOutputDir, targetPath, content);
                 //try session.targetFileContents.put(targetPath, "");
                 return targetPath;
             },
@@ -469,7 +509,7 @@ pub const EpubBuilder = struct {
         switch (filePurpose) {
             .navigationArticle => {
                 const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                if (!util.isFileInDir(sourceAbsPath, project.path)) {
                     try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
                     return error.FileOutOfProject;
                 }
@@ -479,38 +519,38 @@ pub const EpubBuilder = struct {
             },
             .contentArticle => {
                 const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                if (!util.isFileInDir(sourceAbsPath, project.path)) {
                     try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
                     return error.FileOutOfProject;
                 }
 
                 const relPath = sourceAbsPath[project.path.len + 1 ..];
                 const ext = std.fs.path.extension(relPath);
-                return AppContext.buildPosixPath("tmd/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
+                return util.buildPosixPath("tmd/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
             },
-            .html => {
-                const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
-                }
-                const relPath = sourceAbsPath[project.path.len + 1 ..];
-                const ext = std.fs.path.extension(relPath);
-                const targetPath = AppContext.buildPosixPath("html/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
-
-                return targetPath;
-            },
+            //.html => {
+            //    const project = session.project;
+            //    if (!util.isFileInDir(sourceAbsPath, project.path)) {
+            //        try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+            //        return error.FileOutOfProject;
+            //    }
+            //    const relPath = sourceAbsPath[project.path.len + 1 ..];
+            //    const ext = std.fs.path.extension(relPath);
+            //    const targetPath = util.buildPosixPath("html/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
+            //
+            //    return targetPath;
+            //},
             .image => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxImageFileSize } });
-                const targetPath = try AppContext.buildPosixPathWithContentHashBase64("images/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxImageFileSize } }, session.appContext.stderr);
+                const targetPath = try util.buildPosixPathWithContentHashBase64("images/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
                 try session.targetFileContents.put(targetPath, content);
                 return targetPath;
             },
             .css => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxStyleFileSize } });
-                const targetPath = try AppContext.buildPosixPathWithContentHashBase64("css/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxStyleFileSize } }, session.appContext.stderr);
+                const targetPath = try util.buildPosixPathWithContentHashBase64("css/", std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
                 try session.targetFileContents.put(targetPath, content);
@@ -535,30 +575,32 @@ pub const StandaloneHtmlBuilder = struct {
 
     fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
         switch (filePurpose) {
-            .navigationArticle, .contentArticle, .html => {
+            .navigationArticle,
+            .contentArticle, //, .html
+            => {
                 const project = session.project;
-                if (!AppContext.isFileInDir(sourceAbsPath, project.path)) {
+                if (!util.isFileInDir(sourceAbsPath, project.path)) {
                     try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
                     return error.FileOutOfProject;
                 }
                 return try std.mem.concat(session.arenaAllocator, u8, &.{ "#", sourceAbsPath[project.path.len + 1 ..] });
             },
             .image => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize } });
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize } }, session.appContext.stderr);
                 defer session.appContext.allocator.free(content);
 
-                const targetPath = try AppContext.buildEmbeddedImageHref(std.fs.path.extension(sourceAbsPath), content, session.arenaAllocator);
+                const targetPath = try util.buildEmbeddedImageHref(std.fs.path.extension(sourceAbsPath), content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
                 //try session.targetFileContents.put(targetPath, "");
                 return targetPath;
             },
             .css => {
-                const content = try session.appContext.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize } });
+                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxStyleFileSize } }, session.appContext.stderr);
                 defer session.appContext.allocator.free(content);
 
-                //const targetPath = try AppContext.buildHashHexString(content, session.arenaAllocator);
-                const targetPath = try AppContext.buildHashString(content, session.arenaAllocator);
+                //const targetPath = try util.buildHashHexString(content, session.arenaAllocator);
+                const targetPath = try util.buildHashString(content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
                 try session.targetFileContents.put(targetPath, content);

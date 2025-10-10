@@ -638,18 +638,24 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
 
     if (url.manner == .undetermined) {
         const base = url.base;
-        if (base.len > 0 and base[0] != '/' and base[0] != '\\') {
-            if (std.mem.indexOf(u8, base, "://")) |k| {
-                if (k > 0) url.manner = .absolute;
-            } else {
-                if (std.mem.indexOfScalar(u8, base, '?') == null) {
-                    if (checkValidTextExtension(base)) |ext| {
-                        url.manner = .{
-                            .relative = .{ .tmdFile = (ext == .@".tmd") },
-                        };
+        if (base.len > 0) {
+            if (base[0] != '/' and base[0] != '\\') {
+                if (std.mem.indexOf(u8, base, "://")) |k| {
+                    if (k > 0) url.manner = .absolute;
+                } else {
+                    if (std.mem.indexOfScalar(u8, base, '?') == null) {
+                        if (checkValidTextExtension(base)) |ext| {
+                            url.manner = .{
+                                .relative = .{ .tmdFile = (ext == .@".tmd") },
+                            };
+                        }
                     }
                 }
             }
+        } else if (url.fragment.len > 0) {
+            url.manner = .{
+                .relative = .{ .tmdFile = false },
+            };
         }
     }
 
@@ -751,7 +757,11 @@ pub const Extension = enum {
     @".jpeg",
 };
 
-pub const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]struct {
+pub fn extensionMimeType(ext: Extension) []const u8 {
+    return extensionInfo[@intFromEnum(ext)].mime;
+}
+
+const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]struct {
     ext: Extension,
     mime: []const u8,
 } = .{

@@ -3,7 +3,8 @@ const std = @import("std");
 const tmd = @import("tmd");
 
 const AppContext = @import("AppContext.zig");
-const Template = @import("Template.zig");
+const DocTemplate = @import("DocTemplate.zig");
+const util = @import("util.zig");
 
 pub fn renderTmdDoc(ctx: *AppContext, w: anytype, tmdDoc: *const tmd.Doc, tmdFilePath: []const u8, configEx: *const AppContext.ConfigEx) !void {
     const template = configEx.basic.@"html-page-template".?._parsed;
@@ -25,53 +26,50 @@ const TemplateFunctionCallContext = struct {
     tmdDoc: *const tmd.Doc,
     tmdFilePath: []const u8,
     configEx: *const AppContext.ConfigEx,
-    template: *Template,
+    template: *DocTemplate,
     w: std.io.AnyWriter,
 
-    pub fn writeText(tfcc: *const @This(), text: []const u8) !void {
+    pub fn onTemplateText(tfcc: *const @This(), text: []const u8) !void {
         try tfcc.w.writeAll(text);
     }
 
-    pub fn onTag(_: *const @This(), tagText: []const u8) !void {
-        _ = tagText;
+    pub fn onTemplateTag(_: *const @This(), tag: DocTemplate.Token.Command) !void {
+        _ = tag;
     }
 
-    pub fn callFunction(tfcc: *const @This(), funcOpaque: *const anyopaque, args: ?*Template.Token.FunctionCall.Argument) !void {
-        // const FunctionType = @TypeOf(TemplateFunctions.@"generate-url");
-        // !!! The above line is a bad idea. The error set of the function arg will be inferred,
-        //     which might be blank error set or others, other than anyerror.
-        const FunctionType = fn (tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) anyerror!void;
-        const func: *const FunctionType = @ptrCast(@alignCast(funcOpaque));
+    pub fn onTemplateCommand(tfcc: *const @This(), command: DocTemplate.Token.Command) !void {
+        const FunctionType = fn (tfcc: *const TemplateFunctionCallContext, args: ?*DocTemplate.Token.Command.Argument) anyerror!void;
+        const func: *const FunctionType = @ptrCast(@alignCast(command.obj));
 
-        try func(tfcc, args);
-        //func(tfcc, args) catch |err| {std.debug.print("@@@ error: {s}\n", .{@errorName(err)});} ;
+        try func(tfcc, command.name, command.args);
+        //func(tfcc, command.name, command.args) catch |err| {std.debug.print("@@@ error: {s}\n", .{@errorName(err)});} ;
     }
 };
 
 pub const TemplateFunctions = struct {
-    pub fn @"generate-url"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"generate-url"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         _ = tfcc;
         _ = args;
     }
 
-    pub fn @"asset-elements-in-head"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"asset-elements-in-head"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         _ = tfcc;
         _ = args;
     }
 
-    pub fn @"page-title-in-head"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"page-title-in-head"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
         if (!try tfcc.tmdDoc.writePageTitleInHtmlHead(tfcc.w)) try tfcc.w.writeAll("Untitled");
     }
 
-    pub fn @"page-content-in-body"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"page-content-in-body"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
         try tfcc.tmdDoc.writeHTML(tfcc.w, .{}, tfcc.ctx.allocator);
     }
 
-    pub fn @"embed-file-content"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"embed-file-content"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args == null) {
             try tfcc.ctx.stderr.print("function [embed-file-content] needs at least one argument.\n", .{});
             return error.TooFewTemplateFunctionArguments;
@@ -84,7 +82,7 @@ pub const TemplateFunctions = struct {
         if (arg.next != null) return error.TooManyTemplateFunctionArguments;
     }
 
-    pub fn @"base64-encode"(tfcc: *const TemplateFunctionCallContext, args: ?*Template.Token.FunctionCall.Argument) !void {
+    pub fn @"base64-encode"(tfcc: *const TemplateFunctionCallContext, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args == null) {
             try tfcc.ctx.stderr.print("function [base64-encode] needs at least one argument.\n", .{});
             return error.TooFewTemplateFunctionArguments;
@@ -134,7 +132,7 @@ pub const FileCacheKeyContext = struct {
     }
 };
 
-fn readTheOnlyBoolArgument(arg_: ?*Template.Token.FunctionCall.Argument) !bool {
+fn readTheOnlyBoolArgument(arg_: ?*DocTemplate.Token.Command.Argument) !bool {
     const arg = arg_ orelse return false;
     if (arg.next != null) return error.TooManyTemplateFunctionArguments;
 
@@ -146,16 +144,19 @@ fn readTheOnlyBoolArgument(arg_: ?*Template.Token.FunctionCall.Argument) !bool {
     return true;
 }
 
+// ToDo: we should only cache files <= a threshold size,
+//       and allow even more larger files (but those large
+//       files will not get cached).
 const maxCachedFileSize = 10 * 1024 * 1024;
 
 const faviconFileContent = @embedFile("favicon.jpg");
 
-fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *Template.Token.FunctionCall.Argument) !struct { []const u8, []const u8 } {
+fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *DocTemplate.Token.Command.Argument) !struct { []const u8, []const u8 } {
     const filePath = arg.value;
     const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
     const relativeToPath = if (relativeToFinalConfigFile) tfcc.configEx.path else tfcc.template.ownerFilePath;
 
-    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try AppContext.resolvePathFromFilePath(relativeToPath, filePath, true, ctx.arenaAllocator);
+    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try util.resolvePathFromFilePath(relativeToPath, filePath, true, ctx.arenaAllocator);
 
     if (std.mem.startsWith(u8, absFilePath, "@")) {
         const asset = absFilePath[1..];
@@ -173,12 +174,12 @@ fn loadFileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, a
     };
     if (ctx._cachedFileContents.get(cacheKey)) |content| return .{ content, absFilePath };
 
-    const content = try ctx.readFile(null, absFilePath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize } });
+    const content = try util.readFile(null, absFilePath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize } }, ctx.stderr);
     try ctx._cachedFileContents.put(cacheKey, content);
     return .{ content, absFilePath };
 }
 
-fn base64FileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *Template.Token.FunctionCall.Argument) ![]const u8 {
+fn base64FileContent(ctx: *AppContext, tfcc: *const TemplateFunctionCallContext, arg: *DocTemplate.Token.Command.Argument) ![]const u8 {
     const fileContent, const absFilePath = try loadFileContent(ctx, tfcc, arg);
 
     const cacheKey: FileCacheKey = .{

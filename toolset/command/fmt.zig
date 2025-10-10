@@ -4,6 +4,7 @@ const tmd = @import("tmd");
 
 const AppContext = @import("./common/AppContext.zig");
 const FileIterator = @import("./common/FileIterator.zig");
+const util = @import("./common/util.zig");
 
 const maxTmdFileSize = 1 << 23; // 8M
 const bufferSize = maxTmdFileSize * 4;
@@ -52,7 +53,7 @@ pub const Formatter = struct {
 
         // load file
 
-        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] });
+        const tmdContent = try util.readFile(entry.dir, entry.filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         // parse file
@@ -126,7 +127,7 @@ pub const FormatTester = struct {
     fn fmtTestFile(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
         // load file
 
-        const tmdContent = try ctx.readFile(entry.dir, entry.filePath, .{ .buffer = buffer[0..maxTmdFileSize] });
+        const tmdContent = try util.readFile(entry.dir, entry.filePath, .{ .buffer = buffer[0..maxTmdFileSize] }, ctx.stderr);
         var remainingBuffer = buffer[tmdContent.len..];
 
         // parse file

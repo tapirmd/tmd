@@ -5,7 +5,8 @@ const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
 const Config = @import("Config.zig");
-const Template = @import("Template.zig");
+const DocTemplate = @import("DocTemplate.zig");
+const util = @import("util.zig");
 
 pub const ConfigEx = struct {
     basic: Config = .{},
@@ -28,15 +29,15 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
         return error.ConfigFileLoopReference;
     }
 
-    if (ctx._commandConfigs.getPtr(absFilePath)) |valuePtr| return valuePtr;
+    if (ctx._configPathToExMap.getPtr(absFilePath)) |valuePtr| return valuePtr;
 
     const configFilePath = try ctx.arenaAllocator.dupe(u8, absFilePath);
     //errdefer ctx.arenaAllocator.free(configFilePath);
 
-    try ctx._commandConfigs.put(configFilePath, .{ .path = configFilePath });
+    try ctx._configPathToExMap.put(configFilePath, .{ .path = configFilePath });
     //errdefer ctx.arenaAllocator.remove(configFilePath);
 
-    var configEx = ctx._commandConfigs.getPtr(configFilePath).?;
+    var configEx = ctx._configPathToExMap.getPtr(configFilePath).?;
     {
         const fileContent = try std.fs.cwd().readFileAlloc(ctx.allocator, configFilePath, Config.maxConfigFileSize);
         defer ctx.allocator.free(fileContent);
@@ -47,7 +48,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     try loadedFilesInSession.insert(configFilePath);
     //var hasBase = false;
     if (configEx.basic.@"based-on") |baseConfigPath| if (baseConfigPath.path.len > 0) {
-        const baseFilePath = try AppContext.resolvePathFromFilePath(configFilePath, baseConfigPath.path, true, ctx.allocator);
+        const baseFilePath = try util.resolvePathFromFilePath(configFilePath, baseConfigPath.path, true, ctx.allocator);
         defer ctx.allocator.free(baseFilePath);
 
         const baseConfigEx = try loadTmdConfigInternal(ctx, baseFilePath, loadedFilesInSession);
@@ -156,27 +157,31 @@ pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config
     }
 }
 
+pub fn getTemplateCommandObject(ctx: *AppContext, cmdName: []const u8) !?*const anyopaque {
+    return ctx._templateFunctions.get(cmdName);
+}
+
 fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
     if (configEx.basic.@"html-page-template") |htmlPageTemplate| {
         const content, const ownerFilePath = switch (htmlPageTemplate) {
             .data => |data| .{ data, configEx.path },
             .path => |filePath| blk: {
-                const absPath = try AppContext.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
-                const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, Template.maxTemplateSize);
+                const absPath = try util.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
+                const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, DocTemplate.maxTemplateSize);
                 break :blk .{ data, absPath };
             },
             else => return,
         };
 
         configEx.basic.@"html-page-template" = .{
-            ._parsed = try Template.parseTemplate(content, ownerFilePath, ctx._templateFunctions, ctx.arenaAllocator, ctx.stderr),
+            ._parsed = try DocTemplate.parseTemplate(content, ownerFilePath, ctx, ctx.arenaAllocator, ctx.stderr),
         };
     }
 
     if (configEx.basic.favicon) |favicon| {
         const faviconPath = favicon.path;
         configEx.basic.favicon = .{
-            ._parsed = try AppContext.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
+            ._parsed = try util.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
         };
     }
 
@@ -188,7 +193,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         while (it.next()) |item| {
             const line = std.mem.trim(u8, item, "\n");
             if (line.len == 0) continue;
-            const path = try AppContext.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
+            const path = try util.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
             const element = try paths.createElement(ctx.arenaAllocator, true);
             element.value = path;
         }

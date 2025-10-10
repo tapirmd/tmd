@@ -9,14 +9,13 @@ test "tmd render" {
                 expectedHasTitle: bool,
                 expectedTitleText: []const u8,
 
-                pub fn checkFn(self: @This(), hasTitle: bool, titleText: []const u8) !bool {
+                pub fn checkFn(self: @This(), hasTitle: bool, titleText: []const u8) !void {
                     if (self.expectedHasTitle != hasTitle) {
                         if (hasTitle) return error.ExpectTitleExisting else return error.ExpectNoTitle;
                     }
                     if (!std.mem.eql(u8, self.expectedTitleText, titleText)) {
                         return error.UnexpectedTitle;
                     }
-                    return true;
                 }
             }{ .expectedHasTitle = expectedHasTitle, .expectedTitleText = expectedTitleText });
         }

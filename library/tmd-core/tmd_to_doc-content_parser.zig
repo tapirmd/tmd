@@ -703,11 +703,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     std.debug.assert(text.len > 0);
                     break :blk !(utf8.begins_with_CJK_rune(text) or LineScanner.begins_with_blank(text));
                 },
-                // .evenBackticks => |evenBackticks| if (evenBackticks.more.secondary) true else false,
-                .evenBackticks => |evenBackticks| blk: {
-                    std.debug.assert(evenBackticks.more.secondary);
-                    break :blk true;
-                },
+                .evenBackticks => |evenBackticks| if (evenBackticks.more.secondary) true else false,
                 else => unreachable,
             };
 
@@ -745,11 +741,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     std.debug.assert(text.len > 0);
                     break :blk !(utf8.ends_with_CJK_rune(text) or LineScanner.ends_with_blank(text));
                 },
-                // .evenBackticks => |evenBackticks| if (evenBackticks.more.secondary) true else false,
-                .evenBackticks => |evenBackticks| blk: {
-                    std.debug.assert(evenBackticks.more.secondary); // see on_new_content_token
-                    break :blk true;
-                },
+                .evenBackticks => |evenBackticks| if (evenBackticks.more.secondary) true else false,
                 else => unreachable,
             };
 

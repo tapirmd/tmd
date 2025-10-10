@@ -22,18 +22,18 @@ pub const GenOptions = struct {
     // Will be passed as the first arguments of the callbacks.
     callbackContext: *const anyopaque = undefined,
 
-    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?GenCallback = null,
+    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
-    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) ?GenCallback = null,
+    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) anyerror!?GenCallback = null,
+    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) anyerror!?GenCallback = null,
 };
 
 pub const GenCallback = struct {
     obj: *const anyopaque,
     genFn: *const fn (obj: *const anyopaque, aw: std.io.AnyWriter) anyerror!void,
 
-    pub fn gen(self: GenCallback, aw: std.io.AnyWriter) !void {
+    fn gen(self: GenCallback, aw: std.io.AnyWriter) !void {
         return self.genFn(self.obj, aw);
     }
 
@@ -51,8 +51,8 @@ pub const GenCallback = struct {
                 };
                 return .{ .obj = obj, .genFn = C.writeAll };
             },
-            inline .@"struct", .@"union", .@"enum" => |_, tag| {
-                if (@sizeOf(T) != 0) @compileError(@tagName(tag) ++ " types must a zero size.");
+            inline .@"struct", .@"union", .@"enum" => {
+                if (@sizeOf(T) != 0) @compileError("The sizes of non-pointer GenCallback types must be zero.");
 
                 const C = struct {
                     pub fn writeAll(_: *const anyopaque, aw: std.io.AnyWriter) !void {
@@ -61,7 +61,7 @@ pub const GenCallback = struct {
                 };
                 return .{ .obj = undefined, .genFn = C.writeAll };
             },
-            inline else => |_, tag| @compileError(@tagName(tag) ++ " types are unsupported."),
+            inline else => @compileError("Unsupported GenBallback type."),
         }
     }
 
@@ -140,24 +140,24 @@ pub const TmdRender = struct {
         self.footnoteNodes.destroy(T.destroyFootnoteNode, self.allocator);
     }
 
-    fn getCustomBlockGenCallback(self: *const TmdRender, custom: *const tmd.BlockType.Custom) GenCallback {
+    fn getCustomBlockGenCallback(self: *const TmdRender, custom: *const tmd.BlockType.Custom) !GenCallback {
         if (self.options.getCustomBlockGenCallback) |get| {
-            if (get(self.options.callbackContext, self.doc, custom)) |callback| return callback;
+            if (try get(self.options.callbackContext, self.doc, custom)) |callback| return callback;
         }
 
         return dummyGenCallback;
     }
 
-    fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) ?GenCallback {
+    fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
         if (self.options.getLinkUrlGenCallback) |get| {
-            if (get(self.options.callbackContext, self.doc, link)) |callback| return callback;
+            if (try get(self.options.callbackContext, self.doc, link)) |callback| return callback;
         }
         return null;
     }
 
-    fn getMediaUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) ?GenCallback {
+    fn getMediaUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
         if (self.options.getMediaUrlGenCallback) |get| {
-            if (get(self.options.callbackContext, self.doc, link)) |callback| return callback;
+            if (try get(self.options.callbackContext, self.doc, link)) |callback| return callback;
         }
         return null;
     }
@@ -952,7 +952,7 @@ pub const TmdRender = struct {
         //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
         const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
-        const callback = self.getCustomBlockGenCallback(&block.blockType.custom);
+        const callback = try self.getCustomBlockGenCallback(&block.blockType.custom);
         try callback.gen(aw);
 
         //try fns.writeCloseTag(w, tag, true);
@@ -1233,7 +1233,7 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    if (self.getLinkUrlGenCallback(link)) |callback| {
+                                    if (try self.getLinkUrlGenCallback(link)) |callback| {
                                         try w.writeAll(
                                             \\<a href="
                                         );
@@ -1380,7 +1380,7 @@ pub const TmdRender = struct {
                                 const link = linkInfoToken.linkInfo.link;
                                 const url = link.url orelse unreachable;
                                 writeMedia: {
-                                    if (self.getMediaUrlGenCallback(link)) |callback| {
+                                    if (try self.getMediaUrlGenCallback(link)) |callback| {
                                         try w.writeAll("<img src=\"");
                                         const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
                                         try callback.gen(aw);

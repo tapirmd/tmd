@@ -1,6 +1,6 @@
 const std = @import("std");
 
-const Template = @This();
+const DocTemplate = @This();
 
 content: []const u8,
 ownerFilePath: []const u8,
@@ -10,16 +10,16 @@ numTokens: usize,
 
 pub const maxTemplateSize = 32 * 1024;
 
-// Keep it simple. Not consider how to escape function tag chars.
-// To escape function tag chars, put them in a line without pairing tag chars.
+// Keep it simple. Not consider how to escape command tag chars.
+// To escape command tag chars, put them in a line without pairing tag chars.
 
 pub const Token = struct {
     next: ?*Token = null,
 
     type: union(enum) {
         text: []const u8,
-        tag: []const u8,
-        call: FunctionCall,
+        tag: Tag,
+        command: Command,
     } = undefined,
 
     pub const String = struct {
@@ -27,8 +27,17 @@ pub const Token = struct {
         len: usize = undefined,
     };
 
-    pub const FunctionCall = struct {
-        func: *const anyopaque,
+    pub const Tag = struct {
+        text: []const u8,
+        type: enum {
+            open,
+            close,
+        },
+    };
+
+    pub const Command = struct {
+        name: []const u8, // muitlple names may share the same obj.
+        obj: *const anyopaque,
         args: ?*Argument,
 
         pub const Argument = struct {
@@ -38,7 +47,7 @@ pub const Token = struct {
     };
 };
 
-pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMap: std.StringHashMap(*const anyopaque), allocator: std.mem.Allocator, stderr: std.fs.File.Writer) !*Template {
+pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: anytype, allocator: std.mem.Allocator, stderr: std.fs.File.Writer) !*DocTemplate {
     if (content.len > maxTemplateSize) return error.TemplateSizeTooLarge;
 
     // std.debug.print("========== content:\n\n{s}\n\n", .{content});
@@ -57,25 +66,33 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
 
         contentStart: [*]const u8,
         ownerFilePath: []const u8,
-        functionsMap: std.StringHashMap(*const anyopaque),
         allocator: std.mem.Allocator,
         stderr: std.fs.File.Writer,
 
-        fn createToken(parser: *@This(), tokenType: std.meta.Tag(std.meta.FieldType(Token, .type)), start: usize, end: usize) !void {
+        fn newToken(parser: *@This()) !*Token {
             const t = try parser.allocator.create(Token);
             t.* = .{};
             parser.lastToken.next = t;
             parser.lastToken = t;
+            return t;
+        }
 
-            switch (tokenType) {
-                inline .text, .tag => |at| {
-                    t.type = @unionInit(@TypeOf(t.type), @tagName(at), parser.contentStart[start..end]);
-                },
-                .call => {
-                    const func, const args = try parser.parseFunctionCall(parser.contentStart[start..end]);
-                    t.type = .{ .call = .{ .func = func, .args = args } };
-                },
-            }
+        fn createTextToken(parser: *@This(), start: usize, end: usize) !void {
+            const t = try parser.newToken();
+            t.type = .{ .text = parser.contentStart[start..end] };
+        }
+
+        fn createTagToken(parser: *@This(), start: usize, end: usize, isOpen: bool) !void {
+            const t = try parser.newToken();
+            t.type = .{ .tag = .{ 
+                .text = parser.contentStart[start..end],
+                .type = if (isOpen) .open else .close,
+            } };
+        }
+
+        fn createCommandToken(parser: *@This(), start: usize, end: usize, ctx: anytype) !void {
+            const t = try parser.newToken();
+            t.type = .{ .command = try parser.parseCommand(parser.contentStart[start..end], ctx) };
         }
 
         fn denyOpening(parser: *@This()) void {
@@ -84,12 +101,12 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             // parser.numCloseTagChars = 0;
         }
 
-        fn tryConfirmCloseTag(parser: *@This(), at: usize) !bool {
+        fn tryConfirmCloseTag(parser: *@This(), at: usize, ctx: anytype) !bool {
             std.debug.assert(parser.tagOpening);
 
             if (parser.numCloseTagChars > 0) {
                 if (parser.numCloseTagChars != parser.numOpenTagChars) parser.numCloseTagChars = 0 else {
-                    try parser.onCloseTagConfirmed(at);
+                    try parser.onCloseTagConfirmed(at, ctx);
                     return true;
                 }
             }
@@ -105,23 +122,17 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             //std.debug.print(">>> {}\n", .{parser.pendingOpenTagEnd});
         }
 
-        fn onNewLine(parser: *@This(), at: usize) !void {
+        fn onNewLine(parser: *@This(), at: usize, ctx: anytype) !void {
             if (parser.tagOpening) {
-                if (try parser.tryConfirmCloseTag(at)) return;
+                if (try parser.tryConfirmCloseTag(at, ctx)) return;
             }
 
             parser.denyOpening();
         }
 
-        fn onOtherChars(parser: *@This(), at: usize, atEnd: bool) !void {
-            if (atEnd) {
-                std.debug.assert(at > parser.pendingOffset);
-                try parser.createToken(.text, parser.pendingOffset, at);
-                return;
-            }
-
+        fn onOtherChars(parser: *@This(), at: usize, ctx: anytype) !void {
             if (parser.tagOpening) {
-                _ = try parser.tryConfirmCloseTag(at);
+                _ = try parser.tryConfirmCloseTag(at, ctx);
             } else {
                 if (parser.numOpenTagChars > 0) {
                     if (parser.numOpenTagChars == 1) parser.numOpenTagChars = 0 else parser.onPendingOpenTagConfirmed(at, 0);
@@ -129,7 +140,12 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             }
         }
 
-        fn onCloseTagConfirmed(parser: *@This(), closeTagEndAt: usize) !void {
+        fn onEnd(parser: *@This(), at: usize) !void {
+            std.debug.assert(at > parser.pendingOffset);
+            try parser.createTextToken(parser.pendingOffset, at);
+        }
+
+        fn onCloseTagConfirmed(parser: *@This(), closeTagEndAt: usize, ctx: anytype) !void {
             std.debug.assert(parser.numCloseTagChars == parser.numOpenTagChars);
             std.debug.assert(parser.numCloseTagChars > 1);
 
@@ -144,55 +160,54 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
 
             const openTagStart = parser.pendingOpenTagEnd - parser.numOpenTagChars;
             if (openTagStart > parser.pendingOffset) {
-                try parser.createToken(.text, parser.pendingOffset, openTagStart);
+                try parser.createTextToken(parser.pendingOffset, openTagStart);
             } else std.debug.assert(openTagStart == parser.pendingOffset);
 
-            try parser.createToken(.tag, openTagStart, parser.pendingOpenTagEnd);
+            try parser.createTagToken(openTagStart, parser.pendingOpenTagEnd, true);
 
             const closeTagStart = closeTagEndAt - parser.numOpenTagChars;
             if (closeTagStart > parser.pendingOpenTagEnd) {
-                try parser.createToken(.call, parser.pendingOpenTagEnd, closeTagStart);
+                try parser.createCommandToken(parser.pendingOpenTagEnd, closeTagStart, ctx);
             } else std.debug.assert(closeTagStart == parser.pendingOpenTagEnd);
 
-            try parser.createToken(.tag, closeTagStart, closeTagEndAt);
+            try parser.createTagToken(closeTagStart, closeTagEndAt, false);
 
             parser.pendingOffset = closeTagEndAt;
             parser.denyOpening();
         }
 
-        fn parseFunctionCall(parser: *@This(), callContent: []const u8) !struct { *const anyopaque, ?*Token.FunctionCall.Argument } {
+        fn parseCommand(parser: *@This(), callContent: []const u8, ctx: anytype) !Token.Command {
             var it = std.mem.splitAny(u8, callContent, " \t");
-            const funcName = while (it.next()) |item| {
+            const cmdName = while (it.next()) |item| {
                 if (item.len == 0) continue;
                 break item;
             } else {
-                try parser.stderr.print("error: A template function is not unspecified in file '{s}' is not found.\n", .{parser.ownerFilePath});
-                return error.TemplateFunctionNotSpecified;
+                try parser.stderr.print("error: DocTemplate command is not specified in file '{s}'.\n", .{parser.ownerFilePath});
+                return error.TemplateCommandNotSpecified;
             };
 
-            const func = parser.functionsMap.get(funcName) orelse {
-                try parser.stderr.print("error: Template function '{s}' in file '{s}' is not found.\n", .{ funcName, parser.ownerFilePath });
-                return error.TemplateFunctionNotFound;
+            const obj = (try ctx.getTemplateCommandObject(cmdName)) orelse {
+                try parser.stderr.print("error: DocTemplate command '{s}' in file '{s}' is not defined.\n", .{ cmdName, parser.ownerFilePath });
+                return error.TemplateCommandNotDefined;
             };
 
-            var headArg: Token.FunctionCall.Argument = .{};
-            var lastArg: *Token.FunctionCall.Argument = &headArg;
+            var headArg: Token.Command.Argument = .{};
+            var lastArg: *Token.Command.Argument = &headArg;
             while (it.next()) |item| {
                 if (item.len == 0) continue;
-                const arg = try parser.allocator.create(Token.FunctionCall.Argument);
+                const arg = try parser.allocator.create(Token.Command.Argument);
                 arg.* = .{ .value = item };
                 lastArg.next = arg;
                 lastArg = arg;
             }
 
-            return .{ func, headArg.next };
+            return .{ .name = cmdName, .obj = obj, .args = headArg.next };
         }
     };
 
     var parser: Parser = .{
         .contentStart = content.ptr,
         .ownerFilePath = ownerFilePath,
-        .functionsMap = functionsMap,
         .allocator = allocator,
         .stderr = stderr,
     };
@@ -212,12 +227,12 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
             CloseTagChar => {
                 if (parser.tagOpening) parser.numCloseTagChars += 1 else if (parser.numOpenTagChars > 1) parser.onPendingOpenTagConfirmed(@intCast(i), 1);
             },
-            NewLineChar => try parser.onNewLine(@intCast(i)),
-            else => try parser.onOtherChars(@intCast(i), false),
+            NewLineChar => try parser.onNewLine(@intCast(i), context),
+            else => try parser.onOtherChars(@intCast(i), context),
         }
-    } else try parser.onOtherChars(@intCast(content.len), true);
+    } else try parser.onEnd(@intCast(content.len));
 
-    const t = try allocator.create(Template);
+    const t = try allocator.create(DocTemplate);
     t.* = .{
         .content = content,
         .ownerFilePath = ownerFilePath,
@@ -227,13 +242,13 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, functionsMa
     return t;
 }
 
-pub fn render(template: *Template, renderCallBacks: anytype) !void {
+pub fn render(template: *DocTemplate, context: anytype) !void {
     var token = template.firstToken orelse return;
     while (true) {
         switch (token.type) {
-            .text => |text| try renderCallBacks.writeText(text),
-            .tag => |tagText| try renderCallBacks.onTag(tagText),
-            .call => |call| try renderCallBacks.callFunction(call.func, call.args),
+            .text => |text| try context.onTemplateText(text),
+            .tag => |tag| try context.onTemplateTag(tag),
+            .command => |command| try context.onTemplateCommand(command),
         }
         token = token.next orelse break;
     }

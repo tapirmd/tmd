@@ -2,19 +2,19 @@ const std = @import("std");
 
 const tmd = @import("tmd");
 
-const AppContext = @import("AppContext.zig");
-
-pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8, manner: union(enum) {
-    buffer: []u8,
-    alloc: struct {
-        allocator: std.mem.Allocator,
-        maxFileSize: usize,
+pub fn readFile(inputDir: ?std.fs.Dir, filePath: []const u8, manner: union(enum) {
+        buffer: []u8,
+        alloc: struct {
+            allocator: std.mem.Allocator,
+            maxFileSize: usize,
+        },
     },
-}) ![]u8 {
+    stderr: std.fs.File.Writer,
+) ![]u8 {
     const dir = inputDir orelse std.fs.cwd();
     const file = dir.openFile(filePath, .{}) catch |err| {
         if (err == error.FileNotFound) {
-            try ctx.stderr.print("File ({s}) is not found.\n", .{filePath});
+            try stderr.print("File ({s}) is not found.\n", .{filePath});
         }
         return err;
     };
@@ -25,25 +25,25 @@ pub fn readFile(ctx: AppContext, inputDir: ?std.fs.Dir, filePath: []const u8, ma
     switch (manner) {
         .buffer => |buffer| {
             if (stat.size > buffer.len) {
-                try ctx.stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, buffer.len });
+                try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, buffer.len });
                 return error.FileSizeTooLarge;
             }
 
             const readSize = try file.readAll(buffer[0..stat.size]);
             if (stat.size != readSize) {
-                try ctx.stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, readSize });
+                try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, readSize });
                 return error.FileSizeNotMatch;
             }
             return buffer[0..readSize];
         },
         .alloc => |alloc| {
             if (stat.size > alloc.maxFileSize) {
-                try ctx.stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, alloc.maxFileSize });
+                try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, alloc.maxFileSize });
                 return error.FileSizeTooLarge;
             }
             const content = try file.readToEndAlloc(alloc.allocator, alloc.maxFileSize);
             if (stat.size != content.len) {
-                try ctx.stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, content.len });
+                try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, content.len });
                 return error.FileSizeNotMatch;
             }
             return content;
@@ -278,16 +278,14 @@ pub fn buildEmbeddedImageHref(fileExtension: []const u8, fileContent: []const u8
     if (fileExtension.len > buffer.len) return error.ExtensionTooLong;
 
     const ext = std.ascii.lowerString(&buffer, fileExtension);
-    const extType = std.meta.stringToEnum(tmd.MediaExtension, ext) orelse return error.UnsuportedMediaType;
-    const imageTypeStr = switch (extType) {
-        .@".jpg" => "jpeg",
-        else => ext[1..],
-    };
+    const extType = std.meta.stringToEnum(tmd.Extension, ext) orelse return error.UnsuportedFileFormat;
+    _ = std.mem.indexOfScalar(tmd.Extension, tmd.validMediaExtensions, extType) orelse return error.UnsuportedMediaFormat;
+    const imageMimeType = tmd.extensionMimeType(extType);
 
-    const prefix = "data:image/";
+    const prefix = "data:";
     const middle = ";base64,";
 
-    const n = prefix.len + imageTypeStr.len + middle.len;
+    const n = prefix.len + imageMimeType.len + middle.len;
 
     const encoder = std.base64.standard_no_pad.Encoder;
     const encoded_len = encoder.calcSize(fileContent.len);
@@ -297,8 +295,8 @@ pub fn buildEmbeddedImageHref(fileExtension: []const u8, fileContent: []const u8
         var info = out[0..n];
         @memcpy(info[0..prefix.len], prefix);
         info = info[prefix.len..];
-        @memcpy(info[0..imageTypeStr.len], imageTypeStr);
-        info = info[imageTypeStr.len..];
+        @memcpy(info[0..imageMimeType.len], imageMimeType);
+        info = info[imageMimeType.len..];
         @memcpy(info[0..middle.len], middle);
     }
     {
