@@ -8,9 +8,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{{ page-title-in-head }}}</title>
-<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @favicon }}">
+<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @tmd-favicon }}">
 <style>
-{{ embed-file-content @css }}
+{{ embed-file-content @tmd-default-css }}
 </style>
 </head>
 <body>
@@ -18,4 +18,3 @@
 </body>
 </html>
 """
-

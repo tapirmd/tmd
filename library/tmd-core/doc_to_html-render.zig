@@ -20,13 +20,14 @@ pub const GenOptions = struct {
 
     // Must be valid if any of the following callbacks is not null.
     // Will be passed as the first arguments of the callbacks.
+    // It should hold the tmd.Doc to be generated.
     callbackContext: *const anyopaque = undefined,
 
-    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) anyerror!?GenCallback = null,
+    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, custom: *const tmd.BlockType.Custom) anyerror!?GenCallback = null,
     // ToDo: codeBlockGenCallback, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) anyerror!?GenCallback = null,
-    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) anyerror!?GenCallback = null,
+    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?GenCallback = null,
+    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?GenCallback = null,
 };
 
 pub const GenCallback = struct {
@@ -142,7 +143,7 @@ pub const TmdRender = struct {
 
     fn getCustomBlockGenCallback(self: *const TmdRender, custom: *const tmd.BlockType.Custom) !GenCallback {
         if (self.options.getCustomBlockGenCallback) |get| {
-            if (try get(self.options.callbackContext, self.doc, custom)) |callback| return callback;
+            if (try get(self.options.callbackContext, custom)) |callback| return callback;
         }
 
         return dummyGenCallback;
@@ -150,14 +151,14 @@ pub const TmdRender = struct {
 
     fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
         if (self.options.getLinkUrlGenCallback) |get| {
-            if (try get(self.options.callbackContext, self.doc, link)) |callback| return callback;
+            if (try get(self.options.callbackContext, link)) |callback| return callback;
         }
         return null;
     }
 
     fn getMediaUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
         if (self.options.getMediaUrlGenCallback) |get| {
-            if (try get(self.options.callbackContext, self.doc, link)) |callback| return callback;
+            if (try get(self.options.callbackContext, link)) |callback| return callback;
         }
         return null;
     }
@@ -1240,7 +1241,7 @@ pub const TmdRender = struct {
                                         const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
                                         try callback.gen(aw);
                                         try w.writeAll(
-                                            \\"
+                                            \\">
                                         );
 
                                         break :blk;

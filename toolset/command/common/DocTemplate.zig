@@ -40,6 +40,8 @@ pub const Token = struct {
         obj: *const anyopaque,
         args: ?*Argument,
 
+        cached: ?[]const u8 = null,
+
         pub const Argument = struct {
             next: ?*Argument = null,
             value: []const u8 = undefined,

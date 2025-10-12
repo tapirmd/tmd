@@ -157,10 +157,6 @@ pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config
     }
 }
 
-pub fn getTemplateCommandObject(ctx: *AppContext, cmdName: []const u8) !?*const anyopaque {
-    return ctx._templateFunctions.get(cmdName);
-}
-
 fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
     if (configEx.basic.@"html-page-template") |htmlPageTemplate| {
         const content, const ownerFilePath = switch (htmlPageTemplate) {

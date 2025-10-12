@@ -8,6 +8,7 @@ const AppContext = @import("AppContext.zig");
 const FileIterator = @import("FileIterator.zig");
 const Project = @import("Project.zig");
 const util = @import("util.zig");
+const DocRenderer = @import("DocRenderer.zig");
 
 pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void {
     var session: BuildSession = .init(project, ctx, .init(ctx.allocator));
@@ -35,6 +36,7 @@ const BuildSession = struct {
     genBuffer: []u8 = undefined,
 
     calTargetFilePath: *const fn (*BuildSession, []const u8, FilePurpose) anyerror![]const u8 = undefined,
+    generateArticleContent: *const fn (*BuildSession, []const u8, []const u8, *DocRenderer) anyerror![]const u8 = undefined,
 
     //builderContext: *anyopaque = undefined,
 
@@ -89,6 +91,7 @@ const BuildSession = struct {
         self.genBuffer = try self.arenaAllocator.alloc(u8, bufferSize);
 
         self.calTargetFilePath = BuilderType.calTargetFilePath;
+        self.generateArticleContent = BuilderType.generateArticleContent;
 
         //BuilderType.initContextFor(self);
         //defer BuilderType.deinitContextFor(self);
@@ -101,10 +104,16 @@ const BuildSession = struct {
         self.fileMapping = .init(self.arenaAllocator);
         self.targetFileContents = .init(self.arenaAllocator);
 
+        var tmdDocRenderer: DocRenderer = .init(
+            self.appContext,
+            self.project.configEx,
+            BuilderType.createDocRendererCallbacks(self),
+        );
+
         // Some images must be collected before articles.
         try self.collectSomeImages();
         try self.collectCssFiles();
-        try self.collectArticles();
+        try self.collectArticles(&tmdDocRenderer);
 
         try BuilderType.assembleOutputFiles(self);
     }
@@ -144,7 +153,7 @@ const BuildSession = struct {
         //std.debug.print("self.buildOutputPath = {s}\n", .{self.buildOutputPath});
     }
 
-    fn collectArticles(self: *@This()) !void {
+    fn collectArticles(self: *@This(), tmdDocRenderer: *DocRenderer) !void {
         // Note that: in epub build,
         // the navigation file may be also used as a general article file.
         // This means the file might be rendered as two HTML files.
@@ -168,7 +177,7 @@ const BuildSession = struct {
 
             var i: usize = 0;
             while (i < self.articleFiles.items.len) {
-                _ = try self.collectArticle(self.articleFiles.items[i]);
+                _ = try self.collectArticle(self.articleFiles.items[i], tmdDocRenderer);
                 i += 1;
             }
 
@@ -186,7 +195,7 @@ const BuildSession = struct {
         //
         //    const path = try util.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
         //    _ = try self.tryToRegisterFile(path, .contentArticle);
-        //    try self.collectArticle(path);
+        //    try self.collectArticle(path, tmdDocRenderer);
         //}
         //
         //// construct nav.tmd ...
@@ -194,32 +203,13 @@ const BuildSession = struct {
     }
 
     // An article must be registered before being collected.
-    fn collectArticle(self: *@This(), absPath: []const u8) !void {
+    fn collectArticle(self: *@This(), absPath: []const u8, tmdDocRenderer: *DocRenderer) !void {
         const targetPath = self.fileMapping.get(absPath) orelse return error.ArticleNotRegistered;
         if (self.targetFileContents.get(targetPath)) |_| return error.ArticleAlreadyCollected;
 
-        var remainingBuffer = self.genBuffer;
-
-        const tmdContent = try util.readFile(std.fs.cwd(), absPath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, self.appContext.stderr);
-        remainingBuffer = remainingBuffer[tmdContent.len..];
-
-        var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
-        // defer fba.reset(); // unnecessary
-        const fbaAllocator = fba.allocator();
-        const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
-        // defer tmdDoc.destroy(); // unnecessary
-
-        var stringWriterCallBack: TmdGenCustomHandler.GenCallback_StringWriter = undefined;
-        var htmlBlockCallBack: tmd.GenCallback_HtmlBlock = undefined;
-        var tmdGenCustomHandler: TmdGenCustomHandler = .init(self, absPath, &htmlBlockCallBack, &stringWriterCallBack);
-        const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
-
-        const renderBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
-        var fbs = std.io.fixedBufferStream(renderBuffer);
-        try tmdDoc.writeHTML(fbs.writer(), genOptions, self.appContext.allocator);
-
-        const htmlSnippet = try self.arenaAllocator.dupe(u8, fbs.getWritten());
-        try self.targetFileContents.put(targetPath, htmlSnippet);
+        // ToDo: not always need to cache the content, just output it directly.
+        const htmlContent = try self.generateArticleContent(self, absPath, targetPath, tmdDocRenderer);
+        try self.targetFileContents.put(targetPath, htmlContent);
     }
 
     // Now, use a simple design to avoid implementation complexity.
@@ -230,12 +220,14 @@ const BuildSession = struct {
     //
     // To support 3 cases:
     // 1. Full navigation file, which contains 1+ .tmd file references.
-    // 2. Partial navigaiton file, only contains head part,
+    // 2. Partial navigaiton file, only contains head part (such as localizied "Contents" text),
     //    no .tmd file references. Append all iterated tmd files.
     // 3. No navigation file.
     //    Append all iterated tmd files.
     //
     // ToDo: this is not used. Now only support the first case.
+    //
+    // ToDo: disable link to the current page in navigation content.
     const NavigationFileRenderer = struct {
         buffer: std.ArrayList(u8),
 
@@ -307,98 +299,127 @@ const BuildSession = struct {
 
         return targetPath;
     }
+
+    fn writeAssetElementLinksInHead(self: *@This(), w: anytype, docTargetFilePath: []const u8) !void {
+        if (self.cssFiles.head) |head| {
+            var element = head;
+            while (true) {
+                const next = element.next;
+                const cssFilePath = element.value;
+
+                try w.writeAll(
+                    \\<link href="
+                    );
+
+                const n, const s = util.relativePath(docTargetFilePath, cssFilePath, '/');
+                for (0..n) |_| try w.writeAll("../");
+                try w.writeAll(s);
+
+                try w.writeAll(
+                    \\" rel="stylesheet">
+                    );
+
+                if (next) |nxt| element = nxt else break;
+            }
+        }
+    }
+};
+
+const GenCallback_RelativePathWriter = struct {
+    path: []const u8,
+    relativeTo: []const u8,
+    fragment: []const u8,
+
+    pub fn gen(self: *const @This(), aw: std.io.AnyWriter) !void {
+        const n, const s = util.relativePath(self.relativeTo, self.path, '/');
+        for (0..n) |_| try aw.writeAll("../");
+        try aw.writeAll(s);
+        if (self.fragment.len > 0) {
+            try aw.writeAll(self.fragment);
+        }
+    }
 };
 
 const TmdGenCustomHandler = struct {
     session: *BuildSession,
-    docPath: []const u8,
 
-    stringWriter: *GenCallback_StringWriter,
+    tmdDocInfo: DocRenderer.TmdDocInfo,
+
+    relativePathWriter: *GenCallback_RelativePathWriter,
     htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
 
-    fn init(bs: *BuildSession, docAbsPath: []const u8, htmlBlockCallBack: *tmd.GenCallback_HtmlBlock, sw: *GenCallback_StringWriter) TmdGenCustomHandler {
+    fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, htmlBlockCallBack: *tmd.GenCallback_HtmlBlock, rpw: *GenCallback_RelativePathWriter) TmdGenCustomHandler {
         return .{
             .session = bs,
-            .docPath = docAbsPath,
+            .tmdDocInfo = tmdDocInfo,
+
             .htmlBlockCallBack = htmlBlockCallBack,
-            .stringWriter = sw,
+            .relativePathWriter = rpw,
         };
     }
 
     fn makeTmdGenOptions(handler: *const @This()) tmd.GenOptions {
         return .{
             .callbackContext = handler,
-            .getCustomBlockGenCallback = &getCustomBlockGenCallback,
-            .getMediaUrlGenCallback = &getMediaUrlGenCallback,
-            .getLinkUrlGenCallback = &getLinkUrlGenCallback,
+            .getCustomBlockGenCallback = getCustomBlockGenCallback,
+            .getMediaUrlGenCallback = getMediaUrlGenCallback,
+            .getLinkUrlGenCallback = getLinkUrlGenCallback,
         };
     }
 
-    const GenCallback_StringWriter = struct {
-        text: []const u8 = "",
-
-        pub fn gen(self: *const @This(), aw: std.io.AnyWriter) !void {
-            try aw.writeAll(self.text);
-        }
-    };
-
-    fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
+    fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
         const supportHtmlCustomBlock = true; // ToDo
 
         const attrs = custom.attributes();
         if (supportHtmlCustomBlock and std.mem.eql(u8, attrs.app, "html")) {
-            return handler.htmlBlockCallBack.asGenBacklback(doc, custom);
+            return handler.htmlBlockCallBack.asGenBacklback(handler.tmdDocInfo.doc, custom);
         }
 
         return null;
     }
 
-    fn getLinkUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) !?tmd.GenCallback {
+    fn getLinkUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
-        _ = doc;
-
         const url = link.url.?;
-        const targetPath = switch (url.manner) {
+        const targetPath, const fragment = switch (url.manner) {
             .relative => |v| blk: {
                 if (v.tmdFile) {
-                    const absPath = try util.resolvePathFromFilePath(handler.docPath, url.base, true, handler.session.arenaAllocator);
-                    break :blk try handler.session.tryToRegisterFile(absPath, .contentArticle);
+                    const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
+                    break :blk .{ try handler.session.tryToRegisterFile(absPath, .contentArticle), url.fragment };
                 }
 
-                //if (url.base.len > 0) {
-                //    // ToDo: .tmdFile -> .fileExtension
-                //    // ToDo: support media links
-                //    return error.UnsupportedDocFormat;
-                //}
+                // ToDo: might be media link
+
+                // ToDo: handle .html/.htm cases
 
                 return null;
             },
             else => return null,
         };
 
-        handler.stringWriter.* = .{ .text = targetPath };
-        return .init(handler.stringWriter);
+        // ToDo: standalone-html build needs different handling.
+
+        handler.relativePathWriter.* = .{ .path = targetPath, .relativeTo = handler.tmdDocInfo.targetFilePath, .fragment = fragment };
+        return .init(handler.relativePathWriter);
     }
 
-    fn getMediaUrlGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, link: *const tmd.Link) !?tmd.GenCallback {
+    fn getMediaUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-
-        _ = doc;
 
         const url = link.url.?;
         const targetPath = switch (url.manner) {
             .relative => blk: {
-                const absPath = try util.resolvePathFromFilePath(handler.docPath, url.base, true, handler.session.arenaAllocator);
+                const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
                 break :blk try handler.session.tryToRegisterFile(absPath, .image);
             },
             else => return null,
         };
 
-        handler.stringWriter.* = .{ .text = targetPath };
-        return .init(handler.stringWriter);
+        handler.relativePathWriter.* = .{ .path = targetPath, .relativeTo = handler.tmdDocInfo.targetFilePath, .fragment = "" };
+        return .init(handler.relativePathWriter);
     }
 };
 
@@ -491,6 +512,76 @@ pub const StaticWebsiteBuilder = struct {
         }
     }
 
+    fn generateArticleContent(session: *BuildSession, absPath: []const u8, relPath: []const u8, tmdDocRenderer: *DocRenderer) ![]const u8 {
+        var remainingBuffer = session.genBuffer;
+
+        const tmdContent = try util.readFile(std.fs.cwd(), absPath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, session.appContext.stderr);
+        remainingBuffer = remainingBuffer[tmdContent.len..];
+
+        var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
+        // defer fba.reset(); // unnecessary
+        const fbaAllocator = fba.allocator();
+        const tmdDoc = try tmd.Doc.parse(tmdContent, fbaAllocator);
+        // defer tmdDoc.destroy(); // unnecessary
+
+        const renderBuffer = try fbaAllocator.alloc(u8, remainingBuffer.len - fba.end_index);
+        var fbs = std.io.fixedBufferStream(renderBuffer);
+
+        try tmdDocRenderer.render(fbs.writer(), .{
+            .doc = &tmdDoc,
+            .sourceFilePath = absPath,
+            .targetFilePath = relPath,
+        });
+
+        const htmlContent = try session.arenaAllocator.dupe(u8, fbs.getWritten());
+
+        // ToDo: don't return the cache content (or just return "").
+        {
+            try util.writeFile(session.buildOutputDir, relPath, htmlContent);
+        }
+
+        return htmlContent;
+    }
+
+    fn createDocRendererCallbacks(session: *BuildSession) DocRenderer.Callbacks {
+        const T = struct {
+            fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath);
+            }
+
+            fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                
+                if (r.tmdDocInfo) |info| {
+                    if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
+                }
+                try r.w.writeAll("Untitled");
+            }
+            
+            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+
+                const info = if (r.tmdDocInfo) |info| info else unreachable;
+
+                var relativePathWriter: GenCallback_RelativePathWriter = undefined;
+                var htmlBlockCallBack: tmd.GenCallback_HtmlBlock = undefined;
+                var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, info, &htmlBlockCallBack, &relativePathWriter);
+                const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
+
+                try info.doc.writeHTML(r.w, genOptions, bs.appContext.allocator);
+            }
+        };
+
+        return .{
+            .owner = session,
+            .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
+            .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
+            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+        };
+    }
+
     fn assembleOutputFiles(session: *BuildSession) !void {
         _ = session;
     }
@@ -559,6 +650,47 @@ pub const EpubBuilder = struct {
         }
     }
 
+    fn generateArticleContent(session: *BuildSession, absPath: []const u8, relPath: []const u8, tmdDocRenderer: *DocRenderer) ![]const u8 {
+        _ = session;
+        _ = absPath;
+        _ = relPath;
+        _ = tmdDocRenderer;
+
+        return "";
+    }
+
+    fn createDocRendererCallbacks(session: *BuildSession) DocRenderer.Callbacks {
+        const T = struct {
+            fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath);
+            }
+
+            fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                
+                if (r.tmdDocInfo) |info| {
+                    if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
+                }
+                try r.w.writeAll("Untitled");
+            }
+            
+            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                _ = r;
+            }
+        };
+
+        return .{
+            .owner = session,
+            .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
+            .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
+            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+        };
+    }
+
     fn assembleOutputFiles(session: *BuildSession) !void {
         _ = session;
     }
@@ -607,6 +739,44 @@ pub const StandaloneHtmlBuilder = struct {
                 return targetPath;
             },
         }
+    }
+
+    fn generateArticleContent(session: *BuildSession, absPath: []const u8, relPath: []const u8, tmdDocRenderer: *DocRenderer) ![]const u8 {
+        _ = session;
+        _ = absPath;
+        _ = relPath;
+        _ = tmdDocRenderer;
+
+        return "";
+    }
+
+    fn createDocRendererCallbacks(session: *BuildSession) DocRenderer.Callbacks {
+        const T = struct {
+            fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                _ = r;
+            }
+
+            fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                _ = r;
+            }
+            
+            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+                const bs: *BuildSession = @ptrCast(@alignCast(owner));
+                _ = bs;
+                _ = r;
+            }
+        };
+
+        return .{
+            .owner = session,
+            .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
+            .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
+            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+        };
     }
 
     fn assembleOutputFiles(session: *BuildSession) !void {

@@ -107,10 +107,9 @@ pub const RenderChecker = struct {
         const CustomHandler = struct {
             htmlGenCallback: *tmd.GenCallback_HtmlBlock = undefined,
 
-            fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+            fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
                 const callback = handler.htmlGenCallback;
-                std.debug.assert(doc == callback.doc);
 
                 const attrs = custom.attributes();
                 if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {

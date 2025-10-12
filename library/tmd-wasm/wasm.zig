@@ -225,13 +225,12 @@ fn generateHTML() ![]const u8 {
     const CustomHandler = struct {
         htmlGenCallback: *tmd.GenCallback_HtmlBlock,
 
-        fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+        fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
             const handler: *const @This() = @ptrCast(@alignCast(ctx));
             const callback = handler.htmlGenCallback;
 
             const attrs = custom.attributes();
             if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
-                std.debug.assert(doc == callback.doc);
                 callback.custom = custom;
                 return .init(callback);
             }
