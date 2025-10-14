@@ -243,7 +243,7 @@ pub const URL = struct {
 
         pub fn isTmdFile(self: @This()) bool {
             const ext = self.extension orelse return false;
-            return ext == .@".tmd";
+            return ext == .tmd;
         }
     };
 
