@@ -35,9 +35,9 @@ pub fn render(r: *DocRenderer, w: anytype, docInfo: ?TmdDocInfo) !void {
 
 pub const Callbacks = struct {
     owner: *anyopaque,
-    assetElementsInHeadCallback: *const fn(*anyopaque, *const DocRenderer) anyerror!void,
-    pageTitleInHeadCallback: *const fn(*anyopaque, *const DocRenderer) anyerror!void,
-    pageContentInHeadCallback: *const fn(*anyopaque, *const DocRenderer) anyerror!void,
+    assetElementsInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
+    pageTitleInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
+    pageContentInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
 
     // nav-content-in-body
 
@@ -69,7 +69,6 @@ pub fn onTemplateCommand(r: *const @This(), command: DocTemplate.Token.Command) 
 }
 
 const TemplateFunctions = struct {
-
     pub fn @"local-file-url"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         _ = r;
         _ = args;

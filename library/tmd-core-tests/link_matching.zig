@@ -52,8 +52,7 @@ test "line end type" {
     , &.{}));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo `` bar.tmd ___ __ 
-        \\// here, the ___ is the title of the link.
+        \\__foo `` bar.tmd __ 
         \\===foo``https://go101.org
         \\
     , &.{
@@ -225,6 +224,38 @@ test "line end type" {
     , &.{
         "https://tapirgames.com",
         "https://tapirgames.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo ... :: https://tapirgames.com
+        \\=== bar... :: https://go101.com
+        \\
+        \\__foo `bar` byte__
+        \\__foo `bar` `` byte__
+        \\__bar `bye` foo__
+        \\__bar `bye` `` foo__
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://tapirgames.com",
+        "https://go101.com",
+        "https://go101.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== ... byte :: https://tapirgames.com
+        \\=== ...foo :: https://go101.com
+        \\
+        \\__foo `bar` byte__
+        \\__foo `bar` `` byte__
+        \\__bar `bye` foo__
+        \\__bar `bye` `` foo__
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://tapirgames.com",
+        "https://go101.com",
+        "https://go101.com",
     }));
 
     try std.testing.expect(try LinkChecker.check(

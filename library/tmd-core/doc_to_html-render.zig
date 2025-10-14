@@ -1278,14 +1278,14 @@ pub const TmdRender = struct {
                                             try w.writeAll(
                                                 \\<a href="
                                             );
-                                            try fns.writeHtmlAttributeValue(w, url.base);
-                                            try fns.writeHtmlAttributeValue(w, url.fragment);
+                                            try fns.writeUrlAttributeValue(w, url.base);
+                                            try fns.writeUrlAttributeValue(w, url.fragment);
                                             try w.writeAll(
                                                 \\">
                                             );
                                         },
                                         .relative => |v| {
-                                            if (v.tmdFile) {
+                                            if (v.isTmdFile()) {
                                                 const ext = std.fs.path.extension(url.base);
                                                 const baseWithoutExt = url.base[0 .. url.base.len - ext.len];
                                                 //try w.print(
@@ -1295,9 +1295,9 @@ pub const TmdRender = struct {
                                                 try w.writeAll(
                                                     \\<a href="
                                                 );
-                                                try fns.writeHtmlAttributeValue(w, baseWithoutExt);
-                                                try fns.writeHtmlAttributeValue(w, self.options.renderedExtension);
-                                                try fns.writeHtmlAttributeValue(w, url.fragment);
+                                                try fns.writeUrlAttributeValue(w, baseWithoutExt);
+                                                try fns.writeUrlAttributeValue(w, self.options.renderedExtension);
+                                                try fns.writeUrlAttributeValue(w, url.fragment);
                                                 try w.writeAll(
                                                     \\">
                                                 );
@@ -1389,7 +1389,7 @@ pub const TmdRender = struct {
                                         .absolute, .relative => {
                                             const src = url.base;
                                             try w.writeAll("<img src=\"");
-                                            try fns.writeHtmlAttributeValue(w, src);
+                                            try fns.writeUrlAttributeValue(w, src);
 
                                             // ToDo: size info is in url.fragment
                                         },

@@ -618,20 +618,12 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
     var url: tmd.URL = .{};
 
     const text = std.mem.trim(u8, urlText, " \t");
-    if (std.mem.indexOfAny(u8, text, "# \t")) |k| {
+    if (std.mem.indexOfAny(u8, text, "#")) |k| {
         url.base = text[0..k];
 
-        if (text[k] == '#') {
-            if (potentailFootnoteRef and k == 0) url.manner = .footnote;
+        if (potentailFootnoteRef and k == 0) url.manner = .footnote;
 
-            const remaining = text[k..];
-            if (std.mem.indexOfAnyPos(u8, remaining, 1, " \t")) |q| {
-                url.fragment = remaining[0..q];
-                url.title = std.mem.trimLeft(u8, remaining[q + 1 ..], " \t");
-            } else url.fragment = remaining;
-        } else {
-            url.title = std.mem.trimLeft(u8, text[k + 1 ..], " \t");
-        }
+        url.fragment = text[k..];
     } else {
         url.base = text;
     }
@@ -646,7 +638,7 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
                     if (std.mem.indexOfScalar(u8, base, '?') == null) {
                         if (checkValidTextExtension(base)) |ext| {
                             url.manner = .{
-                                .relative = .{ .tmdFile = (ext == .@".tmd") },
+                                .relative = .{ .extension = ext },
                             };
                         }
                     }
@@ -654,7 +646,7 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
             }
         } else if (url.fragment.len > 0) {
             url.manner = .{
-                .relative = .{ .tmdFile = false },
+                .relative = .{ .extension = null },
             };
         }
     }
@@ -667,13 +659,13 @@ fn compareURLs(a: tmd.URL, b: tmd.URL) bool {
     if (std.meta.activeTag(a.manner) != std.meta.activeTag(b.manner)) return false;
     switch (a.manner) {
         .relative => |v| {
-            if (v.tmdFile != b.manner.relative.tmdFile) return false;
+            if (v.extension != b.manner.relative.extension) return false;
         },
         else => {},
     }
     if (!std.mem.eql(u8, a.base, b.base)) return false;
     if (!std.mem.eql(u8, a.fragment, b.fragment)) return false;
-    if (!std.mem.eql(u8, a.title, b.title)) return false;
+    //if (!std.mem.eql(u8, a.title, b.title)) return false;
     return true;
 }
 
@@ -691,7 +683,7 @@ test "parseLinkURL" {
         .base = "/bar/foo.jpg",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg", false), .{
-        .manner = .{ .relative = .{ .tmdFile = false } },
+        .manner = .{ .relative = .{ .extension = .@".jpg" } },
         .base = "bar/foo.jpg",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg?zoo##park#", false), .{
@@ -704,28 +696,28 @@ test "parseLinkURL" {
         .base = "bar/foo.jpg?",
         .fragment = "##park#",
     }));
-    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg##park#", false), .{
-        .manner = .{ .relative = .{ .tmdFile = false } },
-        .base = "bar/foo.jpg",
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.JPG##park#", false), .{
+        .manner = .{ .relative = .{ .extension = .@".jpg" } },
+        .base = "bar/foo.JPG",
         .fragment = "##park#",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg##park#", true), .{
-        .manner = .{ .relative = .{ .tmdFile = false } },
+        .manner = .{ .relative = .{ .extension = .@".jpg" } },
         .base = "bar/foo.jpg",
         .fragment = "##park#",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("../bar/foo.JPEG#..300:500", true), .{
-        .manner = .{ .relative = .{ .tmdFile = false } },
+        .manner = .{ .relative = .{ .extension = .@".jpeg" } },
         .base = "../bar/foo.JPEG",
         .fragment = "#..300:500",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.tmd#section-1", true), .{
-        .manner = .{ .relative = .{ .tmdFile = true } },
+        .manner = .{ .relative = .{ .extension = .@".tmd" } },
         .base = "bar/foo.tmd",
         .fragment = "#section-1",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.HTM", true), .{
-        .manner = .{ .relative = .{ .tmdFile = false } },
+        .manner = .{ .relative = .{ .extension = .@".htm" } },
         .base = "bar/foo.HTM",
     }));
     try std.testing.expect(compareURLs(parseLinkURL("bar/foo.htmx", false), .{

@@ -309,15 +309,15 @@ const BuildSession = struct {
 
                 try w.writeAll(
                     \\<link href="
-                    );
+                );
 
                 const n, const s = util.relativePath(docTargetFilePath, cssFilePath, '/');
                 for (0..n) |_| try w.writeAll("../");
-                try w.writeAll(s);
+                try tmd.writeUrlAttributeValue(w, s);
 
                 try w.writeAll(
                     \\" rel="stylesheet">
-                    );
+                );
 
                 if (next) |nxt| element = nxt else break;
             }
@@ -333,9 +333,9 @@ const GenCallback_RelativePathWriter = struct {
     pub fn gen(self: *const @This(), aw: std.io.AnyWriter) !void {
         const n, const s = util.relativePath(self.relativeTo, self.path, '/');
         for (0..n) |_| try aw.writeAll("../");
-        try aw.writeAll(s);
+        try tmd.writeUrlAttributeValue(aw, s);
         if (self.fragment.len > 0) {
-            try aw.writeAll(self.fragment);
+            try tmd.writeUrlAttributeValue(aw, self.fragment);
         }
     }
 };
@@ -386,7 +386,7 @@ const TmdGenCustomHandler = struct {
         const url = link.url.?;
         const targetPath, const fragment = switch (url.manner) {
             .relative => |v| blk: {
-                if (v.tmdFile) {
+                if (v.isTmdFile()) {
                     const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
                     break :blk .{ try handler.session.tryToRegisterFile(absPath, .contentArticle), url.fragment };
                 }
@@ -461,7 +461,7 @@ pub const StaticWebsiteBuilder = struct {
     //}
 
     fn buildNameSuffix() []const u8 {
-        return "-website";
+        return ""; // "-website";
     }
 
     fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
@@ -553,13 +553,13 @@ pub const StaticWebsiteBuilder = struct {
             fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
-                
+
                 if (r.tmdDocInfo) |info| {
                     if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
                 }
                 try r.w.writeAll("Untitled");
             }
-            
+
             fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
 
@@ -669,13 +669,13 @@ pub const EpubBuilder = struct {
             fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
-                
+
                 if (r.tmdDocInfo) |info| {
                     if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
                 }
                 try r.w.writeAll("Untitled");
             }
-            
+
             fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
@@ -763,7 +763,7 @@ pub const StandaloneHtmlBuilder = struct {
                 _ = bs;
                 _ = r;
             }
-            
+
             fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;

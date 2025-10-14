@@ -225,7 +225,7 @@ fn generateHTML() ![]const u8 {
     const CustomHandler = struct {
         htmlGenCallback: *tmd.GenCallback_HtmlBlock,
 
-        fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+        fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
             const handler: *const @This() = @ptrCast(@alignCast(ctx));
             const callback = handler.htmlGenCallback;
 

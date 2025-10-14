@@ -17,6 +17,8 @@ pub const checkValidTextExtension = @import("tmd_to_doc-attribute_parser.zig").c
 pub const validMediaExtensions = &@import("tmd_to_doc-attribute_parser.zig").validMediaExtensions;
 pub const checkValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidMediaExtension;
 
+pub const writeUrlAttributeValue = @import("doc_to_html-fns.zig").writeUrlAttributeValue;
+
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
 pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
 
@@ -236,10 +238,19 @@ pub const ElementAttibutes = struct {
 
 // The definition is not the same as web URL.
 pub const URL = struct {
+    pub const RelativeManner = struct {
+        extension: ?Extension,
+
+        pub fn isTmdFile(self: @This()) bool {
+            const ext = self.extension orelse return false;
+            return ext == .@".tmd";
+        }
+    };
+
     manner: union(enum) {
         undetermined, //
         absolute, // .base contains :// (not support //xxx.yyy/...)
-        relative: struct { tmdFile: bool }, // relative ablolute paths (/foo/bar) are not supported.
+        relative: RelativeManner, // relative ablolute paths (/foo/bar) are not supported.
         footnote, // __#[id]__. __#__ means all footnotes.
         invalid, // should only be set by custom handlers
     } = .undetermined,
@@ -266,9 +277,12 @@ pub const URL = struct {
     // The meanings of this part for doc and media are different.
     fragment: []const u8 = "",
 
-    // The part after the first space.
-    // Tiptool for <a>,
-    title: []const u8 = "",
+    // Use as tooltip.
+    // ToDo: support it? Only in link definition. Using comment lines?
+    //       Be aware that self-link media might cause 2 tooltips,
+    //       one for media, the other for hyperlink.
+    //       Best not to support it.
+    //title: []const u8 = "",
 };
 
 pub const Link = struct {

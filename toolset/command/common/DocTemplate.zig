@@ -86,7 +86,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
 
         fn createTagToken(parser: *@This(), start: usize, end: usize, isOpen: bool) !void {
             const t = try parser.newToken();
-            t.type = .{ .tag = .{ 
+            t.type = .{ .tag = .{
                 .text = parser.contentStart[start..end],
                 .type = if (isOpen) .open else .close,
             } };

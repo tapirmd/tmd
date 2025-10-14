@@ -109,6 +109,52 @@ pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
     try w.writeAll(text[last..i]);
 }
 
+pub fn writeUrlAttributeValue(w: anytype, text: []const u8) !void {
+    var last: usize = 0;
+    var i: usize = 0;
+    while (i < text.len) : (i += 1) {
+        switch (text[i]) {
+            '\\' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("/");
+                last = i + 1;
+            },
+            ' ', '\t' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("%20");
+                last = i + 1;
+            },
+            '"' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&quot;");
+                last = i + 1;
+            },
+            //'\'' => {
+            //    try w.writeAll(text[last..i]);
+            //    try w.writeAll("&apos;");
+            //    last = i + 1;
+            //},
+            '&' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&amp;");
+                last = i + 1;
+            },
+            '<' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&lt;");
+                last = i + 1;
+            },
+            '>' => {
+                try w.writeAll(text[last..i]);
+                try w.writeAll("&gt;");
+                last = i + 1;
+            },
+            else => {},
+        }
+    }
+    try w.writeAll(text[last..i]);
+}
+
 pub fn writeHtmlContentText(w: anytype, text: []const u8) !void {
     var last: usize = 0;
     var i: usize = 0;

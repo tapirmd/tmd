@@ -2,7 +2,10 @@ const std = @import("std");
 
 const tmd = @import("tmd");
 
-pub fn readFile(inputDir: ?std.fs.Dir, filePath: []const u8, manner: union(enum) {
+pub fn readFile(
+    inputDir: ?std.fs.Dir,
+    filePath: []const u8,
+    manner: union(enum) {
         buffer: []u8,
         alloc: struct {
             allocator: std.mem.Allocator,
@@ -308,42 +311,42 @@ pub fn buildEmbeddedImageHref(fileExtension: []const u8, fileContent: []const u8
 }
 
 pub fn findCommonPaths(a: []const u8, b: []const u8, sep: u8) []const u8 {
-    const pa, const pb = if (a.len < b.len) .{a, b} else .{b, a};
+    const pa, const pb = if (a.len < b.len) .{ a, b } else .{ b, a };
 
     var i: usize = 0;
-    while (i < pa.len): (i += 1) {
+    while (i < pa.len) : (i += 1) {
         if (pa[i] != pb[i]) break;
     }
     if (i == 0) return "";
     if (i == pa.len) {
         if (pa.len == pb.len) return pa;
-        if (pb[i] == sep) return pb[0..i+1]; // ends with sep
+        if (pb[i] == sep) return pb[0 .. i + 1]; // ends with sep
     }
     std.debug.assert(i > 0);
     while (true) {
         i -= 1;
         if (pb[i] == sep) {
-            return pb[0..i+1]; // ends with sep
+            return pb[0 .. i + 1]; // ends with sep
         }
         if (i == 0) return "";
     }
 }
 
 // relative path of b to a
-pub fn relativePath(a: []const u8, b: []const u8, sep: u8) struct{usize, []const u8} {
-	const c = findCommonPaths(a, b, sep);
-	const d = if (c.len > a.len) blk: {
-	    std.debug.assert(c.len == a.len + 1 and c[a.len] == sep);
-	    break :blk a;
-	} else a[c.len..];
-	
-	var n: usize = 0;
-	for (d) |r| {
-	    if (r == sep) n += 1;
-	}
-	if (c.len > b.len) {
-	    std.debug.assert(c.len == b.len + 1 and c[b.len] == sep);
-		return .{ n, "" };
-	}
-	return .{ n, b[c.len..] };
+pub fn relativePath(a: []const u8, b: []const u8, sep: u8) struct { usize, []const u8 } {
+    const c = findCommonPaths(a, b, sep);
+    const d = if (c.len > a.len) blk: {
+        std.debug.assert(c.len == a.len + 1 and c[a.len] == sep);
+        break :blk a;
+    } else a[c.len..];
+
+    var n: usize = 0;
+    for (d) |r| {
+        if (r == sep) n += 1;
+    }
+    if (c.len > b.len) {
+        std.debug.assert(c.len == b.len + 1 and c[b.len] == sep);
+        return .{ n, "" };
+    }
+    return .{ n, b[c.len..] };
 }

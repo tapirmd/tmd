@@ -68,7 +68,6 @@ pub const regOrGetProject = @import("AppContext-project.zig").regOrGetProject;
 pub const buildOutputDirname = @import("AppContext-project.zig").buildOutputDirname;
 pub const excludeSpecialDir = @import("AppContext-project.zig").excludeSpecialDir;
 
-
 pub fn getTemplateCommandObject(ctx: *AppContext, cmdName: []const u8) !?*const anyopaque {
     return ctx._templateFunctions.get(cmdName);
 }
