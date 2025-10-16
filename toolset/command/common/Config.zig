@@ -6,20 +6,20 @@ const DocTemplate = @import("DocTemplate.zig");
 
 pub const maxConfigFileSize = DocTemplate.maxTemplateSize + 32 * 1024;
 
+//====================================================
+
 @"based-on": ?union(enum) {
     path: []const u8,
 } = null,
 
-/// For commands: to-html, run, build
-@"custom-apps": ?union(enum) {
+@"custom-block-generators": ?union(enum) {
     data: []const u8,
-    //_parsed: void, // ToDo: data might contains paths
+    _parsed: std.StringHashMap(CustomBlockGenerator), // keys are custom block types
 } = null,
 
-/// For commands: to-html, run, build
-@"enabled-apps": ?union(enum) {
+@"pending-url-generators": ?union(enum) {
     data: []const u8,
-    // _parsed: // ToDo
+    _parsed: std.StringHashMap(void),
 } = null,
 
 // For commands: to-html, run, build
@@ -62,4 +62,13 @@ favicon: ?union(enum) {
     path: []const u8, // relative to project dir
 } = null,
 
-// option: add hash suffix to file names?
+
+//====================================================
+
+pub const CustomBlockGenerator = union(enum) {
+    builtin: []const u8,
+    external: struct {
+        argsArray: [6][]const u8 = undefined, // allow at most 6-1 args (inlcuding command name)
+        argsCount: usize,
+    },
+};

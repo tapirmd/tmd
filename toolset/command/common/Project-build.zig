@@ -9,6 +9,7 @@ const FileIterator = @import("FileIterator.zig");
 const Project = @import("Project.zig");
 const util = @import("util.zig");
 const DocRenderer = @import("DocRenderer.zig");
+const ExternalBlockGenerator = @import("ExternalBlockGenerator.zig");
 
 pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void {
     var session: BuildSession = .init(project, ctx, .init(ctx.allocator));
@@ -139,7 +140,9 @@ const BuildSession = struct {
         try w.writeByte(std.fs.path.sep);
         try w.writeAll(AppContext.buildOutputDirname);
         try w.writeByte(std.fs.path.sep);
-        try w.writeAll(if (project.path.len == project.workspacePath.len) "@workspace" else "@projects");
+        if (project.path.len != project.workspacePath.len) {
+            try w.writeAll("@projects");
+        }
         try w.writeByte(std.fs.path.sep);
         try w.writeAll(project.dirname());
         if (self.projectVersion.len > 0) {
@@ -347,14 +350,20 @@ const TmdGenCustomHandler = struct {
 
     relativePathWriter: *GenCallback_RelativePathWriter,
     htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
+    externalBlockGenerator: *ExternalBlockGenerator,
 
-    fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, htmlBlockCallBack: *tmd.GenCallback_HtmlBlock, rpw: *GenCallback_RelativePathWriter) TmdGenCustomHandler {
+    fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, 
+            htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
+            rpw: *GenCallback_RelativePathWriter,
+            externalBlockGenerator: *ExternalBlockGenerator,
+    ) TmdGenCustomHandler {
         return .{
             .session = bs,
             .tmdDocInfo = tmdDocInfo,
 
             .htmlBlockCallBack = htmlBlockCallBack,
             .relativePathWriter = rpw,
+            .externalBlockGenerator = externalBlockGenerator,
         };
     }
 
@@ -370,11 +379,22 @@ const TmdGenCustomHandler = struct {
     fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
-        const supportHtmlCustomBlock = true; // ToDo
-
+        const generators = (handler.session.project.configEx.basic.@"custom-block-generators" orelse return null)._parsed;
+        
         const attrs = custom.attributes();
-        if (supportHtmlCustomBlock and std.mem.eql(u8, attrs.app, "html")) {
-            return handler.htmlBlockCallBack.asGenBacklback(handler.tmdDocInfo.doc, custom);
+        const generator = generators.getPtr(attrs.app) orelse return null;
+        switch (generator.*) {
+            .builtin => |app| {
+                if (std.mem.eql(u8, app, "html")) {
+                     return handler.htmlBlockCallBack.asGenBacklback(handler.tmdDocInfo.doc, custom);
+                }
+                unreachable;
+            },
+            .external => |*external| {
+                std.debug.assert(external.argsCount > 0 and external.argsCount + 1 < external.argsArray.len);
+                const shellCommand = external.argsArray[0..external.argsCount + 1];
+                return handler.externalBlockGenerator.asGenBacklback(handler.tmdDocInfo.doc, custom, shellCommand);
+            },
         }
 
         return null;
@@ -386,14 +406,19 @@ const TmdGenCustomHandler = struct {
         const url = link.url.?;
         const targetPath, const fragment = switch (url.manner) {
             .relative => |v| blk: {
-                if (v.isTmdFile()) {
-                    const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
-                    break :blk .{ try handler.session.tryToRegisterFile(absPath, .contentArticle), url.fragment };
-                }
+                if (v.extension) |ext| switch (ext) {
+                    .tmd => {
+                        std.debug.assert(v.isTmdFile());
 
-                // ToDo: might be media link
-
-                // ToDo: handle .html/.htm cases
+                        const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
+                        break :blk .{ try handler.session.tryToRegisterFile(absPath, .contentArticle), url.fragment };
+                    },
+                    .txt, .html, .htm, .xhtml => @panic("ToDo"),
+                    .png, .gif, .jpg, .jpeg => {
+                        const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
+                        break :blk .{ try handler.session.tryToRegisterFile(absPath, .image), "" };
+                    },
+                };
 
                 return null;
             },
@@ -567,7 +592,8 @@ pub const StaticWebsiteBuilder = struct {
 
                 var relativePathWriter: GenCallback_RelativePathWriter = undefined;
                 var htmlBlockCallBack: tmd.GenCallback_HtmlBlock = undefined;
-                var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, info, &htmlBlockCallBack, &relativePathWriter);
+                var externalBlockGenerator: ExternalBlockGenerator = undefined;
+                var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, info, &htmlBlockCallBack, &relativePathWriter, &externalBlockGenerator);
                 const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
 
                 try info.doc.writeHTML(r.w, genOptions, bs.appContext.allocator);

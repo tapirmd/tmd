@@ -275,6 +275,7 @@ pub const URL = struct {
 
     // The ending part starting with #, if it exists.
     // The meanings of this part for doc and media are different.
+    // Always blank for doc links with .absolute manner.
     fragment: []const u8 = "",
 
     // Use as tooltip.

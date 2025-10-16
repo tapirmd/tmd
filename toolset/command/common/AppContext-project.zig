@@ -80,7 +80,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
     return .{ .new = project };
 }
 
-pub const buildOutputDirname = "@tmd-build";
+pub const buildOutputDirname = "@tmd-build-workspace";
 
 pub fn excludeSpecialDir(dir: []const u8) bool {
     return !std.mem.eql(u8, dir, buildOutputDirname);

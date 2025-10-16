@@ -158,43 +158,104 @@ pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config
 }
 
 fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
-    if (configEx.basic.@"html-page-template") |htmlPageTemplate| {
-        const content, const ownerFilePath = switch (htmlPageTemplate) {
+    if (configEx.basic.@"custom-block-generators") |*customBlockGenerators| handle: {
+        const configData = switch (customBlockGenerators.*) {
+            .data => |data| data,
+            ._parsed => break :handle,
+        };
+
+        var map: std.StringHashMap(Config.CustomBlockGenerator) = .init(ctx.arenaAllocator);
+        // errdefer map.destroy();
+
+        var lineIt = std.mem.tokenizeAny(u8, configData, "\n");
+        while (lineIt.next()) |lineItem| {
+            const lineData = std.mem.trim(u8, lineItem, " \t\r");
+            if (lineData.len == 0) continue;
+            if (std.mem.startsWith(u8, lineData, "//")) continue;
+
+            var tokenIt = std.mem.tokenizeAny(u8, lineData, " \t");
+            const customContentType = tokenIt.next() orelse continue;
+
+            const commandName = tokenIt.next() orelse continue;
+            if (std.mem.startsWith(u8, commandName, "@")) {
+                if (commandName.len == 1) return error.BuiltinCustomBlockGeneratorUnspecified;
+                if (tokenIt.next() != null) return error.BuiltinCustomBlockGeneratorNeedsNotArgs;
+                const appName = commandName[1..];
+                if (!std.ascii.eqlIgnoreCase(appName, "html")) return error.UnrecognizedBuiltinCustomBlockGenerator;
+                
+                const r = try map.getOrPut(customContentType);
+                if (r.found_existing) return error.DuplicateustomBlockGenerator;
+                r.value_ptr.* = .{ .builtin = appName };
+                continue;
+            }
+
+            const ExternalGenerator = @FieldType(Config.CustomBlockGenerator, "external");
+            var generator: ExternalGenerator = .{ .argsCount = 1 };
+            generator.argsArray[0] = commandName;
+
+            while (tokenIt.next()) |tokenItem| {
+                if (generator.argsCount + 1 >= generator.argsArray.len) return error.TooManyCustomBlockGeneratorArgs;
+
+                generator.argsArray[generator.argsCount] = tokenItem;
+                generator.argsCount += 1;
+            }
+
+            const r = try map.getOrPut(customContentType);
+            if (r.found_existing) return error.DuplicateustomBlockGenerator;
+            r.value_ptr.* = .{ .external = generator };
+        }
+
+        customBlockGenerators.* = .{
+            ._parsed = map,
+        };
+    }
+
+    if (configEx.basic.@"html-page-template") |*htmlPageTemplate| handle: {
+        const content, const ownerFilePath = switch (htmlPageTemplate.*) {
             .data => |data| .{ data, configEx.path },
             .path => |filePath| blk: {
                 const absPath = try util.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
                 const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, DocTemplate.maxTemplateSize);
                 break :blk .{ data, absPath };
             },
-            else => return,
+            ._parsed => break :handle,
         };
 
-        configEx.basic.@"html-page-template" = .{
+        htmlPageTemplate.* = .{
             ._parsed = try DocTemplate.parseTemplate(content, ownerFilePath, ctx, ctx.arenaAllocator, ctx.stderr),
         };
     }
 
-    if (configEx.basic.favicon) |favicon| {
-        const faviconPath = favicon.path;
-        configEx.basic.favicon = .{
+    if (configEx.basic.favicon) |*favicon| handle: {
+        const faviconPath = switch (favicon.*) {
+            .path => |path| path,
+            ._parsed => break :handle,
+        };
+
+        favicon.* = .{
             ._parsed = try util.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
         };
     }
 
-    if (configEx.basic.@"css-files") |cssFiles| {
-        var paths = list.List([]const u8){};
+    if (configEx.basic.@"css-files") |*cssFiles| handle: {
+        const cssFilesData = switch (cssFiles.*) {
+            .data => |data| std.mem.trim(u8, data, " \t\r\n"),
+            ._parsed => break :handle,
+        };
 
-        const data = std.mem.trim(u8, cssFiles.data, " \t\r\n");
-        var it = std.mem.splitAny(u8, data, "\n");
+        var paths = list.List([]const u8){};
+        // errdefer path.destroy(nil, ctx.arenaAllocator);
+
+        var it = std.mem.tokenizeAny(u8, cssFilesData, "\n");
         while (it.next()) |item| {
-            const line = std.mem.trim(u8, item, "\n");
+            const line = std.mem.trim(u8, item, " \t\r");
             if (line.len == 0) continue;
             const path = try util.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
             const element = try paths.createElement(ctx.arenaAllocator, true);
             element.value = path;
         }
 
-        configEx.basic.@"css-files" = .{
+        cssFiles.* = .{
             ._parsed = paths,
         };
     }
