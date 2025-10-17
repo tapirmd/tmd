@@ -21,7 +21,7 @@ pub const Formatter = struct {
     pub fn completeDesc() []const u8 {
         return 
         \\The 'fmt' command formats all of the specified input
-        \\.tmd files.
+        \\.tmd files and .tmd files in the specified directories.
         \\Without any argument specified, the current directory
         \\will be used.
         ;

@@ -105,7 +105,7 @@ pub const RenderChecker = struct {
         defer buf.deinit();
 
         const CustomHandler = struct {
-            htmlGenCallback: *tmd.GenCallback_HtmlBlock = undefined,
+            htmlGenCallback: *tmd.HtmlBlockGenerator = undefined,
 
             fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
@@ -119,7 +119,7 @@ pub const RenderChecker = struct {
                 return null;
             }
         };
-        var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{ .doc = &tmdDoc, .custom = undefined };
+        var htmlGenCallback: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
         const handler = CustomHandler{
             .htmlGenCallback = &htmlGenCallback,
         };

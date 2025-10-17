@@ -223,7 +223,7 @@ fn generateHTML() ![]const u8 {
     try fbs.writer().writeInt(u32, 0, .little);
 
     const CustomHandler = struct {
-        htmlGenCallback: *tmd.GenCallback_HtmlBlock,
+        htmlGenCallback: *tmd.HtmlBlockGenerator,
 
         fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
             const handler: *const @This() = @ptrCast(@alignCast(ctx));
@@ -237,7 +237,7 @@ fn generateHTML() ![]const u8 {
             return null;
         }
     };
-    var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{ .doc = &tmdDoc, .custom = undefined };
+    var htmlGenCallback: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
     const handler = CustomHandler{
         .htmlGenCallback = &htmlGenCallback,
     };

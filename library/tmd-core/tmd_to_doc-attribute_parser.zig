@@ -789,7 +789,7 @@ pub const validTextExtensions = [_]Extension{
 
 fn hasExtension(text: []const u8, extWithoutDot: []const u8) bool {
     const index = std.mem.lastIndexOfScalar(u8, text, '.') orelse return false;
-    return std.ascii.eqlIgnoreCase(text[index+1..], extWithoutDot);
+    return std.ascii.eqlIgnoreCase(text[index + 1 ..], extWithoutDot);
 }
 
 pub fn checkValidTextExtension(text: []const u8) ?Extension {

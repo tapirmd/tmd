@@ -7,7 +7,7 @@ pub const exampleCSS = @embedFile("example.css");
 
 pub const GenOptions = @import("doc_to_html.zig").GenOptions;
 pub const GenCallback = @import("doc_to_html.zig").GenCallback;
-pub const GenCallback_HtmlBlock = @import("doc_to_html.zig").GenCallback_HtmlBlock;
+pub const HtmlBlockGenerator = @import("doc_to_html.zig").HtmlBlockGenerator;
 
 pub const parseLinkURL = @import("tmd_to_doc-attribute_parser.zig").parseLinkURL;
 pub const Extension = @import("tmd_to_doc-attribute_parser.zig").Extension;
@@ -395,11 +395,13 @@ pub const ContentStreamAttributes = struct {
 };
 
 pub const CustomBlockAttibutes = struct {
-    commentedOut: bool = false, // ToDo: use Range
-    app: []const u8 = "", // ToDo: use Range
-    //arguments: []const u8 = "", // ToDo: use Range. Should be [][]const u8? Bad idea, try to keep lib smaller.
-    // The argument is the content in the following custom block.
-    // It might be a file path.
+    commentedOut: bool = false,
+    app: []const u8 = "",
+    //arguments: []const []const u8 = "",
+    // The last argument is the content in the following custom block.
+    // ToDo: support streaming. (more arguments)
+    //       Streaming other blocks increases much implementation complexity.
+    //       Streaming file is simpler.
 };
 
 pub const MediaAttributes = struct {

@@ -149,7 +149,7 @@ fn readTheOnlyBoolArgument(arg_: ?*DocTemplate.Token.Command.Argument) !bool {
 //       files will not get cached).
 const maxCachedFileSize = 10 * 1024 * 1024;
 
-const faviconFileContent = @embedFile("favicon.jpg");
+const faviconFileContent = @embedFile("tmd-favicon.jpg");
 
 fn loadFileContent(ctx: *AppContext, r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !struct { []const u8, []const u8 } {
     const filePath = arg.value;

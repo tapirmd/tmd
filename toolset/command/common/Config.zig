@@ -30,12 +30,6 @@ pub const maxConfigFileSize = DocTemplate.maxTemplateSize + 32 * 1024;
 } = null,
 
 // For commands: to-html, run, build
-favicon: ?union(enum) {
-    path: []const u8, // relative to the containing config file
-    _parsed: []const u8, // abs path
-} = null,
-
-// For commands: to-html, run, build
 @"css-files": ?union(enum) {
     data: []const u8, // containing paths relative to the containing config file
     _parsed: list.List([]const u8), // abs paths
@@ -61,7 +55,6 @@ favicon: ?union(enum) {
 @"project-navigation-article": ?union(enum) {
     path: []const u8, // relative to project dir
 } = null,
-
 
 //====================================================
 

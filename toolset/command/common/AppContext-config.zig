@@ -13,6 +13,36 @@ pub const ConfigEx = struct {
     path: []const u8 = "", // blank is for default config etc.
 };
 
+pub fn getDirectoryConfigEx(ctx: *AppContext, absDirPath: []const u8) !*ConfigEx {
+    if (ctx._dirPathToExMap.get(absDirPath)) |ex| return ex;
+
+    const configFiles: []const []const u8 = &.{ "tmd.project", "tmd.workspace" };
+    for (configFiles) |filename| {
+        const projectFilePath = util.resolveRealPath2(absDirPath, filename, false, ctx.allocator) catch |err| {
+            if (err == error.FileNotFound) continue;
+            return err;
+        };
+        defer ctx.allocator.free(projectFilePath);
+
+        const ex = try ctx.loadTmdConfigEx(projectFilePath);
+        const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+        try ctx._dirPathToExMap.put(configDirPath, ex);
+        return ex;
+    }
+
+    if (std.fs.path.dirname(absDirPath)) |parent| {
+        const ex = try ctx.getDirectoryConfigEx(parent);
+        const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+        try ctx._dirPathToExMap.put(configDirPath, ex);
+        return ex;
+    }
+
+    const ex = &ctx._defaultConfigEx;
+    const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+    try ctx._dirPathToExMap.put(configDirPath, ex);
+    return ex;
+}
+
 pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
     var arenaAllocator: std.heap.ArenaAllocator = .init(ctx.allocator);
     defer arenaAllocator.deinit();
@@ -182,7 +212,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
                 if (tokenIt.next() != null) return error.BuiltinCustomBlockGeneratorNeedsNotArgs;
                 const appName = commandName[1..];
                 if (!std.ascii.eqlIgnoreCase(appName, "html")) return error.UnrecognizedBuiltinCustomBlockGenerator;
-                
+
                 const r = try map.getOrPut(customContentType);
                 if (r.found_existing) return error.DuplicateustomBlockGenerator;
                 r.value_ptr.* = .{ .builtin = appName };
@@ -223,17 +253,6 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
 
         htmlPageTemplate.* = .{
             ._parsed = try DocTemplate.parseTemplate(content, ownerFilePath, ctx, ctx.arenaAllocator, ctx.stderr),
-        };
-    }
-
-    if (configEx.basic.favicon) |*favicon| handle: {
-        const faviconPath = switch (favicon.*) {
-            .path => |path| path,
-            ._parsed => break :handle,
-        };
-
-        favicon.* = .{
-            ._parsed = try util.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
         };
     }
 

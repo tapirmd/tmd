@@ -7,9 +7,9 @@ const list = @import("list");
 const AppContext = @import("AppContext.zig");
 const FileIterator = @import("FileIterator.zig");
 const Project = @import("Project.zig");
-const util = @import("util.zig");
 const DocRenderer = @import("DocRenderer.zig");
-const ExternalBlockGenerator = @import("ExternalBlockGenerator.zig");
+const gen = @import("gen.zig");
+const util = @import("util.zig");
 
 pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void {
     var session: BuildSession = .init(project, ctx, .init(ctx.allocator));
@@ -250,15 +250,6 @@ const BuildSession = struct {
             std.debug.assert(index + 1 == self.imageFiles.items.len);
             self.coverImageIndex = index;
         }
-
-        if (self.project.configEx.basic.favicon) |option| {
-            const absPath = option._parsed;
-
-            const index = self.imageFiles.items.len;
-            _ = try self.tryToRegisterFile(absPath, .image);
-            std.debug.assert(index + 1 == self.imageFiles.items.len);
-            self.faviconIndex = index;
-        }
     }
 
     fn collectCssFiles(self: *@This()) !void {
@@ -328,42 +319,21 @@ const BuildSession = struct {
     }
 };
 
-const GenCallback_RelativePathWriter = struct {
-    path: []const u8,
-    relativeTo: []const u8,
-    fragment: []const u8,
-
-    pub fn gen(self: *const @This(), aw: std.io.AnyWriter) !void {
-        const n, const s = util.relativePath(self.relativeTo, self.path, '/');
-        for (0..n) |_| try aw.writeAll("../");
-        try tmd.writeUrlAttributeValue(aw, s);
-        if (self.fragment.len > 0) {
-            try tmd.writeUrlAttributeValue(aw, self.fragment);
-        }
-    }
-};
-
 const TmdGenCustomHandler = struct {
+    const MutableData = struct {
+        relativePathWriter: gen.RelativePathWriter = undefined,
+        externalBlockGenerator: gen.ExternalBlockGenerator = undefined,
+    };
+
     session: *BuildSession,
-
     tmdDocInfo: DocRenderer.TmdDocInfo,
+    mutableData: *MutableData,
 
-    relativePathWriter: *GenCallback_RelativePathWriter,
-    htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
-    externalBlockGenerator: *ExternalBlockGenerator,
-
-    fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, 
-            htmlBlockCallBack: *tmd.GenCallback_HtmlBlock,
-            rpw: *GenCallback_RelativePathWriter,
-            externalBlockGenerator: *ExternalBlockGenerator,
-    ) TmdGenCustomHandler {
+    fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, mutableData: *MutableData) TmdGenCustomHandler {
         return .{
             .session = bs,
             .tmdDocInfo = tmdDocInfo,
-
-            .htmlBlockCallBack = htmlBlockCallBack,
-            .relativePathWriter = rpw,
-            .externalBlockGenerator = externalBlockGenerator,
+            .mutableData = mutableData,
         };
     }
 
@@ -378,26 +348,7 @@ const TmdGenCustomHandler = struct {
 
     fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-
-        const generators = (handler.session.project.configEx.basic.@"custom-block-generators" orelse return null)._parsed;
-        
-        const attrs = custom.attributes();
-        const generator = generators.getPtr(attrs.app) orelse return null;
-        switch (generator.*) {
-            .builtin => |app| {
-                if (std.mem.eql(u8, app, "html")) {
-                     return handler.htmlBlockCallBack.asGenBacklback(handler.tmdDocInfo.doc, custom);
-                }
-                unreachable;
-            },
-            .external => |*external| {
-                std.debug.assert(external.argsCount > 0 and external.argsCount + 1 < external.argsArray.len);
-                const shellCommand = external.argsArray[0..external.argsCount + 1];
-                return handler.externalBlockGenerator.asGenBacklback(handler.tmdDocInfo.doc, custom, shellCommand);
-            },
-        }
-
-        return null;
+        return handler.mutableData.externalBlockGenerator.makeGenCallback(handler.session.project.configEx, handler.tmdDocInfo.doc, custom);
     }
 
     fn getLinkUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
@@ -427,8 +378,7 @@ const TmdGenCustomHandler = struct {
 
         // ToDo: standalone-html build needs different handling.
 
-        handler.relativePathWriter.* = .{ .path = targetPath, .relativeTo = handler.tmdDocInfo.targetFilePath, .fragment = fragment };
-        return .init(handler.relativePathWriter);
+        return handler.mutableData.relativePathWriter.asGenBacklback(targetPath, handler.tmdDocInfo.targetFilePath, fragment);
     }
 
     fn getMediaUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
@@ -443,8 +393,7 @@ const TmdGenCustomHandler = struct {
             else => return null,
         };
 
-        handler.relativePathWriter.* = .{ .path = targetPath, .relativeTo = handler.tmdDocInfo.targetFilePath, .fragment = "" };
-        return .init(handler.relativePathWriter);
+        return handler.mutableData.relativePathWriter.asGenBacklback(targetPath, handler.tmdDocInfo.targetFilePath, "");
     }
 };
 
@@ -590,10 +539,8 @@ pub const StaticWebsiteBuilder = struct {
 
                 const info = if (r.tmdDocInfo) |info| info else unreachable;
 
-                var relativePathWriter: GenCallback_RelativePathWriter = undefined;
-                var htmlBlockCallBack: tmd.GenCallback_HtmlBlock = undefined;
-                var externalBlockGenerator: ExternalBlockGenerator = undefined;
-                var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, info, &htmlBlockCallBack, &relativePathWriter, &externalBlockGenerator);
+                var mutableData: TmdGenCustomHandler.MutableData = undefined;
+                var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, info, &mutableData);
                 const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
 
                 try info.doc.writeHTML(r.w, genOptions, bs.appContext.allocator);
