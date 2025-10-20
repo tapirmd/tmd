@@ -10,7 +10,7 @@
 <title>{{{ page-title-in-head }}}</title>
 <link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @tmd-favicon }}">
 <style>
-{{ embed-file-content @tmd-default-css }}
+{{ embed-file-content @tmd-css-default }}
 </style>
 </head>
 <body>

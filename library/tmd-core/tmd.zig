@@ -9,13 +9,14 @@ pub const GenOptions = @import("doc_to_html.zig").GenOptions;
 pub const GenCallback = @import("doc_to_html.zig").GenCallback;
 pub const HtmlBlockGenerator = @import("doc_to_html.zig").HtmlBlockGenerator;
 
+pub const FilePathType = @import("tmd_to_doc-attribute_parser.zig").FilePathType;
+pub const checkFilePathType = @import("tmd_to_doc-attribute_parser.zig").checkFilePathType;
 pub const parseLinkURL = @import("tmd_to_doc-attribute_parser.zig").parseLinkURL;
 pub const Extension = @import("tmd_to_doc-attribute_parser.zig").Extension;
-pub const extensionMimeType = @import("tmd_to_doc-attribute_parser.zig").extensionMimeType;
-pub const validTextExtensions = &@import("tmd_to_doc-attribute_parser.zig").validTextExtensions;
-pub const checkValidTextExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidTextExtension;
-pub const validMediaExtensions = &@import("tmd_to_doc-attribute_parser.zig").validMediaExtensions;
-pub const checkValidMediaExtension = @import("tmd_to_doc-attribute_parser.zig").checkValidMediaExtension;
+pub const ExtensionInfo = @import("tmd_to_doc-attribute_parser.zig").ExtensionInfo;
+pub const extensionFromString = @import("tmd_to_doc-attribute_parser.zig").extensionFromString;
+pub const extension = @import("tmd_to_doc-attribute_parser.zig").extension;
+pub const getExtensionInfo = @import("tmd_to_doc-attribute_parser.zig").getExtensionInfo;
 
 pub const writeUrlAttributeValue = @import("doc_to_html-fns.zig").writeUrlAttributeValue;
 

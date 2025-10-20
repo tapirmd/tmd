@@ -5,9 +5,10 @@ const tmd = @import("tmd");
 const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
+const DocRenderer = @import("DocRenderer.zig");
 const FileIterator = @import("FileIterator.zig");
 const Project = @import("Project.zig");
-const DocRenderer = @import("DocRenderer.zig");
+const Config = @import("Config.zig");
 const gen = @import("gen.zig");
 const util = @import("util.zig");
 
@@ -174,7 +175,7 @@ const BuildSession = struct {
             }
 
             const index = self.articleFiles.items.len;
-            _ = try self.tryToRegisterFile(absPath, .navigationArticle);
+            _ = try self.tryToRegisterFile(.{ .local = absPath }, .navigationArticle);
             std.debug.assert(index + 1 == self.articleFiles.items.len);
             self.navArticleIndex = index;
 
@@ -197,7 +198,7 @@ const BuildSession = struct {
         //    if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
         //
         //    const path = try util.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
-        //    _ = try self.tryToRegisterFile(path, .contentArticle);
+        //    _ = try self.tryToRegisterFile(.{ .local = path }, .contentArticle);
         //    try self.collectArticle(path, tmdDocRenderer);
         //}
         //
@@ -246,9 +247,18 @@ const BuildSession = struct {
             const absPath = try util.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
 
             const index = self.imageFiles.items.len;
-            _ = try self.tryToRegisterFile(absPath, .image);
+            _ = try self.tryToRegisterFile(.{ .local = absPath }, .image);
             std.debug.assert(index + 1 == self.imageFiles.items.len);
             self.coverImageIndex = index;
+        }
+
+        if (self.project.configEx.basic.favicon) |option| {
+            const absPath = option._parsed;
+
+            const index = self.imageFiles.items.len;
+            _ = try self.tryToRegisterFile(absPath, .image);
+            std.debug.assert(index + 1 == self.imageFiles.items.len);
+            self.faviconIndex = index;
         }
     }
 
@@ -258,21 +268,33 @@ const BuildSession = struct {
 
             var element = paths.head;
             while (element) |e| {
-                const absPath = e.value;
-                _ = try self.tryToRegisterFile(absPath, .css);
+                const filePath = e.value;
+                _ = try self.tryToRegisterFile(filePath, .css);
                 element = e.next;
             }
         }
     }
 
-    fn tryToRegisterFile(self: *@This(), absPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
-        if (self.fileMapping.get(absPath)) |targetPath| return targetPath;
+    fn tryToRegisterFile(self: *@This(), filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
+        const targetPath = switch (filePath) {
+            .builtin => return error.NoteSupportedBuiltInAsset,
+            .remote => |url| url,
+            .local => |absPath| blk: {
+                if (self.fileMapping.get(absPath)) |targetPath| return targetPath;
 
-        const targetPath = try self.calTargetFilePath(self, absPath, filePurpose);
-        try self.fileMapping.put(absPath, targetPath);
+                const targetPath = try self.calTargetFilePath(self, absPath, filePurpose);
+                try self.fileMapping.put(absPath, targetPath);
+
+                switch (filePurpose) {
+                    .navigationArticle, .contentArticle => try self.articleFiles.append(absPath),
+                    else => {}, // handle below
+                }
+                break :blk targetPath;
+            },
+        };
 
         switch (filePurpose) {
-            .navigationArticle, .contentArticle => try self.articleFiles.append(absPath),
+            .navigationArticle, .contentArticle => {}, // handled above
             //.html => try self.htmlFiles.append(targetPath),
             .image => try self.imageFiles.append(targetPath),
             .css => {
@@ -281,20 +303,50 @@ const BuildSession = struct {
             },
         }
 
-        if (targetPath.len <= 256) std.debug.print(
-            \\[register] {s}: {s}
-            \\    -> {s}
-            \\
-        , .{ @tagName(filePurpose), absPath, targetPath }) else std.debug.print(
-            \\[register] {s}: {s}
-            \\    -> {s} ({} bytes)
-            \\
-        , .{ @tagName(filePurpose), absPath, targetPath[0..64], targetPath.len });
+        if (builtin.mode == .Debug) {
+            switch (filePath) {
+                .remote => |url| {
+                    std.debug.print(
+                        \\[register] {s}: {s}
+                        \\
+                    , .{ @tagName(filePurpose), url });
+                },
+                .local => |absPath| {
+                    if (targetPath.len <= 256) std.debug.print(
+                        \\[register] {s}: {s}
+                        \\    -> {s}
+                        \\
+                    , .{ @tagName(filePurpose), absPath, targetPath }) else std.debug.print(
+                        \\[register] {s}: {s}
+                        \\    -> {s} ({} bytes)
+                        \\
+                    , .{ @tagName(filePurpose), absPath, targetPath[0..64], targetPath.len });
+                },
+                .builtin => {},
+            }
+        }
 
         return targetPath;
     }
 
-    fn writeAssetElementLinksInHead(self: *@This(), w: anytype, docTargetFilePath: []const u8) !void {
+    fn writeAssetElementLinksInHead(self: *@This(), w: anytype, docTargetFilePath: []const u8, sep: u8) !void {
+        if (self.faviconIndex) |index| {
+            const imageFilePath = self.imageFiles.items[index];
+
+            try w.writeAll(
+                \\<link rel="icon" href="
+            );
+
+            const n, const s = util.relativePath(docTargetFilePath, imageFilePath, sep);
+            for (0..n) |_| try w.writeAll("../");
+            try tmd.writeUrlAttributeValue(w, s);
+
+            try w.writeAll(
+                \\">
+                \\
+            );
+        }
+
         if (self.cssFiles.head) |head| {
             var element = head;
             while (true) {
@@ -305,12 +357,13 @@ const BuildSession = struct {
                     \\<link href="
                 );
 
-                const n, const s = util.relativePath(docTargetFilePath, cssFilePath, '/');
+                const n, const s = util.relativePath(docTargetFilePath, cssFilePath, sep);
                 for (0..n) |_| try w.writeAll("../");
                 try tmd.writeUrlAttributeValue(w, s);
 
                 try w.writeAll(
                     \\" rel="stylesheet">
+                    \\
                 );
 
                 if (next) |nxt| element = nxt else break;
@@ -362,12 +415,12 @@ const TmdGenCustomHandler = struct {
                         std.debug.assert(v.isTmdFile());
 
                         const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
-                        break :blk .{ try handler.session.tryToRegisterFile(absPath, .contentArticle), url.fragment };
+                        break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .contentArticle), url.fragment };
                     },
-                    .txt, .html, .htm, .xhtml => @panic("ToDo"),
+                    .txt, .html, .htm, .xhtml, .css, .js => @panic("ToDo"),
                     .png, .gif, .jpg, .jpeg => {
                         const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
-                        break :blk .{ try handler.session.tryToRegisterFile(absPath, .image), "" };
+                        break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .image), "" };
                     },
                 };
 
@@ -388,7 +441,7 @@ const TmdGenCustomHandler = struct {
         const targetPath = switch (url.manner) {
             .relative => blk: {
                 const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
-                break :blk try handler.session.tryToRegisterFile(absPath, .image);
+                break :blk try handler.session.tryToRegisterFile(.{ .local = absPath }, .image);
             },
             else => return null,
         };
@@ -521,20 +574,20 @@ pub const StaticWebsiteBuilder = struct {
         const T = struct {
             fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
-                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath);
+                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath, std.fs.path.sep);
             }
 
             fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
 
-                if (r.tmdDocInfo) |info| {
-                    if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
-                }
-                try r.w.writeAll("Untitled");
+                const info = if (r.tmdDocInfo) |info| info else unreachable;
+
+                if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
+                try r.w.writeAll("Untitled"); // ToDo: localization
             }
 
-            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+            fn pageContentInBodyCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
 
                 const info = if (r.tmdDocInfo) |info| info else unreachable;
@@ -551,7 +604,7 @@ pub const StaticWebsiteBuilder = struct {
             .owner = session,
             .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
             .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
-            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+            .pageContentInBodyCallback = T.pageContentInBodyCallback,
         };
     }
 
@@ -636,7 +689,7 @@ pub const EpubBuilder = struct {
         const T = struct {
             fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
-                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath);
+                try bs.writeAssetElementLinksInHead(r.w, r.tmdDocInfo.?.targetFilePath, '/');
             }
 
             fn pageTitleInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
@@ -649,7 +702,7 @@ pub const EpubBuilder = struct {
                 try r.w.writeAll("Untitled");
             }
 
-            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+            fn pageContentInBodyCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
                 _ = r;
@@ -660,7 +713,7 @@ pub const EpubBuilder = struct {
             .owner = session,
             .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
             .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
-            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+            .pageContentInBodyCallback = T.pageContentInBodyCallback,
         };
     }
 
@@ -694,7 +747,10 @@ pub const StandaloneHtmlBuilder = struct {
                 const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxImageFileSize } }, session.appContext.stderr);
                 defer session.appContext.allocator.free(content);
 
-                const targetPath = try util.buildEmbeddedImageHref(std.fs.path.extension(sourceAbsPath), content, session.arenaAllocator);
+                const ext = tmd.extension(sourceAbsPath) orelse return error.InvalidImageExtension;
+                const info = tmd.getExtensionInfo(ext);
+                if (!info.isImage) return error.NotImageExtension;
+                const targetPath = try util.buildEmbeddedImageHref(ext, content, session.arenaAllocator);
                 if (session.targetFileContents.get(targetPath)) |_| return targetPath;
 
                 //try session.targetFileContents.put(targetPath, "");
@@ -737,7 +793,7 @@ pub const StandaloneHtmlBuilder = struct {
                 _ = r;
             }
 
-            fn pageContentInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
+            fn pageContentInBodyCallback(owner: *anyopaque, r: *const DocRenderer) !void {
                 const bs: *BuildSession = @ptrCast(@alignCast(owner));
                 _ = bs;
                 _ = r;
@@ -748,7 +804,7 @@ pub const StandaloneHtmlBuilder = struct {
             .owner = session,
             .assetElementsInHeadCallback = T.assetElementsInHeadCallback,
             .pageTitleInHeadCallback = T.pageTitleInHeadCallback,
-            .pageContentInHeadCallback = T.pageContentInHeadCallback,
+            .pageContentInBodyCallback = T.pageContentInBodyCallback,
         };
     }
 

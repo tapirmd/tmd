@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const tmd = @import("tmd");
 const list = @import("list");
@@ -13,34 +14,80 @@ pub const ConfigEx = struct {
     path: []const u8 = "", // blank is for default config etc.
 };
 
-pub fn getDirectoryConfigEx(ctx: *AppContext, absDirPath: []const u8) !*ConfigEx {
-    if (ctx._dirPathToExMap.get(absDirPath)) |ex| return ex;
+pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !struct { *ConfigEx, []const u8 } {
+    if (ctx1._dirPathToConfigAndRootMap.get(absDirPath1)) |info| return .{ info.configEx, info.rootPath };
 
-    const configFiles: []const []const u8 = &.{ "tmd.project", "tmd.workspace" };
-    for (configFiles) |filename| {
-        const projectFilePath = util.resolveRealPath2(absDirPath, filename, false, ctx.allocator) catch |err| {
-            if (err == error.FileNotFound) continue;
-            return err;
-        };
-        defer ctx.allocator.free(projectFilePath);
+    const ConfigAndRoot = @TypeOf(ctx1._dirPathToConfigAndRootMap.get(absDirPath1).?); // yes, not crash.
 
-        const ex = try ctx.loadTmdConfigEx(projectFilePath);
-        const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
-        try ctx._dirPathToExMap.put(configDirPath, ex);
-        return ex;
-    }
+    const T = struct {
+        fn confirmDirectoryConfigAndRoot(ctx: *AppContext, absDirPath: []const u8, isFirstPath: bool) !?ConfigAndRoot {
+            if (isFirstPath) {
+                if (builtin.mode == .Debug) {
+                    std.debug.assert(ctx._dirPathToConfigAndRootMap.get(absDirPath) == null);
+                }
+            } else if (ctx._dirPathToConfigAndRootMap.get(absDirPath)) |info| {
+                if (info.configEx == &ctx._defaultConfigEx) return null else return info;
+            }
 
-    if (std.fs.path.dirname(absDirPath)) |parent| {
-        const ex = try ctx.getDirectoryConfigEx(parent);
-        const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
-        try ctx._dirPathToExMap.put(configDirPath, ex);
-        return ex;
-    }
+            const workspaceConfigEx = blk: {
+                const workspaceFilePath = util.resolveRealPath2(absDirPath, "tmd.workspace", false, ctx.allocator) catch |err| {
+                    if (err != error.FileNotFound) return err;
+                    break :blk null;
+                };
+                defer ctx.allocator.free(workspaceFilePath);
+                break :blk try ctx.loadTmdConfigEx(workspaceFilePath);
+            };
 
-    const ex = &ctx._defaultConfigEx;
-    const configDirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
-    try ctx._dirPathToExMap.put(configDirPath, ex);
-    return ex;
+            const projectConfigEx = blk: {
+                const projectFilePath = util.resolveRealPath2(absDirPath, "tmd.project", false, ctx.allocator) catch |err| {
+                    if (err != error.FileNotFound) return err;
+                    break :blk null;
+                };
+                defer ctx.allocator.free(projectFilePath);
+                break :blk try ctx.loadTmdConfigEx(projectFilePath);
+            };
+
+            const configAndRoot = if (workspaceConfigEx) |workspaceEx| blk: {
+                ctx.mergeTmdConfig(&workspaceEx.basic, &ctx._defaultConfigEx.basic);
+                const rootPath = std.fs.path.dirname(workspaceEx.path).?;
+                if (projectConfigEx) |projectEx| {
+                    ctx.mergeTmdConfig(&projectEx.basic, &workspaceEx.basic);
+                    break :blk .{ projectEx, rootPath };
+                }
+                break :blk .{ workspaceEx, rootPath };
+            } else if (std.fs.path.dirname(absDirPath)) |parentDir| blk: {
+                if (try confirmDirectoryConfigAndRoot(ctx, parentDir, false)) |info| {
+                    if (projectConfigEx) |projectEx| {
+                        ctx.mergeTmdConfig(&projectEx.basic, &info.configEx.basic);
+                        break :blk .{ projectEx, info.rootPath };
+                    } else break :blk .{ info.configEx, info.rootPath };
+                } else if (projectConfigEx) |projectEx| {
+                    const rootPath = std.fs.path.dirname(projectEx.path).?;
+                    break :blk .{ projectEx, rootPath };
+                } else break :blk null;
+            } else if (projectConfigEx) |projectEx| blk: {
+                const rootPath = std.fs.path.dirname(projectEx.path).?;
+                break :blk .{ projectEx, rootPath };
+            } else null;
+
+            if (configAndRoot) |info| {
+                const configEx, const rootPath = info;
+                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+                try ctx._dirPathToConfigAndRootMap.put(dirPath, .{ .configEx = configEx, .rootPath = rootPath });
+                return .{ .configEx = configEx, .rootPath = rootPath };
+            } else if (isFirstPath) {
+                std.debug.assert(workspaceConfigEx == null and projectConfigEx == null);
+
+                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+                const configEx = &ctx._defaultConfigEx;
+                try ctx._dirPathToConfigAndRootMap.put(dirPath, .{ .configEx = configEx, .rootPath = dirPath });
+                return .{ .configEx = configEx, .rootPath = dirPath };
+            } else return null;
+        }
+    };
+
+    const info = (try T.confirmDirectoryConfigAndRoot(ctx1, absDirPath1, true)).?;
+    return .{ info.configEx, info.rootPath };
 }
 
 pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
@@ -187,6 +234,20 @@ pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config
     }
 }
 
+fn parseFilePath(ctx: *AppContext, configEx: *ConfigEx, path: []const u8) !Config.FilePath {
+    switch (tmd.checkFilePathType(path)) {
+        .remote => return .{ .remote = path },
+        .local => {
+            if (std.mem.startsWith(u8, path, "@") and std.fs.path.extension(path).len == 0)
+                return .{ .builtin = path };
+
+            const absPath = try util.resolvePathFromFilePath(configEx.path, path, true, ctx.arenaAllocator);
+            return .{ .local = absPath };
+        },
+        .invalid => return error.InvalidFilePath,
+    }
+}
+
 fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
     if (configEx.basic.@"custom-block-generators") |*customBlockGenerators| handle: {
         const configData = switch (customBlockGenerators.*) {
@@ -256,22 +317,34 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         };
     }
 
+    if (configEx.basic.favicon) |*favicon| handle: {
+        const faviconPath = switch (favicon.*) {
+            .path => |path| path,
+            ._parsed => break :handle,
+        };
+
+        favicon.* = .{
+            ._parsed = try parseFilePath(ctx, configEx, faviconPath),
+        };
+    }
+
     if (configEx.basic.@"css-files") |*cssFiles| handle: {
         const cssFilesData = switch (cssFiles.*) {
             .data => |data| std.mem.trim(u8, data, " \t\r\n"),
             ._parsed => break :handle,
         };
 
-        var paths = list.List([]const u8){};
+        var paths = list.List(Config.FilePath){};
         // errdefer path.destroy(nil, ctx.arenaAllocator);
 
         var it = std.mem.tokenizeAny(u8, cssFilesData, "\n");
         while (it.next()) |item| {
             const line = std.mem.trim(u8, item, " \t\r");
             if (line.len == 0) continue;
-            const path = try util.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
+            const filePath = try parseFilePath(ctx, configEx, line);
+
             const element = try paths.createElement(ctx.arenaAllocator, true);
-            element.value = path;
+            element.value = filePath;
         }
 
         cssFiles.* = .{

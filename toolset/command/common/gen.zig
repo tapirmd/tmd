@@ -1,8 +1,10 @@
 const std = @import("std");
 
 const tmd = @import("tmd");
+const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
+const config = @import("Config.zig");
 const util = @import("util.zig");
 
 pub const RelativePathWriter = struct {
@@ -130,5 +132,7 @@ pub const ExternalBlockGenerator = struct {
                 });
             },
         }
+
+        comptime unreachable;
     }
 };

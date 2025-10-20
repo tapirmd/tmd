@@ -4,6 +4,7 @@ const tmd = @import("tmd");
 
 const AppContext = @import("AppContext.zig");
 const DocTemplate = @import("DocTemplate.zig");
+const config = @import("Config.zig");
 const util = @import("util.zig");
 
 const DocRenderer = @This();
@@ -34,10 +35,13 @@ pub fn render(r: *DocRenderer, w: anytype, docInfo: ?TmdDocInfo) !void {
 }
 
 pub const Callbacks = struct {
-    owner: *anyopaque,
-    assetElementsInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
-    pageTitleInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
-    pageContentInHeadCallback: *const fn (*anyopaque, *const DocRenderer) anyerror!void,
+    // must be valid value if any of the following callback is not null.
+    owner: *anyopaque = undefined,
+
+    urlInAttributeCallback: ?*const fn (*anyopaque, *const DocRenderer, config.FilePath) anyerror!void = null,
+    assetElementsInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
+    pageTitleInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
+    pageContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
 
     // nav-content-in-body
 
@@ -52,15 +56,15 @@ pub const TmdDocInfo = struct {
 
 // as DocTemplate render context.
 
-pub fn onTemplateText(r: *const @This(), text: []const u8) !void {
+pub fn onTemplateText(r: *const DocRenderer, text: []const u8) !void {
     try r.w.writeAll(text);
 }
 
-pub fn onTemplateTag(_: *const @This(), tag: DocTemplate.Token.Tag) !void {
+pub fn onTemplateTag(_: *const DocRenderer, tag: DocTemplate.Token.Tag) !void {
     _ = tag;
 }
 
-pub fn onTemplateCommand(r: *const @This(), command: DocTemplate.Token.Command) !void {
+pub fn onTemplateCommand(r: *const DocRenderer, command: DocTemplate.Token.Command) !void {
     const FunctionType = fn (r: *const DocRenderer, cmdName: []const u8, args: ?*DocTemplate.Token.Command.Argument) anyerror!void;
     const func: *const FunctionType = @ptrCast(@alignCast(command.obj));
 
@@ -69,27 +73,77 @@ pub fn onTemplateCommand(r: *const @This(), command: DocTemplate.Token.Command) 
 }
 
 const TemplateFunctions = struct {
-    pub fn @"local-file-url"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
-        _ = r;
-        _ = args;
+    pub fn @"url-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
+        if (args == null) {
+            try r.ctx.stderr.print("function [url-in-attribute] needs at least one argument.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        }
+
+        // Default implementation
+
+        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
+        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
+
+        if (r.callbackConfig.urlInAttributeCallback) |callback| {
+            try callback(r.callbackConfig.owner, r, filePath);
+            return;
+        }
+
+        switch (filePath) {
+            .builtin => return error.BuiltinAssetHasNoPath,
+            .remote => |url| {
+                try tmd.writeUrlAttributeValue(r.w, url);
+            },
+            .local => |absPath| {
+                var buffer: [std.fs.max_path_bytes]u8 = undefined;
+                const path = try util.validatePathToPosixPathIntoBuffer(absPath, buffer[0..]);
+                try tmd.writeUrlAttributeValue(r.w, path);
+            },
+        }
     }
 
     pub fn @"asset-elements-in-head"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
-        try r.callbackConfig.assetElementsInHeadCallback(r.callbackConfig.owner, r);
+        if (r.callbackConfig.assetElementsInHeadCallback) |callback| {
+            try callback(r.callbackConfig.owner, r);
+            return;
+        }
+
+        // Default implementation
+
+        unreachable;
     }
 
     pub fn @"page-title-in-head"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
-        try r.callbackConfig.pageTitleInHeadCallback(r.callbackConfig.owner, r);
+        if (r.callbackConfig.pageTitleInHeadCallback) |callback| {
+            try callback(r.callbackConfig.owner, r);
+            return;
+        }
+
+        // Default implementation
+
+        if (r.tmdDocInfo) |info| {
+            if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
+        }
+        try r.w.writeAll("Untitled"); // ToDo: localization
     }
 
     pub fn @"page-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
-        try r.callbackConfig.pageContentInHeadCallback(r.callbackConfig.owner, r);
+        if (r.callbackConfig.pageContentInBodyCallback) |callback| {
+            try callback(r.callbackConfig.owner, r);
+            return;
+        }
+
+        // Default implementation
+
+        const tmdDocInfo = if (r.tmdDocInfo) |info| info else return;
+
+        try tmdDocInfo.doc.writeHTML(r.w, .{}, r.ctx.allocator);
     }
 
     pub fn @"nav-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
@@ -104,11 +158,10 @@ const TemplateFunctions = struct {
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const arg = args.?;
-        const content, _ = try loadFileContent(r.ctx, r, arg);
-        try r.w.writeAll(content);
+        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
+        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
 
-        if (arg.next != null) return error.TooManyTemplateFunctionArguments;
+        try r.ctx.writeFile(r.w, filePath, null, true);
     }
 
     pub fn @"base64-encode"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
@@ -117,11 +170,10 @@ const TemplateFunctions = struct {
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const arg = args.?;
-        const content = try base64FileContent(r.ctx, r, arg);
-        try r.w.writeAll(content);
+        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
+        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
 
-        if (arg.next != null) return error.TooManyTemplateFunctionArguments;
+        try r.ctx.writeFile(r.w, filePath, .base64, true);
     }
 };
 
@@ -144,55 +196,23 @@ fn readTheOnlyBoolArgument(arg_: ?*DocTemplate.Token.Command.Argument) !bool {
     return true;
 }
 
-// ToDo: we should only cache files <= a threshold size,
-//       and allow even more larger files (but those large
-//       files will not get cached).
-const maxCachedFileSize = 10 * 1024 * 1024;
-
-const faviconFileContent = @embedFile("tmd-favicon.jpg");
-
-fn loadFileContent(ctx: *AppContext, r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !struct { []const u8, []const u8 } {
-    const filePath = arg.value;
+fn getFilePath(ctx: *AppContext, r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !struct { config.FilePath, bool } {
+    const assetPath = arg.value;
     const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
     const relativeToPath = if (relativeToFinalConfigFile) r.configEx.path else r.template.ownerFilePath;
 
-    const absFilePath = if (std.mem.startsWith(u8, filePath, "@")) filePath else try util.resolvePathFromFilePath(relativeToPath, filePath, true, ctx.arenaAllocator);
-
-    if (std.mem.startsWith(u8, absFilePath, "@")) {
-        const asset = absFilePath[1..];
-        const content = if (std.mem.eql(u8, asset, "tmd-default-css")) tmd.exampleCSS else if (std.mem.eql(u8, asset, "tmd-favicon")) faviconFileContent else {
-            try ctx.stderr.print("unknown asset: {s}\n", .{asset});
-            return error.UnknownBuiltinAsset;
-        };
-
-        return .{ content, absFilePath };
-    }
-
-    const cacheKey: AppContext.ContentKey = .{
-        .op = .none,
-        .path = absFilePath,
+    const filePath: config.FilePath, const hasMoreArgs = switch (tmd.checkFilePathType(assetPath)) {
+        .remote => .{ .{ .remote = assetPath }, arg.next != null },
+        .local => blk: {
+            const filePath: config.FilePath = if (std.mem.startsWith(u8, assetPath, "@") and std.fs.path.extension(assetPath).len == 0)
+                .{ .builtin = assetPath }
+            else
+                .{ .local = try util.resolvePathFromFilePath(relativeToPath, assetPath, true, ctx.arenaAllocator) };
+            const hasMoreArgs = if (arg.next) |a| a.next != null else false;
+            break :blk .{ filePath, hasMoreArgs };
+        },
+        .invalid => return error.InvalidFilePath,
     };
-    if (ctx._cachedContents.get(cacheKey)) |content| return .{ content, absFilePath };
 
-    const content = try util.readFile(null, absFilePath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = maxCachedFileSize } }, ctx.stderr);
-    try ctx._cachedContents.put(cacheKey, content);
-    return .{ content, absFilePath };
-}
-
-fn base64FileContent(ctx: *AppContext, r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) ![]const u8 {
-    const fileContent, const absFilePath = try loadFileContent(ctx, r, arg);
-
-    const cacheKey: AppContext.ContentKey = .{
-        .op = .base64,
-        .path = absFilePath,
-    };
-    if (ctx._cachedContents.get(cacheKey)) |content| return content;
-
-    const encoder = std.base64.standard_no_pad.Encoder;
-    const encoded_len = encoder.calcSize(fileContent.len);
-    const encoded = try ctx.arenaAllocator.alloc(u8, encoded_len);
-    _ = encoder.encode(encoded, fileContent);
-
-    try ctx._cachedContents.put(cacheKey, encoded);
-    return encoded;
+    return .{ filePath, hasMoreArgs };
 }

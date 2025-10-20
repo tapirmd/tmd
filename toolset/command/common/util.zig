@@ -81,7 +81,7 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 
     if (needValidatePath) {
         var buffer: [std.fs.max_path_bytes]u8 = undefined;
-        const validPathToResolve = validatePath(pathToResolve, buffer[0..]);
+        const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);
 
         return try dir.realpathAlloc(allocator, validPathToResolve);
     }
@@ -93,7 +93,7 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
     if (needValidate) {
         var buffer: [std.fs.max_path_bytes]u8 = undefined;
-        const validPathToResolve = validatePath(pathToResolve, buffer[0..]);
+        const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);
         return try std.fs.realpathAlloc(allocator, validPathToResolve);
     }
 
@@ -103,13 +103,13 @@ pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator:
 // absFilePath should be already validated.
 pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
-    //const validFilePath = validatePath(absFilePath, buffer1[0..]);
+    //const validFilePath = try validatePathIntoBuffer(absFilePath, buffer1[0..]);
     //const absDirPath = std.fs.path.dirname(validFilePath) orelse return error.NotFilePath;
     const absDirPath = std.fs.path.dirname(absFilePath) orelse return error.NotFilePath;
 
     if (needValidatePath) {
         var buffer2: [std.fs.max_path_bytes]u8 = undefined;
-        const validPathToResolve = validatePath(pathToResolve, buffer2[0..]);
+        const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer2[0..]);
         return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
     }
 
@@ -119,19 +119,30 @@ pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u
 // absDirPath should be already validated.
 pub fn resolvePathFromAbsDirPath(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
-    //const validDirPath = validatePath(absDirPath, buffer1[0..]);
+    //const validDirPath = try validatePathIntoBuffer(absDirPath, buffer1[0..]);
 
     if (needValidatePath) {
         var buffer2: [std.fs.max_path_bytes]u8 = undefined;
-        const validPathToResolve = validatePath(pathToResolve, buffer2[0..]);
+        const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer2[0..]);
         return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
     }
 
     return try std.fs.path.resolve(allocator, &.{ absDirPath, pathToResolve });
 }
 
-pub fn validatePath(pathToValidate: []const u8, buffer: []u8) []const u8 {
-    const sep = std.fs.path.sep;
+pub fn validatePathIntoBuffer(pathToValidate: []const u8, buffer: []u8) ![]const u8 {
+    return _validatePathIntoBuffer(pathToValidate, buffer, std.fs.path.sep);
+}
+
+pub fn validatePathToPosixPathIntoBuffer(pathToValidate: []const u8, buffer: []u8) ![]const u8 {
+    return _validatePathIntoBuffer(pathToValidate, buffer, std.fs.path.sep_posix);
+}
+
+fn _validatePathIntoBuffer(pathToValidate: []const u8, buffer: []u8, comptime sep: u8) ![]const u8 {
+    if (pathToValidate.len > buffer.len) {
+        return error.ValidatedPathTooLong;
+    }
+
     const non_sep = if (sep == '/') '\\' else '/';
 
     std.debug.assert(pathToValidate.len <= buffer.len);
@@ -172,7 +183,7 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
 // validatedPath uses OS specified seperator.
 pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]u8 {
     const out = try std.mem.concat(allocator, u8, &.{ prefix, validatedPath, suffix });
-    if (std.fs.path.sep != std.fs.path.sep_posix) {
+    if (std.fs.path.sep != '/') {
         std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
     }
     return out;
@@ -276,14 +287,8 @@ pub fn buildAssetFilePath(folder: []const u8, sep: u8, fileBasename: []const u8,
 }
 
 // e.g.: data:image/jpeg;base64,<BASE64-string>
-pub fn buildEmbeddedImageHref(fileExtension: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
-    var buffer: [64]u8 = undefined;
-    if (fileExtension.len > buffer.len) return error.ExtensionTooLong;
-
-    const ext = std.ascii.lowerString(&buffer, fileExtension);
-    const extType = std.meta.stringToEnum(tmd.Extension, ext) orelse return error.UnsuportedFileFormat;
-    _ = std.mem.indexOfScalar(tmd.Extension, tmd.validMediaExtensions, extType) orelse return error.UnsuportedMediaFormat;
-    const imageMimeType = tmd.extensionMimeType(extType);
+pub fn buildEmbeddedImageHref(extType: tmd.Extension, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+    const imageMimeType = tmd.getExtensionInfo(extType).mime;
 
     const prefix = "data:";
     const middle = ";base64,";
@@ -332,21 +337,20 @@ pub fn findCommonPaths(a: []const u8, b: []const u8, sep: u8) []const u8 {
     }
 }
 
-// relative path of b to a
-pub fn relativePath(a: []const u8, b: []const u8, sep: u8) struct { usize, []const u8 } {
-    const c = findCommonPaths(a, b, sep);
-    const d = if (c.len > a.len) blk: {
-        std.debug.assert(c.len == a.len + 1 and c[a.len] == sep);
-        break :blk a;
-    } else a[c.len..];
+pub fn relativePath(relativeTo: []const u8, path: []const u8, sep: u8) struct { usize, []const u8 } {
+    const c = findCommonPaths(relativeTo, path, sep);
+    const d = if (c.len > relativeTo.len) blk: {
+        std.debug.assert(c.len == relativeTo.len + 1 and c[relativeTo.len] == sep);
+        break :blk relativeTo;
+    } else relativeTo[c.len..];
 
     var n: usize = 0;
     for (d) |r| {
         if (r == sep) n += 1;
     }
-    if (c.len > b.len) {
-        std.debug.assert(c.len == b.len + 1 and c[b.len] == sep);
+    if (c.len > path.len) {
+        std.debug.assert(c.len == path.len + 1 and c[path.len] == sep);
         return .{ n, "" };
     }
-    return .{ n, b[c.len..] };
+    return .{ n, path[c.len..] };
 }
