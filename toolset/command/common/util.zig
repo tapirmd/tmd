@@ -75,6 +75,8 @@ pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
 // dirPath should be already validated.
 // If dirPath is relative, then it is relative to cwd.
 // If pathToResolve is relative, then it is relative to dirPath.
+// This function errors if the resolved path doesn't exit.
+// The result is an absolute path.
 pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
     var dir = try std.fs.cwd().openDir(dirPath, .{});
     defer dir.close();
@@ -90,6 +92,8 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 }
 
 // If pathToResolve is relative, then it is relative to cwd.
+// This function errors if the resolved path doesn't exit.
+// The result is an absolute path.
 pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
     if (needValidate) {
         var buffer: [std.fs.max_path_bytes]u8 = undefined;
@@ -101,6 +105,8 @@ pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator:
 }
 
 // absFilePath should be already validated.
+// This function doesn't error if the resolved path doesn't exit.
+// The result might be not an absolute path.
 pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     //const validFilePath = try validatePathIntoBuffer(absFilePath, buffer1[0..]);
@@ -117,6 +123,8 @@ pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u
 }
 
 // absDirPath should be already validated.
+// This function doesn't error if the resolved path doesn't exit.
+// The result might be not an absolute path.
 pub fn resolvePathFromAbsDirPath(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     //const validDirPath = try validatePathIntoBuffer(absDirPath, buffer1[0..]);

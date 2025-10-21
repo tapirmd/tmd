@@ -80,7 +80,9 @@ fn build(ctx: *AppContext, args: []const []const u8, builder: anytype) !void {
         const result = try ctx.regOrGetProject(path);
 
         switch (result) {
-            .invalid => try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path}),
+            .invalid => {
+                //try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
+            },
             .registered => {},
             .new => |project| try project.build(ctx, builder),
         }

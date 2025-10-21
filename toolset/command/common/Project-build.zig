@@ -417,7 +417,10 @@ const TmdGenCustomHandler = struct {
                         const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
                         break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .contentArticle), url.fragment };
                     },
-                    .txt, .html, .htm, .xhtml, .css, .js => @panic("ToDo"),
+                    .txt, .html, .htm, .xhtml, .css, .js => {
+                        std.debug.print(">>> url.base={s}\n", .{url.base});
+                        @panic("ToDo");
+                    },
                     .png, .gif, .jpg, .jpeg => {
                         const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
                         break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .image), "" };

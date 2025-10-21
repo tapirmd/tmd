@@ -16,7 +16,7 @@ arenaAllocator: std.mem.Allocator = undefined,
 _defaultConfigEx: ConfigEx = .{},
 _configPathToProjectMap: std.StringHashMap(*Project) = undefined,
 _configPathToExMap: std.StringHashMap(ConfigEx) = undefined,
-_dirPathToConfigAndRootMap: std.StringHashMap(struct { configEx: *ConfigEx, rootPath: []const u8 }) = undefined,
+_dirPathToConfigAndRootMap: std.StringHashMap(struct { configEx: *ConfigEx, rootConfigEx: *ConfigEx, rootPath: []const u8 }) = undefined,
 _templateFunctions: std.StringHashMap(*const anyopaque) = undefined,
 _cachedContents: std.HashMap(ContentCacheKey, []const u8, FileCacheKeyContext, 16) = undefined,
 

@@ -5,9 +5,10 @@ const Project = @import("Project.zig");
 const util = @import("util.zig");
 
 pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { invalid: void, registered: *Project, new: *Project } {
-    const path = util.resolveRealPath(dirOrConfigPath, true, ctx.arenaAllocator) catch |err| {
-        try ctx.stderr.print("Path ({s}) is bad. Resolve error: {s}.\n", .{ dirOrConfigPath, @errorName(err) });
-        return .invalid;
+    const path = blk: {
+        const path = try util.resolvePathFromAbsDirPath(".", dirOrConfigPath, true, ctx.allocator);
+        defer ctx.allocator.free(path);
+        break :blk try util.resolveRealPath(path, false, ctx.arenaAllocator);
     };
 
     const stat = std.fs.cwd().statFile(path) catch |err| {
@@ -40,31 +41,11 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         return .{ .registered = project };
     }
 
-    const workspaceConfigEx, const workspacePath = blk: {
-        var dir = projectDir;
-        while (true) {
-            const workspaceConfigPath = util.resolveRealPath2(dir, "tmd.workspace", false, ctx.arenaAllocator) catch {
-                dir = std.fs.path.dirname(dir) orelse break :blk .{ null, projectDir };
-                continue;
-            };
-            const configEx = try ctx.loadTmdConfigEx(workspaceConfigPath);
-            break :blk .{ configEx, dir };
-        }
-    };
-
-    const projectConfigEx = if (std.mem.eql(u8, configPath, projectDir)) blk: {
-        if (workspaceConfigEx) |wsConfigEx| {
-            const configEx = try ctx.arenaAllocator.create(AppContext.ConfigEx);
-            configEx.* = wsConfigEx.*;
-            ctx.mergeTmdConfig(&configEx.basic, &ctx._defaultConfigEx.basic);
-            break :blk configEx;
-        } else break :blk &ctx._defaultConfigEx;
-    } else blk: {
-        const unmerged = try ctx.loadTmdConfigEx(configPath);
-        const configEx = try ctx.arenaAllocator.create(AppContext.ConfigEx);
-        configEx.* = unmerged.*;
-        if (workspaceConfigEx) |wsConfigEx| ctx.mergeTmdConfig(&configEx.basic, &wsConfigEx.basic);
-        ctx.mergeTmdConfig(&configEx.basic, &ctx._defaultConfigEx.basic);
+    const projectDefaultConfigEx, const workspacePath, const workspaceConfigEx = try ctx.getDirectoryConfigAndRoot(projectDir);
+    const projectConfigEx = if (projectDir.len == configPath.len) projectDefaultConfigEx else blk: {
+        const configEx = try ctx.loadTmdConfigEx(configPath);
+        const baseEx = if (workspacePath.len == projectDir.len) &ctx._defaultConfigEx else workspaceConfigEx;
+        ctx.mergeTmdConfig(&configEx.basic, &baseEx.basic);
         break :blk configEx;
     };
 
@@ -80,7 +61,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
     return .{ .new = project };
 }
 
-pub const buildOutputDirname = "@tmd-build-workspace";
+pub const buildOutputDirname = "@tmd-build";
 
 pub fn excludeSpecialDir(dir: []const u8) bool {
     return !std.mem.eql(u8, dir, buildOutputDirname);

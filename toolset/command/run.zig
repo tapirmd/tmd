@@ -36,7 +36,9 @@ pub const Runner = struct {
 
         const result = try ctx.regOrGetProject(path);
         switch (result) {
-            .invalid => try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path}),
+            .invalid => {
+                try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
+            },
             .registered => unreachable,
             .new => |project| try project.run(ctx),
         }

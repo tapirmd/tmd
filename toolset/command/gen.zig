@@ -117,7 +117,7 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     const dirPath = std.fs.path.dirname(absFilePath) orelse unreachable;
 
-    const configEx, _ = try ctx.getDirectoryConfigAndRoot(dirPath);
+    const configEx, _, _ = try ctx.getDirectoryConfigAndRoot(dirPath);
 
     // load file
 
