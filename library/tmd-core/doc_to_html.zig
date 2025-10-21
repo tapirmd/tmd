@@ -17,11 +17,11 @@ pub fn write_doc_title_in_html_head(writer: anytype, tmdDoc: *const tmd.Doc) !bo
     return try r.writeTitleInHtmlHead(writer);
 }
 
-pub const GenCallback_HtmlBlock = struct {
+pub const HtmlBlockGenerator = struct {
     doc: *const tmd.Doc,
     custom: *const tmd.BlockType.Custom,
 
-    pub fn gen(self: *const GenCallback_HtmlBlock, w: std.io.AnyWriter) !void {
+    pub fn gen(self: *const HtmlBlockGenerator, w: std.io.AnyWriter) !void {
         var line = self.custom.startDataLine() orelse return;
         const endDataLine = self.custom.endDataLine().?;
         std.debug.assert(endDataLine.lineType == .data);
@@ -36,9 +36,9 @@ pub const GenCallback_HtmlBlock = struct {
             line = line.next() orelse unreachable;
         }
     }
-    
-    pub fn asGenBacklback(self: *GenCallback_HtmlBlock, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) render.GenCallback {
-        self.* = .{.doc = doc, .custom = custom};
+
+    pub fn asGenBacklback(self: *HtmlBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) tmd.GenCallback {
+        self.* = .{ .doc = doc, .custom = custom };
         return .init(self);
     }
 };

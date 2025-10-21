@@ -24,22 +24,22 @@ test "line end type" {
                     return .{ .start = offset, .end = offset + end };
                 }
 
-                pub fn checkFn(self: @This(), html: []const u8) !bool {
+                pub fn checkFn(self: @This(), html: []const u8) !void {
+                    errdefer std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{ self.data, html });
+
                     var remaining = html;
                     for (self.expectedURIs, 1..) |expected, i| {
-                        const range = retrieveFirstLinkURL(remaining) orelse {
-                            std.debug.print("<<<\n{s}\n+++\n{s}\n>>>\n", .{self.data, html});
-                            return error.TooLessLinks;
-                        };
+                        const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
-                        if (!std.mem.eql(u8, uri, expected)) return false;
+                        if (!std.mem.eql(u8, uri, expected)) {
+                            return error.UnmatchedLinkURL;
+                        }
                         remaining = remaining[range.end + closeNeedle.len ..];
                         if (i == self.expectedURIs.len) {
                             if (retrieveFirstLinkURL(remaining) != null) return error.TooManyLinks;
                             break;
                         }
                     }
-                    return true;
                 }
             }{ .data = data, .expectedURIs = expectedURIs });
         }
@@ -50,6 +50,40 @@ test "line end type" {
         \\world
         \\
     , &.{}));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.tmd __ 
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.html",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.htm
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.htm",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__foo `` bar.png
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.png",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__
+        \\&& bar.png
+        \\__
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.png",
+    }));
 
     try std.testing.expect(try LinkChecker.check(
         \\__foo__
@@ -193,6 +227,38 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
+        \\=== foo ... :: https://tapirgames.com
+        \\=== bar... :: https://go101.com
+        \\
+        \\__foo `bar` byte__
+        \\__foo `bar` `` byte__
+        \\__bar `bye` foo__
+        \\__bar `bye` `` foo__
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://tapirgames.com",
+        "https://go101.com",
+        "https://go101.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== ... byte :: https://tapirgames.com
+        \\=== ...foo :: https://go101.com
+        \\
+        \\__foo `bar` byte__
+        \\__foo `bar` `` byte__
+        \\__bar `bye` foo__
+        \\__bar `bye` `` foo__
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://tapirgames.com",
+        "https://go101.com",
+        "https://go101.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
         \\=== foo... :: https://tapirgames.com
         \\
         \\__foo__
@@ -243,16 +309,16 @@ test "line end type" {
         \\__foo bar__
         \\__foo bar foo__
         \\
-        \\=== foobar... :: https://go101.org
+        \\=== foo bar... :: https://go101.org
         \\
         \\__foo zzz foo__
         \\__foo bar foo bar__
-        \\__foo zzz foo bar__
+        \\__foo         zzz foo bar__
         \\__foo bar foo bar foo__
-        \\__foo zzz foo bar foo__
-        \\__foo zzz foo zzz foo__
+        \\__foo  zzz    foo bar foo__
+        \\__foo    zzz foo zzz foo__
         \\
-        \\=== foozzz... :: https://phyard.com
+        \\=== foo    zzz... :: https://phyard.com
         \\
     , &.{
         "https://tapirgames.com",
@@ -266,4 +332,80 @@ test "line end type" {
         "https://phyard.com",
         "https://phyard.com",
     }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo  bar :: https://google.com
+        \\=== foobar :: https://tapirgames.com
+        \\
+        \\__foo
+        \\bar__
+        \\__foo``
+        \\bar__
+        \\
+    , &.{
+        "https://google.com",
+        "https://tapirgames.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo
+        \\    bar :: https://google.com
+        \\=== foo
+        \\    ``bar :: https://tapirgames.com
+        \\
+        \\__foo
+        \\bar__
+        \\__foo``
+        \\bar__
+        \\
+    , &.{
+        "https://google.com",
+        "https://tapirgames.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\foo __#foo__
+        \\
+        \\All footnotes __ # __
+        \\
+    , &.{
+        "#fn:foo",
+        "#fn:",
+        "#fn:foo:ref-1",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__c `` #ccc __ 
+        \\
+        \\__d `` #ddd __ 
+        \\
+        \\__e `` #eee __ 
+        \\
+    , &.{
+        "#ccc",
+        "#ddd",
+        "#eee",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__`` #ccc __ 
+        \\
+        \\__```` #ddd __ 
+        \\
+        \\__^`` #eee __ 
+        \\
+    , &.{
+        "#ccc",
+        "#ddd",
+        "#eee",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__a.html ``__ 
+        \\
+        \\__a.html ````__ 
+        \\
+        \\__a.html ^``__ 
+        \\
+    , &.{}));
 }

@@ -1,16 +1,15 @@
 
-### TapirMD (Tapir's Markdown) Format Specification
+### TapirMD (Tapir's Markup Document) Language Format Specification
 
 !  { ><
    :: The specification is written in TapirMD (source is available __here__).
    }
        === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
 
-__TapirMD__ is a powerful, next-generation markup language
-that simplifies content creation.
-It builds on Markdown's straightforward syntax,
-offering enhanced specificity and greater control
-over formatting __#note-markdown__.
+__TapirMD__ is a powerful, next-generation markup language that
+simplifies content creation.
+Inspired by Markdown's straightforward syntax, it offers
+enhanced specificity and greater control over formatting __#note-markdown__.
 
     === TapirMD:: index.html
 
@@ -81,7 +80,7 @@ TapirMD documents are parsed line by line.
 The TapirMD format is carefully designed to allow each document to be parsed in a single pass.
 
 After parsing, each line is divided into one or more %%**tokens**%% (text segments),
-such as %%**content tokens**%%, %%**mark tokens**%% and %%**blank tokens**%%.
+such as %%**plain-text tokens**%%, %%**mark tokens**%% and %%**blank tokens**%%.
 Tokens cannot cross lines.
 
 Each blank token represents a sequence of blank characters.
@@ -101,7 +100,7 @@ Each mark token consists of one or more punctuation mark characters
 and an optional blank character sequence which is
 either before or after the punctuation mark characters.
 
-Generally, a content token contains visible characters (including whitespace characters),
+Generally, a plain-text token contains visible characters (including whitespace characters),
 but it may contain invislbe blank characters.
 
 @@@ #block-types
@@ -355,7 +354,7 @@ are not required to match.
 On the open line of an explciit base block,
 multiple optional attribute tokens may follow the base-open-leading mark token,
 to set some attributes for the explciit base block.
-The optional tokens are seperated by perceivable blank tokens,
+The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 //
@@ -407,7 +406,7 @@ On an attribute line, multiple optional attribute tokens may follow
 the attribute line leadng mark token, to set some attributes
 for the next sibling block of the containing attribute block,
 if the next sibling block exists.
-The optional tokens are seperated by perceivable blank tokens,
+The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 #id
@@ -588,6 +587,8 @@ Here is the list of all line-leading mark tokens supported now.
 
    !  ### NOTE:
       ;;; The image URI validation rules might be adjuested with more details later.
+   
+   Media-embedding tokens belong to content tokens.
    }
    ----------------
    ### %%line-break token
@@ -604,7 +605,7 @@ Here is the list of all line-leading mark tokens supported now.
    unless it exhibits the characteristics of a link definition.
    Link definitions are specified in a following section.
 
-   Comment lines don't contain content tokens.
+   Texts on comment lines are not interpreted as plain-text tokens.
    }
 
 Line-leading mark tokens take higher precedence over all non-line-leading mark tokens.
@@ -631,7 +632,17 @@ characters or character sequences.
 Even-backtick mark tokens take higher precedence over other non-line-leading mark tokens.
 The next section will talk more about this rule.
 
+Even-backtick tokens are treated as content tokens.
+
 Below, we call other non-line-leading mark tokens as %%**style mark tokens**%%.
+
+@@@ #content-tokens
+###----- content tokens
+
+Content tokens include
+* Plain-text tokens.
+* Media-embedding tokens.
+* Even-backtick tokens.
 
 @@@ #style-marks
 ###----- style mark tokens
@@ -752,14 +763,12 @@ The URL for a hyperlink can be defined either inside or outside the correspondin
    it is used as the hyperlink's URL. We call the link self-defined.
 *  Otherwise, a matching link (definition) block will be searched to provide the URL
    (the matching rules are __described below__).
-   +  If a match is found, then the hyperlink's URL is determined by the matched link (definition) block.
-      -  If the matched link (definition) block succeeds to specifiy a URL,
-         that URL is used as the hyperlink's URL.
-      -  Otherwise, the hyperlink is viewed as broken.
-   +  If no matching blocks are found, all content tokens within the corresponding link span are
-      collectively treated as the argument for a custom URL generator.
-      -  If the URL is successfully generated, the generated URL is used as the hyperlink's URL.
-      -  Otherwise, the hyperlink is viewed as broken.
+   +  If a match is found, then the hyperlink's URL is defined in the matched link (definition) block.
+      Note that the matched link (definition) block might define a broken URL.
+   +  If no matches are found, then the hyperlink's URL is labelled as undetermined.
+      Undetermined hyperlink's URLs may be generated by external URL generators.
+      All content tokens of the link span are treated as the argument of external URL generators.
+      If external URL generators fail to generate a URL, then the hyperlink's URL is viewed as broken.
 
     === described below :: #link-blocks
 
@@ -778,7 +787,10 @@ then the hyperlink span is viewed as a footnote reference.
 The corresponding footnote is defined in the block specified with ID as `fragment`.
 Generally, footnote definition blocks should be placed in an explcit base block
 which is commented out.
+
 Footnote blocks will be always rendered at the end of HTML output.
+
+Specially, a hyperlink span containing only a `#` token links to the footnote section.
 
 @@@ #link-blocks
 ###+++++ Link (definition) blocks
@@ -794,7 +806,7 @@ The sequence of the leading consecutive `=` characters of a link block is called
 a **%%link block leading mark token%%**.
 
 The lines within a link block never contain link spans. In other words,
-`__` character sequences in link blocks will be viewed as content characters.
+`_` character sequences in link blocks will be viewed as content characters.
 
 A link block with only one non-blank token
 (its link block leading mark token) is called a %%**bare link block**%%.
@@ -805,9 +817,9 @@ Each link block can specify one URL for multiple link spans satisfying certain p
 A link block must contain at least two content tokens to specify a URL.
 *  If the last content token of a link block is a valid URL,
    then the URL is what is specified.
-*  Othewise, the last content token is treated as the argument of a custom URL generator.
+*  Othewise, the last content token is treated as the argument of external URL generators.
    -  If the URL is successfully generated, then the URL is what is specified.
-   -  Otherwise, the link block fails to specify a URL.
+   -  Otherwise, we say the link block defines a broken URL.
 
 For a (non-self-defined) link span, the link blocks after it have higher matching priority than those before it.
 And
@@ -817,10 +829,16 @@ And
    But the ones before a bare link block which is before the link span will never get matched.
 
 How matching texts are generated:
-*  All content tokens of a link span are combined into a single matching text,
-   with all blank characters removed.
-*  All content tokens of a link block, except the last one,
-   are combined into a single matching text, with all blank characters removed.
+*  All content tokens of a link span are combined into a single text.
+   All content tokens of a link block, except the last one,
+   are combined into a single text.
+*  If a __line-end space__ is bewteen two combined content tokens, it is viewed as
+   a ASCII Space character and also combined.
+*  All leading and trailing blank characters of final combined single texts are trimmed.
+   Successive middle whitespace characters are collapsed into one ASCII Space character (Unicode: U+0020).
+*  The final processed texts are used as matching texts.
+
+   === line-end space:: #line-end-spacing
 
 How matching works depends on the structure of matching texts of link blocks:
 *  If the matching text of a link block consists solely of three dots (`...`),
@@ -843,7 +861,6 @@ its line end is rendered as an ASCII Space character unless any of the following
 cases happens:
 *  The line has an opening style mark token followed by a line-end blank token.
 *  The line has no content tokens.
-   \\ (%% Note: Even-backtick mark tokens are treated as content tokens. %%)
 *  The last content token in the line ends with a blank or CJK character __#note-cjk-chars__.
    \\ (%% Note: Even-backtick mark tokens in primary mode are interpreted as CJK characters. %%)
 *  Within the block, after the line, no more content tokens are found.
@@ -895,7 +912,7 @@ especially programming language code snippets.
 On the start boundary line of a code block,
 multiple optional attribute tokens may follow the code-block-leading mark token,
 to set some attributes for the code block.
-The optional tokens are seperated by perceivable blank tokens,
+The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 //
@@ -955,32 +972,44 @@ The main purepose of custom blocks is to extend TapirMD by supporting user data 
 On the start boundary line of a custom block,
 multiple optional attribute tokens may follow the custom-block-leading mark token,
 to set some attributes for the custom block.
-The optional tokens are seperated by perceivable blank tokens,
+The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 //
-app
+content-type
+arguments-of-custom-block-generator
 '''
 
 Here,
 *  `//` means the custom block is commented out and will not be rendered in HTML output.
-*  `app` means aa application name, An application might be
-   -  a built-in application, or
-   -  a user plugin.
+*  `content-type` means the content type of the custom block.
+   It is used to identify which custom block generator will be used to generate HTML
+   the custom block.
+*  `arguments-of-custom-block-generator` will be passed to the identified ustom block generator
+   during HTML generation for the custom block.
 
 A TapirMD parser should try to parse as many attribute tokens as possible.
 The remaining un-parsed texts are ignored.
 
-Currently, user plugins are not supported yet.
-And `html` is the only supported built-in application.
-
-!  ### ⚠ Warning!
-   ;;; Be careful when using the built-in `html` application.
-   All the data lines in a `html` custom block will be written as is
-   in HTML output.
-
 Currently, the text after the custom-block-leading mark token
 in the end boundary line of a custom block are all ignored.
+
+If no custom block generators are identified for a custom content type,
+then custom blocks will be ignored during HTML generation.
+Such custom blocks act as comment blocks.
+
+NOTE:
+*. If a custom block is not specified with a content type,
+   then the custom block should be always ignored during HTML generation.
+   This is the recommended way to do block commenting.
+*. If a custom block is specified with a custom content type named as `html`
+   and a custom block generator is identified for the custom content type,
+   then it is recommended to let the custom block generator output exactly
+   the same HTML texts as the texts in the custom block.
+
+!  ### ⚠ Warning!
+   ;;; Be careful when using custom block generators.
+   They might output invalid HTML texts.
 
 @@@ #list-semantics
 ###+++++ List semantics
@@ -1479,6 +1508,7 @@ They should be escaped in header and usual blocks.
 
 @@@ #note-markdown
 Markdown is known for its limited capabilities and lack of strict specification.
+And in my opinion, its syntax is inconsistent despite being quite simple.
 
 @@@ #note-gen-targets
 Without relying on interactive UI elements, a TapirMD document can easily be

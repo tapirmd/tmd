@@ -44,7 +44,7 @@ pub fn start(root: *tmd.Block, doc: *tmd.Doc) BlockArranger {
 }
 
 // This function should not be callsed deferredly.
-pub fn end(self: *BlockArranger) void {
+pub fn done(self: *BlockArranger) void {
     while (self.tryToCloseCurrentBaseBlock()) |_| {}
 }
 
@@ -76,7 +76,7 @@ pub fn openBaseBlock(self: *BlockArranger, newBaseBlock: *tmd.Block, firstInCont
             try self.stackAsChildOfBase(newBaseBlock);
         } else {
             if (last.blockType == .base) {
-                @constCast(last).setNextSibling(newBaseBlock);
+                last.setNextSibling(newBaseBlock);
             }
             newBaseBlock.nestingDepth = self.count_1;
             self.stackedBlocks[self.count_1] = newBaseBlock;
@@ -362,7 +362,7 @@ pub fn stackAtomBlock(self: *BlockArranger, block: *tmd.Block, firstInContainer:
     }
 
     if (last.blockType == .base) {
-        @constCast(last).setNextSibling(block);
+        last.setNextSibling(block);
     }
 
     block.nestingDepth = self.count_1;

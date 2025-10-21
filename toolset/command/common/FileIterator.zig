@@ -1,13 +1,13 @@
 const std = @import("std");
 
-const AppContext = @import("AppContext.zig");
+const util = @import("util.zig");
 
 const FileIterator = @This();
 
 paths: []const []const u8,
 allocator: std.mem.Allocator,
 stderr: std.fs.File.Writer,
-pathFilterFn: *const fn([]const u8) bool,
+pathFilterFn: *const fn ([]const u8) bool,
 
 _curIndex: usize = 0,
 
@@ -15,11 +15,14 @@ _walkingDirPath: ?[]const u8 = null,
 _walkingDir: std.fs.Dir = undefined, // valid only if _walkingDirPath != null
 _dirWalker: std.fs.Dir.Walker = undefined, // valid only if _walkingDirPath != null
 
+// So not support concurrency.
+_filePathBuffer: [std.fs.max_path_bytes]u8 = undefined,
+
 pub fn init(
     paths: []const []const u8,
     allocator: std.mem.Allocator,
     stderr: std.fs.File.Writer,
-    pathFilter: ?*const fn([]const u8) bool,
+    pathFilter: ?*const fn ([]const u8) bool,
 ) FileIterator {
     return .{
         .paths = paths,
@@ -63,10 +66,9 @@ pub fn next(fi: *FileIterator) !?Entry {
         }
     }
 
-    var buffer: [std.fs.max_path_bytes]u8 = undefined;
     const dir = std.fs.cwd();
     while (fi._curIndex < fi.paths.len) {
-        const path = AppContext.validatePath(fi.paths[fi._curIndex], buffer[0..]);
+        const path = try util.validatePathIntoBuffer(fi.paths[fi._curIndex], fi._filePathBuffer[0..]);
 
         const stat = dir.statFile(path) catch |err| {
             if (err == error.FileNotFound) {

@@ -73,29 +73,24 @@ test "Buffer" {
 }
 
 pub const DocChecker = struct {
-    pub fn check(data: []const u8, checkFn: fn (*const tmd.Doc) anyerror!bool) !bool {
+    pub fn check(data: []const u8, checkFn: fn (*const tmd.Doc) anyerror!void) !bool {
         var doc = try tmd.Doc.parse(data, std.testing.allocator);
         defer doc.destroy();
 
-        return checkFn(&doc);
+        try checkFn(&doc);
+        return true;
     }
 };
 
 test "DocChecker" {
     try std.testing.expect(try DocChecker.check("", struct {
-        fn check(_: *const tmd.Doc) !bool {
-            return true;
+        fn check(_: *const tmd.Doc) !void {
+            return;
         }
     }.check));
 
-    try std.testing.expect(try DocChecker.check("", struct {
-        fn check(_: *const tmd.Doc) !bool {
-            return false;
-        }
-    }.check) == false);
-
     try std.testing.expect(DocChecker.check("", struct {
-        fn check(_: *const tmd.Doc) !bool {
+        fn check(_: *const tmd.Doc) !void {
             return error.Nothing;
         }
     }.check) == error.Nothing);
@@ -110,12 +105,11 @@ pub const RenderChecker = struct {
         defer buf.deinit();
 
         const CustomHandler = struct {
-            htmlGenCallback: *tmd.GenCallback_HtmlBlock = undefined,
+            htmlGenCallback: *tmd.HtmlBlockGenerator = undefined,
 
-            fn getCustomBlockGenCallback(ctx: *const anyopaque, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+            fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
                 const callback = handler.htmlGenCallback;
-                std.debug.assert(doc == callback.doc);
 
                 const attrs = custom.attributes();
                 if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
@@ -125,8 +119,8 @@ pub const RenderChecker = struct {
                 return null;
             }
         };
-        var htmlGenCallback: tmd.GenCallback_HtmlBlock = .{.doc = &tmdDoc, .custom = undefined};
-        const handler = CustomHandler {
+        var htmlGenCallback: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
+        const handler = CustomHandler{
             .htmlGenCallback = &htmlGenCallback,
         };
 
@@ -137,25 +131,20 @@ pub const RenderChecker = struct {
 
         try tmdDoc.writeHTML(buf.writer(), options, std.testing.allocator);
         const html = buf.items;
-        return v.checkFn(html);
+        try v.checkFn(html);
+        return true;
     }
 };
 
 test "RenderChecker" {
     try std.testing.expect(try RenderChecker.check("", struct {
-        fn checkFn(_: []const u8) !bool {
-            return true;
+        fn checkFn(_: []const u8) !void {
+            return;
         }
     }));
 
-    try std.testing.expect(try RenderChecker.check("", struct {
-        fn checkFn(_: []const u8) !bool {
-            return false;
-        }
-    }) == false);
-
     try std.testing.expect(RenderChecker.check("", struct {
-        fn checkFn(_: []const u8) !bool {
+        fn checkFn(_: []const u8) !void {
             return error.Nothing;
         }
     }) == error.Nothing);
@@ -171,25 +160,20 @@ pub const TitleRenderChecker = struct {
 
         const hasTitle = try doc.writePageTitleInHtmlHead(buf.writer());
         const titleText = buf.items;
-        return v.checkFn(hasTitle, titleText);
+        try v.checkFn(hasTitle, titleText);
+        return true;
     }
 };
 
 test "TitleRenderChecker" {
     try std.testing.expect(try TitleRenderChecker.check("", struct {
-        fn checkFn(_: bool, _: []const u8) !bool {
-            return true;
+        fn checkFn(_: bool, _: []const u8) !void {
+            return;
         }
     }));
 
-    try std.testing.expect(try TitleRenderChecker.check("", struct {
-        fn checkFn(_: bool, _: []const u8) !bool {
-            return false;
-        }
-    }) == false);
-
     try std.testing.expect(TitleRenderChecker.check("", struct {
-        fn checkFn(_: bool, _: []const u8) !bool {
+        fn checkFn(_: bool, _: []const u8) !void {
             return error.Nothing;
         }
     }) == error.Nothing);

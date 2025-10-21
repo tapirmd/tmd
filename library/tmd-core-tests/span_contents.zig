@@ -35,13 +35,13 @@ test "span contents" {
                             self.opening = true;
                         }
                     },
-                    .content => if (self.opening) {
+                    .plaintext => if (self.opening) {
                         try self.buffer.append(doc.rangeData(token.range()));
                     },
                     .evenBackticks => |m| if (self.opening) {
                         if (m.more.secondary) {
-                            for (0..m.pairCount) |_| try self.buffer.append("`");
-                        } else for (1..m.pairCount) |_| {
+                            for (0..m.more.pairCount) |_| try self.buffer.append("`");
+                        } else for (1..m.more.pairCount) |_| {
                             try self.buffer.append(" ");
                         }
                     },

@@ -207,7 +207,7 @@ fn onParseEnd(parser: *DocParser) !void {
 
 pub fn parseAll(parser: *DocParser) !void {
     try parser.parse();
-    
+
     const matcher: LinkMatcher = .init(parser.tmdDoc);
     try matcher.matchLinks(); // ToDo: same effect when being put in the above else-block.
 }
@@ -221,8 +221,8 @@ fn parse(parser: *DocParser) !void {
     var blockArranger = BlockArranger.start(rootBlock, parser.tmdDoc);
     // defer blockArranger.end(); // should not be called deferredly. Put in the end of the function now.
 
-    var contentParser = ContentParser.make(parser);
-    contentParser.init();
+    var contentParser: ContentParser = .init(parser);
+    contentParser.initMore();
     defer contentParser.deinit(); // ToDo: needed?
 
     const lineScanner = &parser.lineScanner;
@@ -1010,10 +1010,10 @@ fn parse(parser: *DocParser) !void {
     // Meaningful only for code snippet block (and popential later custom app block).
     try parser.setEndLineForAtomBlock(currentAtomBlock);
 
-    // ToDo: remove this line. (Forget the reason.;( )
-    try contentParser.on_new_atom_block(currentAtomBlock); // try to determine line-end spacing for the last coment line.
+    //try contentParser.on_new_atom_block(currentAtomBlock);
+    contentParser.done();
 
-    blockArranger.end();
+    blockArranger.done();
 
     try parser.onParseEnd();
 }

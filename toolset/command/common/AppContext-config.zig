@@ -1,16 +1,94 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const tmd = @import("tmd");
 const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
 const Config = @import("Config.zig");
-const Template = @import("Template.zig");
+const DocTemplate = @import("DocTemplate.zig");
+const util = @import("util.zig");
 
 pub const ConfigEx = struct {
     basic: Config = .{},
     path: []const u8 = "", // blank is for default config etc.
 };
+
+pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !struct { *ConfigEx, []const u8 } {
+    if (ctx1._dirPathToConfigAndRootMap.get(absDirPath1)) |info| return .{ info.configEx, info.rootPath };
+
+    const ConfigAndRoot = @TypeOf(ctx1._dirPathToConfigAndRootMap.get(absDirPath1).?); // yes, not crash.
+
+    const T = struct {
+        fn confirmDirectoryConfigAndRoot(ctx: *AppContext, absDirPath: []const u8, isFirstPath: bool) !?ConfigAndRoot {
+            if (isFirstPath) {
+                if (builtin.mode == .Debug) {
+                    std.debug.assert(ctx._dirPathToConfigAndRootMap.get(absDirPath) == null);
+                }
+            } else if (ctx._dirPathToConfigAndRootMap.get(absDirPath)) |info| {
+                if (info.configEx == &ctx._defaultConfigEx) return null else return info;
+            }
+
+            const workspaceConfigEx = blk: {
+                const workspaceFilePath = util.resolveRealPath2(absDirPath, "tmd.workspace", false, ctx.allocator) catch |err| {
+                    if (err != error.FileNotFound) return err;
+                    break :blk null;
+                };
+                defer ctx.allocator.free(workspaceFilePath);
+                break :blk try ctx.loadTmdConfigEx(workspaceFilePath);
+            };
+
+            const projectConfigEx = blk: {
+                const projectFilePath = util.resolveRealPath2(absDirPath, "tmd.project", false, ctx.allocator) catch |err| {
+                    if (err != error.FileNotFound) return err;
+                    break :blk null;
+                };
+                defer ctx.allocator.free(projectFilePath);
+                break :blk try ctx.loadTmdConfigEx(projectFilePath);
+            };
+
+            const configAndRoot = if (workspaceConfigEx) |workspaceEx| blk: {
+                ctx.mergeTmdConfig(&workspaceEx.basic, &ctx._defaultConfigEx.basic);
+                const rootPath = std.fs.path.dirname(workspaceEx.path).?;
+                if (projectConfigEx) |projectEx| {
+                    ctx.mergeTmdConfig(&projectEx.basic, &workspaceEx.basic);
+                    break :blk .{ projectEx, rootPath };
+                }
+                break :blk .{ workspaceEx, rootPath };
+            } else if (std.fs.path.dirname(absDirPath)) |parentDir| blk: {
+                if (try confirmDirectoryConfigAndRoot(ctx, parentDir, false)) |info| {
+                    if (projectConfigEx) |projectEx| {
+                        ctx.mergeTmdConfig(&projectEx.basic, &info.configEx.basic);
+                        break :blk .{ projectEx, info.rootPath };
+                    } else break :blk .{ info.configEx, info.rootPath };
+                } else if (projectConfigEx) |projectEx| {
+                    const rootPath = std.fs.path.dirname(projectEx.path).?;
+                    break :blk .{ projectEx, rootPath };
+                } else break :blk null;
+            } else if (projectConfigEx) |projectEx| blk: {
+                const rootPath = std.fs.path.dirname(projectEx.path).?;
+                break :blk .{ projectEx, rootPath };
+            } else null;
+
+            if (configAndRoot) |info| {
+                const configEx, const rootPath = info;
+                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+                try ctx._dirPathToConfigAndRootMap.put(dirPath, .{ .configEx = configEx, .rootPath = rootPath });
+                return .{ .configEx = configEx, .rootPath = rootPath };
+            } else if (isFirstPath) {
+                std.debug.assert(workspaceConfigEx == null and projectConfigEx == null);
+
+                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
+                const configEx = &ctx._defaultConfigEx;
+                try ctx._dirPathToConfigAndRootMap.put(dirPath, .{ .configEx = configEx, .rootPath = dirPath });
+                return .{ .configEx = configEx, .rootPath = dirPath };
+            } else return null;
+        }
+    };
+
+    const info = (try T.confirmDirectoryConfigAndRoot(ctx1, absDirPath1, true)).?;
+    return .{ info.configEx, info.rootPath };
+}
 
 pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
     var arenaAllocator: std.heap.ArenaAllocator = .init(ctx.allocator);
@@ -28,15 +106,15 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
         return error.ConfigFileLoopReference;
     }
 
-    if (ctx._commandConfigs.getPtr(absFilePath)) |valuePtr| return valuePtr;
+    if (ctx._configPathToExMap.getPtr(absFilePath)) |valuePtr| return valuePtr;
 
     const configFilePath = try ctx.arenaAllocator.dupe(u8, absFilePath);
     //errdefer ctx.arenaAllocator.free(configFilePath);
 
-    try ctx._commandConfigs.put(configFilePath, .{ .path = configFilePath });
+    try ctx._configPathToExMap.put(configFilePath, .{ .path = configFilePath });
     //errdefer ctx.arenaAllocator.remove(configFilePath);
 
-    var configEx = ctx._commandConfigs.getPtr(configFilePath).?;
+    var configEx = ctx._configPathToExMap.getPtr(configFilePath).?;
     {
         const fileContent = try std.fs.cwd().readFileAlloc(ctx.allocator, configFilePath, Config.maxConfigFileSize);
         defer ctx.allocator.free(fileContent);
@@ -47,7 +125,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     try loadedFilesInSession.insert(configFilePath);
     //var hasBase = false;
     if (configEx.basic.@"based-on") |baseConfigPath| if (baseConfigPath.path.len > 0) {
-        const baseFilePath = try AppContext.resolvePathFromFilePath(configFilePath, baseConfigPath.path, true, ctx.allocator);
+        const baseFilePath = try util.resolvePathFromFilePath(configFilePath, baseConfigPath.path, true, ctx.allocator);
         defer ctx.allocator.free(baseFilePath);
 
         const baseConfigEx = try loadTmdConfigInternal(ctx, baseFilePath, loadedFilesInSession);
@@ -156,44 +234,120 @@ pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config
     }
 }
 
+fn parseFilePath(ctx: *AppContext, configEx: *ConfigEx, path: []const u8) !Config.FilePath {
+    switch (tmd.checkFilePathType(path)) {
+        .remote => return .{ .remote = path },
+        .local => {
+            if (std.mem.startsWith(u8, path, "@") and std.fs.path.extension(path).len == 0)
+                return .{ .builtin = path };
+
+            const absPath = try util.resolvePathFromFilePath(configEx.path, path, true, ctx.arenaAllocator);
+            return .{ .local = absPath };
+        },
+        .invalid => return error.InvalidFilePath,
+    }
+}
+
 fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
-    if (configEx.basic.@"html-page-template") |htmlPageTemplate| {
-        const content, const ownerFilePath = switch (htmlPageTemplate) {
-            .data => |data| .{ data, configEx.path },
-            .path => |filePath| blk: {
-                const absPath = try AppContext.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
-                const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, Template.maxTemplateSize);
-                break :blk .{ data, absPath };
-            },
-            else => return,
+    if (configEx.basic.@"custom-block-generators") |*customBlockGenerators| handle: {
+        const configData = switch (customBlockGenerators.*) {
+            .data => |data| data,
+            ._parsed => break :handle,
         };
 
-        configEx.basic.@"html-page-template" = .{
-            ._parsed = try Template.parseTemplate(content, ownerFilePath, ctx._templateFunctions, ctx.arenaAllocator, ctx.stderr),
-        };
-    }
+        var map: std.StringHashMap(Config.CustomBlockGenerator) = .init(ctx.arenaAllocator);
+        // errdefer map.destroy();
 
-    if (configEx.basic.favicon) |favicon| {
-        const faviconPath = favicon.path;
-        configEx.basic.favicon = .{
-            ._parsed = try AppContext.resolvePathFromFilePath(configEx.path, faviconPath, true, ctx.arenaAllocator),
-        };
-    }
+        var lineIt = std.mem.tokenizeAny(u8, configData, "\n");
+        while (lineIt.next()) |lineItem| {
+            const lineData = std.mem.trim(u8, lineItem, " \t\r");
+            if (lineData.len == 0) continue;
+            if (std.mem.startsWith(u8, lineData, "//")) continue;
 
-    if (configEx.basic.@"css-files") |cssFiles| {
-        var paths = list.List([]const u8){};
+            var tokenIt = std.mem.tokenizeAny(u8, lineData, " \t");
+            const customContentType = tokenIt.next() orelse continue;
 
-        const data = std.mem.trim(u8, cssFiles.data, " \t\r\n");
-        var it = std.mem.splitAny(u8, data, "\n");
-        while (it.next()) |item| {
-            const line = std.mem.trim(u8, item, "\n");
-            if (line.len == 0) continue;
-            const path = try AppContext.resolvePathFromFilePath(configEx.path, line, true, ctx.arenaAllocator);
-            const element = try paths.createElement(ctx.arenaAllocator, true);
-            element.value = path;
+            const commandName = tokenIt.next() orelse continue;
+            if (std.mem.startsWith(u8, commandName, "@")) {
+                if (commandName.len == 1) return error.BuiltinCustomBlockGeneratorUnspecified;
+                if (tokenIt.next() != null) return error.BuiltinCustomBlockGeneratorNeedsNotArgs;
+                const appName = commandName[1..];
+                if (!std.ascii.eqlIgnoreCase(appName, "html")) return error.UnrecognizedBuiltinCustomBlockGenerator;
+
+                const r = try map.getOrPut(customContentType);
+                if (r.found_existing) return error.DuplicateustomBlockGenerator;
+                r.value_ptr.* = .{ .builtin = appName };
+                continue;
+            }
+
+            const ExternalGenerator = @FieldType(Config.CustomBlockGenerator, "external");
+            var generator: ExternalGenerator = .{ .argsCount = 1 };
+            generator.argsArray[0] = commandName;
+
+            while (tokenIt.next()) |tokenItem| {
+                if (generator.argsCount + 1 >= generator.argsArray.len) return error.TooManyCustomBlockGeneratorArgs;
+
+                generator.argsArray[generator.argsCount] = tokenItem;
+                generator.argsCount += 1;
+            }
+
+            const r = try map.getOrPut(customContentType);
+            if (r.found_existing) return error.DuplicateustomBlockGenerator;
+            r.value_ptr.* = .{ .external = generator };
         }
 
-        configEx.basic.@"css-files" = .{
+        customBlockGenerators.* = .{
+            ._parsed = map,
+        };
+    }
+
+    if (configEx.basic.@"html-page-template") |*htmlPageTemplate| handle: {
+        const content, const ownerFilePath = switch (htmlPageTemplate.*) {
+            .data => |data| .{ data, configEx.path },
+            .path => |filePath| blk: {
+                const absPath = try util.resolvePathFromFilePath(configEx.path, filePath, true, ctx.arenaAllocator);
+                const data = try std.fs.cwd().readFileAlloc(ctx.arenaAllocator, absPath, DocTemplate.maxTemplateSize);
+                break :blk .{ data, absPath };
+            },
+            ._parsed => break :handle,
+        };
+
+        htmlPageTemplate.* = .{
+            ._parsed = try DocTemplate.parseTemplate(content, ownerFilePath, ctx, ctx.arenaAllocator, ctx.stderr),
+        };
+    }
+
+    if (configEx.basic.favicon) |*favicon| handle: {
+        const faviconPath = switch (favicon.*) {
+            .path => |path| path,
+            ._parsed => break :handle,
+        };
+
+        favicon.* = .{
+            ._parsed = try parseFilePath(ctx, configEx, faviconPath),
+        };
+    }
+
+    if (configEx.basic.@"css-files") |*cssFiles| handle: {
+        const cssFilesData = switch (cssFiles.*) {
+            .data => |data| std.mem.trim(u8, data, " \t\r\n"),
+            ._parsed => break :handle,
+        };
+
+        var paths = list.List(Config.FilePath){};
+        // errdefer path.destroy(nil, ctx.arenaAllocator);
+
+        var it = std.mem.tokenizeAny(u8, cssFilesData, "\n");
+        while (it.next()) |item| {
+            const line = std.mem.trim(u8, item, " \t\r");
+            if (line.len == 0) continue;
+            const filePath = try parseFilePath(ctx, configEx, line);
+
+            const element = try paths.createElement(ctx.arenaAllocator, true);
+            element.value = filePath;
+        }
+
+        cssFiles.* = .{
             ._parsed = paths,
         };
     }

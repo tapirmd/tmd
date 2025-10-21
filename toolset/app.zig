@@ -6,6 +6,7 @@ const AppContext = @import("./command/common/AppContext.zig");
 
 const fmt = @import("./command/fmt.zig");
 const vet = @import("./command/vet.zig");
+const gen = @import("./command/gen.zig");
 const run = @import("./command/run.zig");
 const build = @import("./command/build.zig");
 
@@ -16,14 +17,13 @@ const Command = union(enum) {
     vet: vet.Vetter,
     @"vet-project": vet.ProjectVetter,
 
+    // Generators ignore project-xxx settings.
+    gen: gen.Generator, // gen partial html
+    @"gen-full-page": gen.FullPageGenerator,
+
     build: build.TmdToStaticWebsite,
     @"build-epub": build.TmdToEpub,
     @"build-standalone-html": build.TmdToStandaloneHtml,
-
-    // ToDo: generate htmls in the same dir of tmd files, without copying assets.
-    //       Paths of non-embedding asset files must be reachable as relative urls.
-    // @"build-partial-htmls": // or gen-partiial
-    // @"build-full-htmls":    // or gen
 
     run: run.Runner,
 

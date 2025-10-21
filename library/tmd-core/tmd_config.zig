@@ -37,7 +37,8 @@ pub const Config = struct {
                 var token = iter.first() orelse break :blk "";
                 while (true) {
                     switch (token.*) {
-                        .content => break :blk config.doc.rangeData(token.range()),
+                        .plaintext => break :blk config.doc.rangeData(token.range()),
+                        // ToDo: .evenBackticks ?
                         else => {},
                     }
                     token = iter.next() orelse break :blk "";

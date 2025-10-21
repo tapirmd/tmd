@@ -2,9 +2,10 @@ const std = @import("std");
 
 const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
+const util = @import("util.zig");
 
 pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { invalid: void, registered: *Project, new: *Project } {
-    const path = AppContext.resolveRealPath(dirOrConfigPath, true, ctx.arenaAllocator) catch |err| {
+    const path = util.resolveRealPath(dirOrConfigPath, true, ctx.arenaAllocator) catch |err| {
         try ctx.stderr.print("Path ({s}) is bad. Resolve error: {s}.\n", .{ dirOrConfigPath, @errorName(err) });
         return .invalid;
     };
@@ -24,7 +25,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
             return .invalid;
         },
         .directory => {
-            const configPath = AppContext.resolveRealPath2(path, "tmd.project", false, ctx.arenaAllocator) catch {
+            const configPath = util.resolveRealPath2(path, "tmd.project", false, ctx.arenaAllocator) catch {
                 break :blk .{ path, path };
             };
             break :blk .{ path, configPath };
@@ -35,14 +36,14 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         },
     };
 
-    if (ctx._configToProjectMap.get(configPath)) |project| {
+    if (ctx._configPathToProjectMap.get(configPath)) |project| {
         return .{ .registered = project };
     }
 
     const workspaceConfigEx, const workspacePath = blk: {
         var dir = projectDir;
         while (true) {
-            const workspaceConfigPath = AppContext.resolveRealPath2(dir, "tmd.workspace", false, ctx.arenaAllocator) catch {
+            const workspaceConfigPath = util.resolveRealPath2(dir, "tmd.workspace", false, ctx.arenaAllocator) catch {
                 dir = std.fs.path.dirname(dir) orelse break :blk .{ null, projectDir };
                 continue;
             };
@@ -74,12 +75,12 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         .workspacePath = workspacePath,
     };
 
-    try ctx._configToProjectMap.put(configPath, project);
+    try ctx._configPathToProjectMap.put(configPath, project);
 
     return .{ .new = project };
 }
 
-pub const buildOutputDirname = "@tmd-build";
+pub const buildOutputDirname = "@tmd-build-workspace";
 
 pub fn excludeSpecialDir(dir: []const u8) bool {
     return !std.mem.eql(u8, dir, buildOutputDirname);

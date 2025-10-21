@@ -25,7 +25,18 @@ pub fn init(doc: *tmd.Doc) LinkMatcher {
 }
 
 fn tokenAsString(self: *const LinkMatcher, contentToken: *const tmd.Token) []const u8 {
-    return self.tmdData[contentToken.start()..contentToken.end()];
+    switch (contentToken.*) {
+        .plaintext => return self.tmdData[contentToken.start()..contentToken.end()],
+        .evenBackticks => |t| {
+            if (t.more.secondary) {
+                const start = contentToken.start() + 1;
+                const end = start + t.more.pairCount;
+                return self.tmdData[start..end];
+            }
+            return "";
+        },
+        else => unreachable,
+    }
 }
 
 fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
@@ -37,21 +48,38 @@ fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
     return n;
 }
 
-const DummyLinkText = struct {
-    pub fn set(_: *DummyLinkText, _: u32, r: u8) bool {
-        return !tmd.bytesKindTable[r].isBlank();
-    }
-};
+const LinkText = struct {
+    confirmedLen: usize = 0,
+    hasPendingSpace: bool = false,
 
-const RealLinkText = struct {
-    text: [*]u8,
-    dummy: DummyLinkText = .{},
-    pub fn set(self: *RealLinkText, n: u32, r: u8) bool {
-        if (self.dummy.set(n, r)) {
-            self.text[n] = r;
-            return true;
+    text: []u8 = undefined,
+
+    fn appendLinkTextPart(self: *LinkText, part: []const u8, dummy: bool) void {
+        for (part) |r| {
+            switch (tmd.bytesKindTable[r]) {
+                .blank => |b| if (b.isSpace) {
+                    self.hasPendingSpace = true;
+                },
+                .lineEnd => unreachable,
+                else => {
+                    if (self.hasPendingSpace) {
+                        self.hasPendingSpace = false;
+
+                        if (!dummy) self.text[self.confirmedLen] = ' ';
+                        self.confirmedLen += 1;
+                    }
+
+                    if (!dummy) self.text[self.confirmedLen] = r;
+                    self.confirmedLen += 1;
+                },
+            }
         }
-        return false;
+    }
+
+    fn allocText(self: *LinkText, a: std.mem.Allocator) !void {
+        self.text = (try a.alloc(u8, self.confirmedLen));
+        self.confirmedLen = 0;
+        self.hasPendingSpace = false;
     }
 };
 
@@ -498,7 +526,10 @@ const Matcher = struct {
             } else {
                 // prefix matching
 
-                const revisedLinkText = linkDef.revisedLinkText.prefix(linkDef.revisedLinkText.len - @as(u32, ddd.len));
+                std.debug.assert(linkText.len > ddd.len);
+
+                const prefixLen: u32 = @intCast(if (linkText[linkText.len - (1 + ddd.len)] == ' ') ddd.len + 1 else ddd.len);
+                const revisedLinkText = linkDef.revisedLinkText.prefix(linkDef.revisedLinkText.len - prefixLen);
                 if (self.normalPatricia.searchLinkInfo(revisedLinkText, true)) |node| {
                     //NormalPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
                     //NormalPatricia.setUrlSourceForNode(node, urlSource, confirmed);
@@ -510,7 +541,10 @@ const Matcher = struct {
             if (std.mem.startsWith(u8, linkText, ddd)) {
                 // suffix matching
 
-                const revisedLinkText = linkDef.revisedLinkText.suffix(@intCast(ddd.len));
+                std.debug.assert(linkText.len > ddd.len);
+
+                const prefixLen: u32 = @intCast(if (linkText[ddd.len] == ' ') ddd.len + 1 else ddd.len);
+                const revisedLinkText = linkDef.revisedLinkText.suffix(prefixLen);
                 if (self.invertedPatricia.searchLinkInfo(revisedLinkText.invert(), true)) |node| {
                     //InvertedPatricia.setUrlSourceForTreeNodes(&node.value.deeperTree, urlSource, confirmed);
                     //InvertedPatricia.setUrlSourceForNode(node, urlSource, confirmed);
@@ -564,11 +598,10 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         const link = &linkElement.value;
         std.debug.assert(link.url == null);
         blk: {
-            const firstTextToken = if (link.firstPlainText) |first| first else {
+            const firstTextToken: *const tmd.Token = if (link.firstPlainText) |first| first else {
                 // The link should be ignored in rendering.
-
                 //std.debug.print("ignored for no content tokens\n", .{});
-                //link.setSourceOfURL(null, true);
+
                 _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
 
                 if (link.linkBlock()) |linkBlock| {
@@ -576,8 +609,6 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                         normalPatricia.clear();
                         invertedPatricia.clear();
 
-                        //const theElement = try self.allocator.create(LinkForTree.List.Element);
-                        //linksForTree.pushTail(theElement);
                         const theElement = try linksForTree.createElement(self.allocator, true);
                         theElement.value.setLinkAndText(link, .{});
                     }
@@ -586,41 +617,31 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 break :blk;
             };
 
-            var linkTextLen: u32 = 0;
+            //var linkTextLen: u32 = 0;
             var lastToken = firstTextToken;
             // count sum length without the last text token
-            var dummyLinkText = DummyLinkText{};
-            while (lastToken.content.nextInLink) |nextToken| {
+            var linkText = LinkText{};
+            while (lastToken.nextContentTokenInLink()) |nextToken| {
                 defer lastToken = nextToken;
                 const str = self.tokenAsString(lastToken);
-                linkTextLen = copyLinkText(&dummyLinkText, linkTextLen, str);
+                linkText.appendLinkTextPart(str, true);
+                if (lastToken.followedByLineEndSpaceInLink()) {
+                    linkText.appendLinkTextPart(" ", true);
+                }
             }
 
             // handle the last text token
             {
-                const str = tmd.trimBlanks(self.tokenAsString(lastToken));
+                const str = self.tokenAsString(lastToken);
                 if (link.linkBlock() != null) {
-                    if (copyLinkText(&dummyLinkText, 0, str) == 0) {
+                    if (tmd.trimBlanks(str).len == 0) {
                         // This link definition will be ignored.
-
                         //std.debug.print("ignored for blank link definition\n", .{});
-                        //link.setSourceOfURL(null, false);
+
                         _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
                         break :blk;
                     }
                 } else {
-                    //if (AttributeParser.isValidLinkURL(str)) {
-                    //    // For built-in cases, no need to call callback to determine the url.
-                    //
-                    //    //std.debug.print("self defined url: {s}\n", .{str});
-                    //    link.setSourceOfURL(lastToken, true);
-                    //
-                    //    if (lastToken == firstTextToken and std.mem.startsWith(u8, str, "#") and !std.mem.startsWith(u8, str[1..], "#")) {
-                    //        link.setFootnoteManner();
-                    //    }
-                    //
-                    //    break :blk;
-                    //}
                     const url = AttributeParser.parseLinkURL(str, lastToken == firstTextToken);
                     if (url.manner != .undetermined) {
                         // This is a self-defined hyperlink.
@@ -634,15 +655,15 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     // The URL of the hyperlink needs to be matched by a link definition
                     // or determined by a custom handler.
 
-                    linkTextLen = copyLinkText(&dummyLinkText, linkTextLen, str);
+                    linkText.appendLinkTextPart(str, true);
                 }
 
-                if (linkTextLen == 0) {
+                //if (linkTextLen == 0) {
+                if (linkText.confirmedLen == 0) {
                     // For link definition, it will not match any hyperlinks.
                     // For hyperlink, it will not match any definitions.
-
                     //std.debug.print("ignored for blank link text\n", .{});
-                    //link.setSourceOfURL(null, true);
+
                     _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
 
                     break :blk;
@@ -651,43 +672,40 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
             // build RevisedLinkText
 
-            const textPtr: [*]u8 = (try self.allocator.alloc(u8, linkTextLen)).ptr;
+            try linkText.allocText(self.allocator);
+            const textPtr = linkText.text.ptr;
             const revisedLinkText = RevisedLinkText{
-                .len = linkTextLen,
+                .len = @intCast(linkText.text.len),
                 .text = textPtr,
             };
             //defer std.debug.print("====={}: ||{s}||\n", .{link.linkBlock() != null, revisedLinkText.asString()});
 
-            //const theElement = try self.allocator.create(LinkForTree.List.Element);
-            //linksForTree.pushTail(theElement);
             const theElement = try linksForTree.createElement(self.allocator, true);
             theElement.value.setLinkAndText(link, revisedLinkText);
             const linkForTree = &theElement.value;
 
             const url = while (true) { // ToDo: use a labled non-loop block
-                var realLinkText = RealLinkText{
-                    .text = textPtr, // == revisedLinkText.text,
-                };
-
-                var linkTextLen2: u32 = 0;
                 lastToken = firstTextToken;
                 // build text data without the last text token
-                while (lastToken.content.nextInLink) |nextToken| {
+                while (lastToken.nextContentTokenInLink()) |nextToken| {
                     defer lastToken = nextToken;
                     const str = self.tokenAsString(lastToken);
-                    linkTextLen2 = copyLinkText(&realLinkText, linkTextLen2, str);
+                    linkText.appendLinkTextPart(str, false);
+                    if (lastToken.followedByLineEndSpaceInLink()) {
+                        linkText.appendLinkTextPart(" ", false);
+                    }
                 }
 
                 // handle the last text token
-                const str = tmd.trimBlanks(self.tokenAsString(lastToken));
+                const str = self.tokenAsString(lastToken);
                 if (link.linkBlock() != null) {
-                    std.debug.assert(linkTextLen2 == linkTextLen);
+                    std.debug.assert(linkText.confirmedLen == linkText.text.len);
 
                     //std.debug.print("    222 linkText = {s}\n", .{revisedLinkText.asString()});
 
                     //std.debug.print("==== /{s}/, {}\n", .{ str, AttributeParserisValidLinkURL(str) });
 
-                    break AttributeParser.parseLinkURL(str, false);
+                    break AttributeParser.parseLinkURL(tmd.trimBlanks(str), false);
                 } else {
                     if (builtin.mode == .Debug) {
                         std.debug.assert(AttributeParser.parseLinkURL(str, false).manner == .undetermined);
@@ -696,8 +714,8 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     // For a link whose url is not built-in determined,
                     // all of its text tokens are used as link texts.
 
-                    linkTextLen2 = copyLinkText(&realLinkText, linkTextLen2, str);
-                    std.debug.assert(linkTextLen2 == linkTextLen);
+                    linkText.appendLinkTextPart(str, false);
+                    std.debug.assert(linkText.confirmedLen == linkText.text.len);
 
                     //std.debug.print("    111 linkText = {s}\n", .{revisedLinkText.asString()});
 
@@ -709,7 +727,6 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
             std.debug.assert(link.linkBlock() != null);
 
-            //link.setSourceOfURL(lastToken, confirmed);
             (try self.setLinkURL(link, url)).sourceText = lastToken;
 
             matcher.doForLinkDefinition(linkForTree);

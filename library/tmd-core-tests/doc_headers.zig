@@ -18,10 +18,9 @@ test "doc headers" {
         \\   ###==== section
         \\
     , struct {
-        fn check(doc: *const tmd.Doc) !bool {
+        fn check(doc: *const tmd.Doc) !void {
             try std.testing.expect(doc.tocHeaders.size() == 2);
             try std.testing.expect(doc.titleHeader != null);
-            return true;
         }
     }.check));
 
@@ -36,10 +35,9 @@ test "doc headers" {
         \\ }
         \\
     , struct {
-        fn check(doc: *const tmd.Doc) !bool {
+        fn check(doc: *const tmd.Doc) !void {
             try std.testing.expect(doc.tocHeaders.size() == 3);
             try std.testing.expect(doc.titleHeader == null);
-            return true;
         }
     }.check));
 }

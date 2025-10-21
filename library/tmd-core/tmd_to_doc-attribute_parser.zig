@@ -612,39 +612,59 @@ test "parse_custom_block_open_playload" {
     });
 }
 
+pub const FilePathType = enum {
+    invalid,
+    local, // included builtin assets now
+    remote,
+    // builtin, // Todo: now, not support to link to builtin assets.
+};
+
+pub fn checkFilePathType(path: []const u8) FilePathType {
+    if (path.len == 0 or path[0] == '/' or path[0] == '\\') return .invalid;
+
+    if (std.mem.indexOf(u8, path, "://")) |k| {
+        if (k > 0) return .remote else return .invalid;
+    }
+
+    return .local;
+}
+
 // .relative media urls must end with supported extensions.
 // media urls can also have the fragment part.
 pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
     var url: tmd.URL = .{};
 
     const text = std.mem.trim(u8, urlText, " \t");
-    if (std.mem.indexOfAny(u8, text, "# \t")) |k| {
+    if (std.mem.indexOfAny(u8, text, "#")) |k| {
         url.base = text[0..k];
 
-        if (text[k] == '#') {
-            if (potentailFootnoteRef and k == 0) url.manner = .footnote;
+        if (potentailFootnoteRef and k == 0) url.manner = .footnote;
 
-            const remaining = text[k..];
-            if (std.mem.indexOfAnyPos(u8, remaining, 1, " \t")) |q| {
-                url.fragment = remaining[0..q];
-                url.title = std.mem.trimLeft(u8, remaining[q+1..], " \t");
-            } else url.fragment = remaining;
-        } else {
-            url.title = std.mem.trimLeft(u8, text[k+1..], " \t");
-        }
+        url.fragment = text[k..];
     } else {
         url.base = text;
     }
 
     if (url.manner == .undetermined) {
         const base = url.base;
-        if (base.len > 0 and base[0] != '/' and base[0] != '\\') {
-            if (std.mem.indexOf(u8, base, "://")) |k| {
-                if (k > 0) url.manner = .absolute;
-            } else {
-                if (endsWithValidContentExtension(base)
-                    and std.mem.indexOfScalar(u8, base, '?') == null) url.manner = .relative;
+        if (base.len > 0) {
+            switch (checkFilePathType(base)) {
+                .remote => url.manner = .absolute,
+                .local => {
+                    //if (std.mem.indexOfScalar(u8, base, '?') == null) {
+                    if (checkValidExtensionAsURL(base)) |ext| {
+                        url.manner = .{
+                            .relative = .{ .extension = ext },
+                        };
+                    }
+                    //}
+                },
+                .invalid => {},
             }
+        } else if (url.fragment.len > 0) {
+            url.manner = .{
+                .relative = .{ .extension = null },
+            };
         }
     }
 
@@ -652,178 +672,189 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
 }
 
 fn compareURLs(a: tmd.URL, b: tmd.URL) bool {
-    if (a.manner != b.manner) return false;
+    //if (a.manner != b.manner) return false;
+    if (std.meta.activeTag(a.manner) != std.meta.activeTag(b.manner)) return false;
+    switch (a.manner) {
+        .relative => |v| {
+            if (v.extension != b.manner.relative.extension) return false;
+        },
+        else => {},
+    }
     if (!std.mem.eql(u8, a.base, b.base)) return false;
     if (!std.mem.eql(u8, a.fragment, b.fragment)) return false;
-    if (!std.mem.eql(u8, a.title, b.title)) return false;
+    //if (!std.mem.eql(u8, a.title, b.title)) return false;
     return true;
 }
 
 test "parseLinkURL" {
-    try std.testing.expect(compareURLs(
-        parseLinkURL("http://aaa/foo.png", false),
-        .{
-            .manner = .absolute,
-            .base = "http://aaa/foo.png",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("//google.com/foo.jpg", false),
-        .{
-            .manner = .undetermined,
-            .base = "//google.com/foo.jpg",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("/bar/foo.jpg", false),
-        .{
-            .manner = .undetermined,
-            .base = "/bar/foo.jpg",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.jpg", false),
-        .{
-            .manner = .relative,
-            .base = "bar/foo.jpg",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.jpg?zoo##park#", false),
-        .{
-            .manner = .undetermined,
-            .base = "bar/foo.jpg?zoo",
-            .fragment = "##park#",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.jpg?##park#", false),
-        .{
-            .manner = .undetermined,
-            .base = "bar/foo.jpg?",
-            .fragment = "##park#",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.jpg##park#", false),
-        .{
-            .manner = .relative,
-            .base = "bar/foo.jpg",
-            .fragment = "##park#",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.jpg##park#", true),
-        .{
-            .manner = .relative,
-            .base = "bar/foo.jpg",
-            .fragment = "##park#",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("../bar/foo.JPEG#..300:500", true),
-        .{
-            .manner = .relative,
-            .base = "../bar/foo.JPEG",
-            .fragment = "#..300:500",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.tmd#section-1", true),
-        .{
-            .manner = .relative,
-            .base = "bar/foo.tmd",
-            .fragment = "#section-1",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.HTM", true),
-        .{
-            .manner = .relative,
-            .base = "bar/foo.HTM",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("bar/foo.htmx", false),
-        .{
-            .manner = .undetermined,
-            .base = "bar/foo.htmx",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL("##park#", true),
-        .{
-            .manner = .footnote,
-            .fragment = "##park#",
-        }
-    ));
-    try std.testing.expect(compareURLs(
-        parseLinkURL(" #foo ", true),
-        .{
-            .manner = .footnote,
-            .fragment = "#foo",
-        }
-    ));
+    try std.testing.expect(compareURLs(parseLinkURL("http://aaa/foo.png", false), .{
+        .manner = .absolute,
+        .base = "http://aaa/foo.png",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("//google.com/foo.jpg", false), .{
+        .manner = .undetermined,
+        .base = "//google.com/foo.jpg",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("/bar/foo.jpg", false), .{
+        .manner = .undetermined,
+        .base = "/bar/foo.jpg",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg", false), .{
+        .manner = .{ .relative = .{ .extension = .jpg } },
+        .base = "bar/foo.jpg",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg?zoo##park#", false), .{
+        .manner = .undetermined,
+        .base = "bar/foo.jpg?zoo",
+        .fragment = "##park#",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg?##park#", false), .{
+        .manner = .undetermined,
+        .base = "bar/foo.jpg?",
+        .fragment = "##park#",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.JPG##park#", false), .{
+        .manner = .{ .relative = .{ .extension = .jpg } },
+        .base = "bar/foo.JPG",
+        .fragment = "##park#",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.jpg##park#", true), .{
+        .manner = .{ .relative = .{ .extension = .jpg } },
+        .base = "bar/foo.jpg",
+        .fragment = "##park#",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("../bar/foo.JPEG#..300:500", true), .{
+        .manner = .{ .relative = .{ .extension = .jpeg } },
+        .base = "../bar/foo.JPEG",
+        .fragment = "#..300:500",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.tmd#section-1", true), .{
+        .manner = .{ .relative = .{ .extension = .tmd } },
+        .base = "bar/foo.tmd",
+        .fragment = "#section-1",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.HTM", true), .{
+        .manner = .{ .relative = .{ .extension = .htm } },
+        .base = "bar/foo.HTM",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("bar/foo.htmx", false), .{
+        .manner = .undetermined,
+        .base = "bar/foo.htmx",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL("##park#", true), .{
+        .manner = .footnote,
+        .fragment = "##park#",
+    }));
+    try std.testing.expect(compareURLs(parseLinkURL(" #foo ", true), .{
+        .manner = .footnote,
+        .fragment = "#foo",
+    }));
 }
 
-pub fn endsWithValidContentExtension(text: []const u8) bool {
-    if (std.ascii.endsWithIgnoreCase(text, ".tmd")) return true;
-    if (std.ascii.endsWithIgnoreCase(text, ".htm")) return true;
-    if (std.ascii.endsWithIgnoreCase(text, ".html")) return true;
-    return endsWithValidMediaExtension(text);
-}
+pub const Extension = enum {
+    tmd,
+    //md,
 
-test "endsWithValidContentExtension" {
-    try std.testing.expect(endsWithValidContentExtension("http://aaa/foo.png"));
-    try std.testing.expect(endsWithValidContentExtension("bar.tmd"));
-    try std.testing.expect(endsWithValidContentExtension("./a.html"));
-    try std.testing.expect(endsWithValidContentExtension("../b.htm"));
-    try std.testing.expect(endsWithValidContentExtension("../c.asp") == false);
-    try std.testing.expect(endsWithValidContentExtension("https://example.com/p") == false);
-}
+    txt,
+    htm,
+    html,
+    xhtml,
 
-// ToDo: support more
-pub const MediaExtension = enum {
-    @".png",
-    @".gif",
-    @".jpg",
-    @".jpeg",
+    png,
+    gif,
+    jpg,
+    jpeg,
+
+    css,
+    js,
 };
 
-pub fn endsWithValidMediaExtension(text: []const u8) bool {
-    const supportedMediaExts = std.meta.fieldNames(MediaExtension);
-    for (supportedMediaExts) |e| {
-        if (std.ascii.endsWithIgnoreCase(text, e)) return true;
+const maxExtLen = blk: {
+    const names = std.meta.fieldNames(Extension);
+    var len: usize = 0;
+    for (names) |name| {
+        if (name.len > len) len = name.len;
     }
-    return false;
+    break :blk len;
+};
+
+pub fn extensionFromString(extWithoutStartingDot: []const u8) ?Extension {
+    if (extWithoutStartingDot.len > maxExtLen) return null;
+    var buffer: [maxExtLen]u8 = undefined;
+    const lower = std.ascii.lowerString(&buffer, extWithoutStartingDot);
+    return std.meta.stringToEnum(Extension, lower);
 }
 
-test "endsWithValidMediaExtension" {
-    try std.testing.expect(endsWithValidMediaExtension("foo.png"));
-    try std.testing.expect(endsWithValidMediaExtension("bar.PNG"));
-    try std.testing.expect(endsWithValidMediaExtension("foo.Jpeg"));
-    try std.testing.expect(endsWithValidMediaExtension("bar.JPG"));
-    try std.testing.expect(endsWithValidMediaExtension("bar.JPG"));
-    try std.testing.expect(endsWithValidMediaExtension("f.gif"));
-    try std.testing.expect(endsWithValidMediaExtension("b.GIF"));
-
-
-    try std.testing.expect(!endsWithValidMediaExtension("PNG"));
-    try std.testing.expect(!endsWithValidMediaExtension("foo.xyz"));
+pub fn extension(text: []const u8) ?Extension {
+    const index = std.mem.lastIndexOfScalar(u8, text, '.') orelse return null;
+    return extensionFromString(text[index + 1 ..]);
 }
 
-// ToDo: support media size and placeholder texts.
-// Now, only return the first token as image url.
-pub fn parse_media_info(playload: []const u8) []const u8 {
-    var it = std.mem.splitAny(u8, playload, " \t");
-    return it.first();
+pub fn getExtensionInfo(ext: Extension) ExtensionInfo {
+    return extensionInfo[@intFromEnum(ext)];
 }
 
-test "parse_media_info" {
-    try std.testing.expectEqualStrings(parse_media_info(""), "");
-    try std.testing.expectEqualStrings(parse_media_info(" "), "");
-    try std.testing.expectEqualStrings(parse_media_info(" \t"), "");
-    try std.testing.expectEqualStrings(parse_media_info("foo.png"), "foo.png");
-    try std.testing.expectEqualStrings(parse_media_info("foo.png "), "foo.png");
-    try std.testing.expectEqualStrings(parse_media_info("foo.png bla ..."), "foo.png");
+fn checkValidExtensionAsURL(text: []const u8) ?Extension {
+    if (extension(text)) |ext| {
+        const info = getExtensionInfo(ext);
+        if (info.canBeUsedAsURL) return ext;
+    }
+    return null;
+}
+
+pub const ExtensionInfo = struct {
+    ext: Extension,
+    mime: []const u8,
+    isImage: bool = false,
+    isText: bool = false,
+    canBeUsedAsURL: bool = false,
+};
+
+const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]ExtensionInfo = .{
+    .{ .ext = .tmd, .mime = "text/tapir-markdown", .isText = true, .canBeUsedAsURL = true },
+    //.{.ext = .md, .mime = "text/markdown", .isText = true, .canBeUsedAsURL = true},
+
+    .{ .ext = .txt, .mime = "text/plain", .isText = true, .canBeUsedAsURL = true },
+    .{ .ext = .htm, .mime = "text/html", .isText = true, .canBeUsedAsURL = true },
+    .{ .ext = .html, .mime = "text/html", .isText = true, .canBeUsedAsURL = true },
+    .{ .ext = .xhtml, .mime = "application/xhtml+xml", .isText = true, .canBeUsedAsURL = true },
+
+    .{ .ext = .png, .mime = "image/png", .isImage = true, .canBeUsedAsURL = true },
+    .{ .ext = .gif, .mime = "image/gif", .isImage = true, .canBeUsedAsURL = true },
+    .{ .ext = .jpg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
+    .{ .ext = .jpeg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
+
+    // ToDo: also support canBeUsedAsURL/
+    //       Or never. Only support .css.txt, .js.txt, ....
+    .{ .ext = .css, .mime = "text/css" },
+    .{ .ext = .js, .mime = "text/javascript" },
+};
+
+test "extensionInfo" {
+    for (extensionInfo, 0..) |mt, i| {
+        try std.testing.expect(@intFromEnum(mt.ext) == i);
+    }
+}
+
+test "extension" {
+    try std.testing.expect(extension("http://aaa/foo.png") == .png);
+    try std.testing.expect(extension("bar.tmd") == .tmd);
+    try std.testing.expect(extension("./a.html") == .html);
+    try std.testing.expect(extension("./a.HTML") == .html);
+    try std.testing.expect(extension("../b.htm") == .htm);
+    try std.testing.expect(extension("../b.XhtmL") == .xhtml);
+    try std.testing.expect(extension("../foo/c.txt") == .txt);
+    try std.testing.expect(extension("../c.asp") == null);
+    try std.testing.expect(extension("https://example.com/p") == null);
+
+    try std.testing.expect(extension("foo.png") == .png);
+    try std.testing.expect(extension("bar.PNG") == .png);
+    try std.testing.expect(extension("foo.Jpeg") == .jpeg);
+    try std.testing.expect(extension("bar.JPG") == .jpg);
+    try std.testing.expect(extension("bar.jpg") == .jpg);
+    try std.testing.expect(extension("f.gif") == .gif);
+    try std.testing.expect(extension("b.GIF") == .gif);
+
+    try std.testing.expect(extension("PNG") == null);
+    try std.testing.expect(extension("foo.xyz") == null);
 }

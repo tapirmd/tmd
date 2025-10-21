@@ -23,7 +23,7 @@ const UnchangeWriter = struct {
     }
 
     fn writeAll(uw: *const UnchangeWriter, writer: anytype) !void {
-        var line = &(uw.tmdDoc.lines.head orelse return).value;
+        var line: *const tmd.Line = &(uw.tmdDoc.lines.head orelse return).value;
         var lineStartAt: tmd.DocSize = 0;
         while (true) {
             std.debug.assert(line.start(.none) == lineStartAt);
@@ -41,7 +41,7 @@ const UnchangeWriter = struct {
                     std.debug.assert(LineScanner.are_all_blanks(uw.data(lineStartAt, line.prefixBlankEnd)));
                     std.debug.assert(LineScanner.are_all_blanks(uw.data(line.suffixBlankStart, lineEndPos)));
 
-                    var token = &(line.tokens.head orelse {
+                    var token: *const tmd.Token = &(line.tokens.head orelse {
                         try writer.writeAll(uw.data(lineStartAt, lineEndPos));
                         break :blk;
                     }).value;
