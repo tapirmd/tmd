@@ -41,6 +41,12 @@ favicon: ?union(enum) {
     _parsed: list.List(FilePath),
 } = null,
 
+// written in asset-elements-in-head
+@"js-files": ?union(enum) {
+    data: []const u8, // containing paths relative to the containing config file
+    _parsed: list.List(FilePath),
+} = null,
+
 // Default to project folder name.
 @"project-title": ?union(enum) {
     data: []const u8,

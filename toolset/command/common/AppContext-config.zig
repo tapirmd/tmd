@@ -12,6 +12,13 @@ const util = @import("util.zig");
 pub const ConfigEx = struct {
     basic: Config = .{},
     path: []const u8 = "", // blank is for default config etc.
+
+    // Keys are Template.Token.Command.Argument.value.ptr.
+    parsedCommandArgs: std.AutoHashMap([*]const u8, ParsedCommandArg) = undefined,
+
+    pub const ParsedCommandArg = union(enum) {
+        filePath: Config.FilePath,
+    };
 };
 
 pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !struct { *ConfigEx, []const u8, *ConfigEx } {
@@ -59,19 +66,19 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
             } else if (std.fs.path.dirname(absDirPath)) |parentDir| blk: {
                 if (try confirmDirectoryConfigAndRoot(ctx, parentDir, false)) |info| {
                     if (projectConfigEx) |projectEx| {
-                        ctx.mergeTmdConfig(&projectEx.basic, &info.configEx.basic);
+                        ctx.mergeTmdConfig(&projectEx.basic, &info.rootConfigEx.basic);
                         break :blk .{ projectEx, info.rootPath, info.rootConfigEx };
                     }
                     break :blk .{ info.configEx, info.rootPath, info.rootConfigEx };
                 }
                 if (projectConfigEx) |projectEx| {
-                    const rootPath = std.fs.path.dirname(projectEx.path).?;
-                    break :blk .{ projectEx, rootPath, projectEx };
+                    ctx.mergeTmdConfig(&projectEx.basic, &ctx._defaultConfigEx.basic);
+                    break :blk .{ projectEx, absDirPath, projectEx };
                 }
                 break :blk null;
             } else if (projectConfigEx) |projectEx| blk: {
-                const rootPath = std.fs.path.dirname(projectEx.path).?;
-                break :blk .{ projectEx, rootPath, projectEx };
+                ctx.mergeTmdConfig(&projectEx.basic, &ctx._defaultConfigEx.basic);
+                break :blk .{ projectEx, absDirPath, projectEx };
             } else null;
 
             if (values) |info| {
@@ -93,6 +100,7 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
     };
 
     const info = (try T.confirmDirectoryConfigAndRoot(ctx1, absDirPath1, true)).?;
+
     return .{ info.configEx, info.rootPath, info.rootConfigEx };
 }
 
@@ -144,10 +152,12 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     try parseConfigOptions(ctx, configEx);
 
-    if (@import("builtin").mode == .Debug and true) {
+    if (@import("builtin").mode == .Debug and false) {
         std.debug.print("====== {s}\n", .{configFilePath});
         printTmdConfig(&configEx.basic);
     }
+
+    configEx.parsedCommandArgs = .init(ctx.arenaAllocator);
 
     return configEx;
 }
@@ -218,11 +228,13 @@ pub fn printTmdConfig(config: *Config) void {
 
             const activeTag = std.meta.activeTag(unionValue);
             inline for (unionTypeFields) |unionField| {
-                if ((unionField.type == []const u8) and
-                    std.meta.stringToEnum(TagType, unionField.name) == activeTag)
-                {
-                    const v = @field(unionValue, unionField.name);
-                    std.debug.print("      .{s}=\"{s}\",\n", .{ unionField.name, v });
+                if (std.meta.stringToEnum(TagType, unionField.name) == activeTag) {
+                    if (unionField.type == []const u8) {
+                        const v = @field(unionValue, unionField.name);
+                        std.debug.print("      .{s}=\"{s}\",\n", .{ unionField.name, v });
+                    } else if (std.mem.eql(u8, "_parsed", unionField.name)) {
+                        std.debug.print("      .{s}=[...],\n", .{unionField.name});
+                    }
                 }
             }
         } else std.debug.print("null", .{});
@@ -354,6 +366,30 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         }
 
         cssFiles.* = .{
+            ._parsed = paths,
+        };
+    }
+
+    if (configEx.basic.@"js-files") |*jsFiles| handle: {
+        const jsFilesData = switch (jsFiles.*) {
+            .data => |data| std.mem.trim(u8, data, " \t\r\n"),
+            ._parsed => break :handle,
+        };
+
+        var paths = list.List(Config.FilePath){};
+        // errdefer path.destroy(nil, ctx.arenaAllocator);
+
+        var it = std.mem.tokenizeAny(u8, jsFilesData, "\n");
+        while (it.next()) |item| {
+            const line = std.mem.trim(u8, item, " \t\r");
+            if (line.len == 0) continue;
+            const filePath = try parseFilePath(ctx, configEx, line);
+
+            const element = try paths.createElement(ctx.arenaAllocator, true);
+            element.value = filePath;
+        }
+
+        jsFiles.* = .{
             ._parsed = paths,
         };
     }

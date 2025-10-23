@@ -197,7 +197,17 @@ pub const TmdRender = struct {
             try self.writeUsualContentBlockLinesForNoStyling(w, titleHeader);
             return true;
         } else {
-            try w.writeAll("");
+            //try w.writeAll("");
+            return false;
+        }
+    }
+
+    pub fn writeTitleInTocItem(self: *TmdRender, w: anytype) !bool {
+        if (self.doc.titleHeader) |titleHeader| {
+            try self.writeUsualContentBlockLinesForTocItem(w, titleHeader);
+            return true;
+        } else {
+            //try w.writeAll("");
             return false;
         }
     }

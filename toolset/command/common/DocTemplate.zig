@@ -22,11 +22,6 @@ pub const Token = struct {
         command: Command,
     } = undefined,
 
-    pub const String = struct {
-        ptr: [*]const u8 = undefined,
-        len: usize = undefined,
-    };
-
     pub const Tag = struct {
         text: []const u8,
         type: enum {

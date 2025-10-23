@@ -236,9 +236,7 @@ pub fn build(b: *std.Build) !void {
     const buildWebsite = b.addRunArtifact(toolsetCommand);
     buildWebsite.step.dependOn(&installJsLib.step);
     buildWebsite.setCwd(b.path("."));
-    buildWebsite.addArg("gen");
-    buildWebsite.addArg("--trial-page-css=@");
-    buildWebsite.addArg("--enabled-custom-apps=html");
+    buildWebsite.addArg("gen-full-page");
     buildWebsite.addArg("documentation/pages");
 
     const CompletePlayPage = struct {

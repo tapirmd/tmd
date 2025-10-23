@@ -191,7 +191,7 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
 // validatedPath uses OS specified seperator.
 pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]u8 {
     const out = try std.mem.concat(allocator, u8, &.{ prefix, validatedPath, suffix });
-    if (std.fs.path.sep != '/') {
+    if (std.fs.path.sep != std.fs.path.sep_posix) {
         std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
     }
     return out;

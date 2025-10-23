@@ -5,24 +5,26 @@ const tmd = @import("tmd");
 const AppContext = @import("AppContext.zig");
 const DocTemplate = @import("DocTemplate.zig");
 const config = @import("Config.zig");
+const gen = @import("gen.zig");
 const util = @import("util.zig");
 
 const DocRenderer = @This();
 
 ctx: *AppContext,
-configEx: *const AppContext.ConfigEx,
-template: *DocTemplate,
+configEx: *AppContext.ConfigEx,
+_template: *DocTemplate,
+
 callbackConfig: Callbacks,
 
 w: std.io.AnyWriter = undefined,
 tmdDocInfo: ?TmdDocInfo = null,
 
-pub fn init(ctx: *AppContext, configEx: *const AppContext.ConfigEx, cc: Callbacks) DocRenderer {
-    const template = configEx.basic.@"html-page-template".?._parsed;
+pub fn init(ctx: *AppContext, configEx: *AppContext.ConfigEx, cc: Callbacks) DocRenderer {
+    const _template = configEx.basic.@"html-page-template".?._parsed;
     return .{
         .ctx = ctx,
         .configEx = configEx,
-        .template = template,
+        ._template = _template,
         .callbackConfig = cc,
     };
 }
@@ -31,14 +33,14 @@ pub fn render(r: *DocRenderer, w: anytype, docInfo: ?TmdDocInfo) !void {
     r.w = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
     r.tmdDocInfo = docInfo;
 
-    try r.template.render(r);
+    try r._template.render(r);
 }
 
 pub const Callbacks = struct {
     // must be valid value if any of the following callback is not null.
     owner: *anyopaque = undefined,
 
-    urlInAttributeCallback: ?*const fn (*anyopaque, *const DocRenderer, config.FilePath) anyerror!void = null,
+    relativeUrlInAttributeCallback: ?*const fn (*anyopaque, *const DocRenderer, config.FilePath) anyerror!void = null,
     assetElementsInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageTitleInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
@@ -73,31 +75,32 @@ pub fn onTemplateCommand(r: *const DocRenderer, command: DocTemplate.Token.Comma
 }
 
 const TemplateFunctions = struct {
-    pub fn @"url-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
-        if (args == null) {
-            try r.ctx.stderr.print("function [url-in-attribute] needs at least one argument.\n", .{});
+    pub fn @"relative-url-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
+        const filePathArg = args orelse {
+            try r.ctx.stderr.print("function [relative-url-in-attribute] needs one argument.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        };
+        if (filePathArg.next != null) {
+            try r.ctx.stderr.print("function [relative-url-in-attribute] has too many arguments.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         }
 
-        // Default implementation
+        const filePath = try r.getFilePath(args.?);
 
-        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
-        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
-
-        if (r.callbackConfig.urlInAttributeCallback) |callback| {
+        if (r.callbackConfig.relativeUrlInAttributeCallback) |callback| {
             try callback(r.callbackConfig.owner, r, filePath);
             return;
         }
 
+        // Default implementation
+
         switch (filePath) {
-            .builtin => return error.BuiltinAssetHasNoPath,
-            .remote => |url| {
-                try tmd.writeUrlAttributeValue(r.w, url);
-            },
+            .builtin => return error.CannotGenerateUrlForBuiltinAssets,
+            .remote => |url| try tmd.writeUrlAttributeValue(r.w, url),
             .local => |absPath| {
-                var buffer: [std.fs.max_path_bytes]u8 = undefined;
-                const path = try util.validatePathToPosixPathIntoBuffer(absPath, buffer[0..]);
-                try tmd.writeUrlAttributeValue(r.w, path);
+                const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
+
+                try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
             },
         }
     }
@@ -112,7 +115,43 @@ const TemplateFunctions = struct {
 
         // Default implementation
 
-        unreachable;
+        if (r.configEx.basic.favicon) |option| {
+            const faviconFilePath = option._parsed;
+
+            try r.writeFaviconAssetInHead(faviconFilePath);
+        }
+
+        if (r.configEx.basic.@"css-files") |option| {
+            const cssFiles = option._parsed;
+
+            if (cssFiles.head) |head| {
+                var element = head;
+                while (true) {
+                    const next = element.next;
+                    const cssFilePath = element.value;
+
+                    try r.writeCssAssetInHead(cssFilePath);
+
+                    if (next) |nxt| element = nxt else break;
+                }
+            }
+        }
+
+        if (r.configEx.basic.@"js-files") |option| {
+            const jsFiles = option._parsed;
+
+            if (jsFiles.head) |head| {
+                var element = head;
+                while (true) {
+                    const next = element.next;
+                    const jsFilePath = element.value;
+
+                    try r.writeJsAssetInHead(jsFilePath);
+
+                    if (next) |nxt| element = nxt else break;
+                }
+            }
+        }
     }
 
     pub fn @"page-title-in-head"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
@@ -126,7 +165,7 @@ const TemplateFunctions = struct {
         // Default implementation
 
         if (r.tmdDocInfo) |info| {
-            if (try info.doc.writePageTitleInHtmlHead(r.w)) return;
+            if (try info.doc.writePageTitle(r.w, .inHtmlHead)) return;
         }
         try r.w.writeAll("Untitled"); // ToDo: localization
     }
@@ -143,7 +182,15 @@ const TemplateFunctions = struct {
 
         const tmdDocInfo = if (r.tmdDocInfo) |info| info else return;
 
-        try tmdDocInfo.doc.writeHTML(r.w, .{}, r.ctx.allocator);
+        var externalBlockGenerator: gen.ExternalBlockGenerator = undefined;
+        const co: gen.BlockGeneratorCallbackOwner = .{
+            .tmdDoc = tmdDocInfo.doc,
+            .configEx = r.configEx,
+            .externalBlockGenerator = &externalBlockGenerator,
+        };
+        const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
+
+        try tmdDocInfo.doc.writeHTML(r.w, genOptions, r.ctx.allocator);
     }
 
     pub fn @"nav-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
@@ -153,26 +200,30 @@ const TemplateFunctions = struct {
     }
 
     pub fn @"embed-file-content"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
-        if (args == null) {
-            try r.ctx.stderr.print("function [embed-file-content] needs at least one argument.\n", .{});
+        const filePathArg = args orelse {
+            try r.ctx.stderr.print("function [embed-file-content] needs one argument.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        };
+        if (filePathArg.next != null) {
+            try r.ctx.stderr.print("function [embed-file-content] has too many arguments.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
-        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
-
+        const filePath = try r.getFilePath(args.?);
         try r.ctx.writeFile(r.w, filePath, null, true);
     }
 
     pub fn @"base64-encode"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
-        if (args == null) {
-            try r.ctx.stderr.print("function [base64-encode] needs at least one argument.\n", .{});
+        const filePathArg = args orelse {
+            try r.ctx.stderr.print("function [base64-encode] needs one argument.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        };
+        if (filePathArg.next != null) {
+            try r.ctx.stderr.print("function [base64-encode] has too many arguments.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const filePath, const hasMoreArgs = try getFilePath(r.ctx, r, args.?);
-        if (hasMoreArgs) return error.TooManyTemplateFunctionArguments;
-
+        const filePath = try r.getFilePath(args.?);
         try r.ctx.writeFile(r.w, filePath, .base64, true);
     }
 };
@@ -184,35 +235,164 @@ pub fn collectTemplateFunctions(ctx: *AppContext) !void {
     }
 }
 
-fn readTheOnlyBoolArgument(arg_: ?*DocTemplate.Token.Command.Argument) !bool {
-    const arg = arg_ orelse return false;
-    if (arg.next != null) return error.TooManyTemplateFunctionArguments;
+fn getFilePath(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !config.FilePath {
+    const result = try r.configEx.parsedCommandArgs.getOrPut(arg.value.ptr);
+    const valuePtr = if (result.found_existing) {
+        switch (result.value_ptr.*) {
+            .filePath => |filePath| return filePath,
+        }
+    } else result.value_ptr;
 
-    if (std.ascii.eqlIgnoreCase(arg.value, "0")) return false;
-    if (std.ascii.eqlIgnoreCase(arg.value, "f")) return false;
-    if (std.ascii.eqlIgnoreCase(arg.value, "n")) return false;
-    if (std.ascii.eqlIgnoreCase(arg.value, "false")) return false;
-    if (std.ascii.eqlIgnoreCase(arg.value, "no")) return false;
-    return true;
-}
-
-fn getFilePath(ctx: *AppContext, r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !struct { config.FilePath, bool } {
     const assetPath = arg.value;
-    const relativeToFinalConfigFile = try readTheOnlyBoolArgument(arg.next);
-    const relativeToPath = if (relativeToFinalConfigFile) r.configEx.path else r.template.ownerFilePath;
+    const relativeToPath = r._template.ownerFilePath;
 
-    const filePath: config.FilePath, const hasMoreArgs = switch (tmd.checkFilePathType(assetPath)) {
-        .remote => .{ .{ .remote = assetPath }, arg.next != null },
+    const filePath: config.FilePath = switch (tmd.checkFilePathType(assetPath)) {
+        .remote => .{ .remote = assetPath },
         .local => blk: {
-            const filePath: config.FilePath = if (std.mem.startsWith(u8, assetPath, "@") and std.fs.path.extension(assetPath).len == 0)
+            break :blk if (std.mem.startsWith(u8, assetPath, "@") and std.fs.path.extension(assetPath).len == 0)
                 .{ .builtin = assetPath }
             else
-                .{ .local = try util.resolvePathFromFilePath(relativeToPath, assetPath, true, ctx.arenaAllocator) };
-            const hasMoreArgs = if (arg.next) |a| a.next != null else false;
-            break :blk .{ filePath, hasMoreArgs };
+                .{ .local = try util.resolvePathFromFilePath(relativeToPath, assetPath, true, r.ctx.arenaAllocator) };
         },
         .invalid => return error.InvalidFilePath,
     };
 
-    return .{ filePath, hasMoreArgs };
+    valuePtr.* = .{ .filePath = filePath };
+    return filePath;
+}
+
+fn writeFaviconAssetInHead(r: *const DocRenderer, faviconFilePath: config.FilePath) !void {
+    switch (faviconFilePath) {
+        .builtin => |name| {
+            const info = try r.ctx.getBuiltinFileInfo(name);
+            const mimeType = tmd.getExtensionInfo(info.extension).mime;
+
+            try r.w.writeAll(
+                \\<link rel="icon" type="
+            );
+            try r.w.writeAll(mimeType);
+            try r.w.writeAll(
+                \\" href="data:image/jpeg;base64,
+            );
+            try r.ctx.writeFile(r.w, faviconFilePath, .base64, false);
+            try r.w.writeAll(
+                \\">
+                \\
+            );
+        },
+        .local => |absPath| {
+            try r.w.writeAll(
+                \\<link rel="icon" href="
+            );
+
+            const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
+
+            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+
+            try r.w.writeAll(
+                \\">
+                \\
+            );
+        },
+        .remote => |url| {
+            try r.w.writeAll(
+                \\<link rel="icon" href="
+            );
+
+            try tmd.writeUrlAttributeValue(r.w, url);
+
+            try r.w.writeAll(
+                \\">
+                \\
+            );
+        },
+    }
+}
+
+fn writeCssAssetInHead(r: *const DocRenderer, cssFilePath: config.FilePath) !void {
+    switch (cssFilePath) {
+        .builtin => |_| {
+            try r.w.writeAll(
+                \\<style>
+                \\
+            );
+
+            try r.ctx.writeFile(r.w, cssFilePath, null, false);
+
+            try r.w.writeAll(
+                \\</style>
+                \\
+            );
+        },
+        .local => |absPath| {
+            try r.w.writeAll(
+                \\<link href="
+            );
+
+            const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
+
+            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+
+            try r.w.writeAll(
+                \\" rel="stylesheet">
+                \\
+            );
+        },
+        .remote => |url| {
+            try r.w.writeAll(
+                \\<link href="
+            );
+
+            try tmd.writeUrlAttributeValue(r.w, url);
+
+            try r.w.writeAll(
+                \\" rel="stylesheet">
+                \\
+            );
+        },
+    }
+}
+
+fn writeJsAssetInHead(r: *const DocRenderer, jsFilePath: config.FilePath) !void {
+    switch (jsFilePath) {
+        .builtin => |_| {
+            try r.w.writeAll(
+                \\<script>
+                \\
+            );
+
+            try r.ctx.writeFile(r.w, jsFilePath, null, false);
+
+            try r.w.writeAll(
+                \\</script>
+                \\
+            );
+        },
+        .local => |absPath| {
+            try r.w.writeAll(
+                \\<script src="
+            );
+
+            const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
+
+            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+
+            try r.w.writeAll(
+                \\"></script>
+                \\
+            );
+        },
+        .remote => |url| {
+            try r.w.writeAll(
+                \\<script src="
+            );
+
+            try tmd.writeUrlAttributeValue(r.w, url);
+
+            try r.w.writeAll(
+                \\"></script>
+                \\
+            );
+        },
+    }
 }

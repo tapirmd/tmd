@@ -95,8 +95,11 @@ pub const Doc = struct {
         doc.* = .{ .data = "" };
     }
 
-    pub fn writePageTitleInHtmlHead(doc: *const Doc, writer: anytype) !bool {
-        return try @import("doc_to_html.zig").write_doc_title_in_html_head(writer, doc);
+    pub fn writePageTitle(doc: *const Doc, writer: anytype, comptime purpose: enum { inHtmlHead, htmlTocItem }) !bool {
+        return switch (purpose) {
+            .inHtmlHead => try @import("doc_to_html.zig").write_doc_title_in_html_head(writer, doc),
+            .htmlTocItem => try @import("doc_to_html.zig").write_doc_title_in_html_toc_item(writer, doc),
+        };
     }
 
     pub fn writeHTML(doc: *const Doc, writer: anytype, genOptions: GenOptions, allocator: std.mem.Allocator) !void {

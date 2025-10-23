@@ -158,7 +158,7 @@ pub const TitleRenderChecker = struct {
         var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
         defer buf.deinit();
 
-        const hasTitle = try doc.writePageTitleInHtmlHead(buf.writer());
+        const hasTitle = try doc.writePageTitle(buf.writer(), inHtmlHead);
         const titleText = buf.items;
         try v.checkFn(hasTitle, titleText);
         return true;

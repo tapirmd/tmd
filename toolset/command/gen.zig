@@ -136,48 +136,22 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     // generate HTML snippet
 
-    const T = struct {
-        tmdDoc: *const tmd.Doc,
-        configEx: *AppContext.ConfigEx,
-        externalBlockGenerator: *gen.ExternalBlockGenerator,
-
-        fn makeTmdGenOptions(self: *const @This()) tmd.GenOptions {
-            return .{
-                .callbackContext = self,
-                .getCustomBlockGenCallback = getCustomBlockGenCallback,
-            };
-        }
-
-        fn getCustomBlockGenCallback(callbackContext: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
-            const self: *const @This() = @ptrCast(@alignCast(callbackContext));
-            return self.externalBlockGenerator.makeGenCallback(self.configEx, self.tmdDoc, custom);
-        }
-    };
-
     var fbs = std.io.fixedBufferStream(remainingBuffer);
 
     switch (fullPage) {
         false => {
             var externalBlockGenerator: gen.ExternalBlockGenerator = undefined;
-            const t: T = .{
+            const co: gen.BlockGeneratorCallbackOwner = .{
                 .tmdDoc = &tmdDoc,
                 .configEx = configEx,
                 .externalBlockGenerator = &externalBlockGenerator,
             };
-            const genOptions: tmd.GenOptions = t.makeTmdGenOptions();
+            const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
 
             try tmdDoc.writeHTML(fbs.writer(), genOptions, ctx.allocator);
         },
         true => {
-            var h: CallbacksHandler = .{};
-            var tmdDocRenderer: DocRenderer = .init(
-                ctx,
-                configEx,
-                .{
-                    .owner = &h,
-                    .assetElementsInHeadCallback = CallbacksHandler.assetElementsInHeadCallback,
-                },
-            );
+            var tmdDocRenderer: DocRenderer = .init(ctx, configEx, .{});
 
             try tmdDocRenderer.render(fbs.writer(), .{
                 .doc = &tmdDoc,
@@ -197,134 +171,4 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
         \\{s} ({} bytes)
         \\
     , .{ outputFilename, htmlContent.len });
-}
-
-const CallbacksHandler = struct {
-    fn assetElementsInHeadCallback(owner: *anyopaque, r: *const DocRenderer) !void {
-        // ToDo: can change method CallbacksHandler.assetElementsInHeadCallback to a function
-        //       without undefined owner.
-        const h: *CallbacksHandler = @ptrCast(@alignCast(owner));
-        _ = h;
-
-        const ctx = r.ctx;
-        const configEx = r.configEx;
-        const w = r.w;
-
-        const tmdDocInfo = if (r.tmdDocInfo) |info| info else unreachable;
-        const docTargetFilePath = tmdDocInfo.targetFilePath;
-
-        if (configEx.basic.favicon) |option| {
-            const faviconFilePath = option._parsed;
-
-            try writeFaviconAssetInHead(ctx, w, faviconFilePath, docTargetFilePath, std.fs.path.sep);
-        }
-
-        if (configEx.basic.@"css-files") |option| {
-            const cssFiles = option._parsed;
-
-            if (cssFiles.head) |head| {
-                var element = head;
-                while (true) {
-                    const next = element.next;
-                    const cssFilePath = element.value;
-
-                    try writeCssAssetInHead(ctx, w, cssFilePath, docTargetFilePath, std.fs.path.sep);
-
-                    if (next) |nxt| element = nxt else break;
-                }
-            }
-        }
-    }
-};
-
-fn writeFaviconAssetInHead(ctx: *AppContext, w: anytype, faviconFilePath: config.FilePath, relativeTo: []const u8, sep: u8) !void {
-    switch (faviconFilePath) {
-        .builtin => |name| {
-            const info = try ctx.getBuiltinFileInfo(name);
-            const mimeType = tmd.getExtensionInfo(info.extension).mime;
-
-            try w.writeAll(
-                \\<link rel="icon" type="
-            );
-            try w.writeAll(mimeType);
-            try w.writeAll(
-                \\" href="data:image/jpeg;base64,
-            );
-            try ctx.writeFile(w, faviconFilePath, .base64, false);
-            try w.writeAll(
-                \\">
-                \\
-            );
-        },
-        .local => |absPath| {
-            try w.writeAll(
-                \\<link rel="icon" href="
-            );
-
-            const n, const s = util.relativePath(relativeTo, absPath, sep);
-            for (0..n) |_| try w.writeAll("../");
-            try tmd.writeUrlAttributeValue(w, s);
-
-            try w.writeAll(
-                \\">
-                \\
-            );
-        },
-        .remote => |url| {
-            try w.writeAll(
-                \\<link rel="icon" href="
-            );
-
-            try tmd.writeUrlAttributeValue(w, url);
-
-            try w.writeAll(
-                \\">
-                \\
-            );
-        },
-    }
-}
-
-fn writeCssAssetInHead(ctx: *AppContext, w: anytype, cssFilePath: config.FilePath, relativeTo: []const u8, sep: u8) !void {
-    switch (cssFilePath) {
-        .builtin => |_| {
-            try w.writeAll(
-                \\<script>
-                \\
-            );
-
-            try ctx.writeFile(w, cssFilePath, null, false);
-
-            try w.writeAll(
-                \\</script>
-                \\
-            );
-        },
-        .local => |absPath| {
-            try w.writeAll(
-                \\<link href="
-            );
-
-            const n, const s = util.relativePath(relativeTo, absPath, sep);
-            for (0..n) |_| try w.writeAll("../");
-            try tmd.writeUrlAttributeValue(w, s);
-
-            try w.writeAll(
-                \\" rel="stylesheet">
-                \\
-            );
-        },
-        .remote => |url| {
-            try w.writeAll(
-                \\<link href="
-            );
-
-            try tmd.writeUrlAttributeValue(w, url);
-
-            try w.writeAll(
-                \\" rel="stylesheet">
-                \\
-            );
-        },
-    }
 }

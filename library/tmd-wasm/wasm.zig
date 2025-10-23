@@ -161,7 +161,7 @@ fn generatePageTitle() ![]const u8 {
     var fbs = std.io.fixedBufferStream(titleBuffer);
     try fbs.writer().writeInt(u32, 0, .little);
 
-    const hasTitle = try tmdDoc.writePageTitleInHtmlHead(fbs.writer());
+    const hasTitle = try tmdDoc.writePageTitle(fbs.writer(), .inHtmlHead);
     const titleWithLengthHeader = fbs.getWritten();
 
     try fbs.seekTo(0);
