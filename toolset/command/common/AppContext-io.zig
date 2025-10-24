@@ -44,6 +44,46 @@ pub const ContentOp = enum {
 pub const ContentCacheKey = struct {
     filePath: config.FilePath,
     contentOp: ?ContentOp,
+
+    pub const HashMapContext = struct {
+        pub fn hash(self: @This(), key: ContentCacheKey) u64 {
+            _ = self;
+
+            const zero: u8 = 0;
+            const one: u8 = 1;
+
+            var hasher = std.hash.Wyhash.init(0);
+
+            if (key.contentOp) |op| {
+                hasher.update(std.mem.asBytes(&one));
+                const tag: u8 = @intFromEnum(op);
+                hasher.update(std.mem.asBytes(&tag));
+            } else hasher.update(std.mem.asBytes(&zero));
+
+            {
+                const tag: u8 = @intFromEnum(key.filePath);
+                hasher.update(std.mem.asBytes(&tag));
+                const path = key.filePath.path();
+                hasher.update(path);
+            }
+
+            return hasher.final();
+        }
+
+        pub fn eql(self: @This(), a: ContentCacheKey, b: ContentCacheKey) bool {
+            _ = self;
+            if (a.contentOp != b.contentOp) return false;
+
+            const tag_a: u8 = @intFromEnum(a.filePath);
+            const tag_b: u8 = @intFromEnum(b.filePath);
+            if (tag_a != tag_b) return false;
+
+            const path_a = a.filePath.path();
+            const path_b = b.filePath.path();
+
+            return std.mem.eql(u8, path_a, path_b);
+        }
+    };
 };
 
 pub fn writeFile(ctx: *AppContext, w: anytype, filePath: config.FilePath, comptime contentOp: ?ContentOp, cacheIt: bool) !void {
@@ -81,7 +121,12 @@ pub fn writeFile(ctx: *AppContext, w: anytype, filePath: config.FilePath, compti
 
                     break :blk encoded;
                 } else {
-                    @panic("Steaming content in base64 format is not implemented yet.");
+                    std.debug.assert(allocatorForFree != null or filePath == .builtin);
+
+                    const encoder = std.base64.standard_no_pad.Encoder;
+                    try encoder.encodeWriter(w, content);
+
+                    return;
                 }
             },
         }
@@ -89,6 +134,8 @@ pub fn writeFile(ctx: *AppContext, w: anytype, filePath: config.FilePath, compti
         if (cacheIt and filePath != .builtin) {
             break :blk content;
         } else {
+            std.debug.assert(allocatorForFree != null or filePath == .builtin);
+
             try w.writeAll(content);
             return;
         }

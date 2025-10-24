@@ -83,6 +83,34 @@ pub const FilePath = union(FileType) {
             inline else => |v| v,
         };
     }
+
+    pub const HashMapContext = struct {
+        pub fn hash(self: @This(), key: FilePath) u64 {
+            _ = self;
+
+            var hasher = std.hash.Wyhash.init(0);
+
+            const tag: u8 = @intFromEnum(key);
+            hasher.update(std.mem.asBytes(&tag));
+            const pathValue = key.path();
+            hasher.update(pathValue);
+
+            return hasher.final();
+        }
+
+        pub fn eql(self: @This(), a: FilePath, b: FilePath) bool {
+            _ = self;
+
+            const tag_a: u8 = @intFromEnum(a);
+            const tag_b: u8 = @intFromEnum(b);
+            if (tag_a != tag_b) return false;
+
+            const path_a = a.path();
+            const path_b = b.path();
+
+            return std.mem.eql(u8, path_a, path_b);
+        }
+    };
 };
 
 pub const CustomBlockGenerator = union(enum) {

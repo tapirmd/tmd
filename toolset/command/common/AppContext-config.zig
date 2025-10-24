@@ -167,6 +167,7 @@ const defaultConfigContent = @embedFile("tmd.settings-default");
 pub fn parseDefaultConfig(ctx: *AppContext) !void {
     try ctx.parseAndFillConfig(&ctx._defaultConfigEx.basic, defaultConfigContent);
     try parseConfigOptions(ctx, &ctx._defaultConfigEx);
+    ctx._defaultConfigEx.parsedCommandArgs = .init(ctx.arenaAllocator);
 }
 
 pub fn parseAndFillConfig(ctx: *AppContext, config: *Config, configContent: []const u8) !void {

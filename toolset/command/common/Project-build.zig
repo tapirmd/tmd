@@ -36,13 +36,13 @@ const BuildSession = struct {
 
     genBuffer: []u8 = undefined,
 
-    calTargetFilePath: *const fn (*BuildSession, []const u8, FilePurpose) anyerror![]const u8 = undefined,
+    calTargetFilePath: *const fn (*BuildSession, Config.FilePath, FilePurpose) anyerror![]const u8 = undefined,
     generateArticleContent: *const fn (*BuildSession, []const u8, []const u8, *DocRenderer) anyerror![]const u8 = undefined,
 
     //builderContext: *anyopaque = undefined,
 
-    // source abs-file-path to target relative-file-path
-    fileMapping: std.StringHashMap([]const u8) = undefined,
+    // source file-path to target relative-file-path
+    fileMapping: std.HashMap(Config.FilePath, []const u8, Config.FilePath.HashMapContext, 33) = undefined,
 
     // target relative-file-path to cached file content.
     // For website mode, asset files (iamge, css, etc.) are not cached.
@@ -87,7 +87,6 @@ const BuildSession = struct {
         try self.confirmProjectVersion();
         try self.confirmBuildOutputPath(BuilderType.buildNameSuffix());
 
-        std.debug.print("[run] del and mkdir {s}\n", .{self.buildOutputPath});
         try std.fs.cwd().deleteTree(self.buildOutputPath);
         self.buildOutputDir = try std.fs.cwd().makeOpenPath(self.buildOutputPath, .{});
         defer self.buildOutputDir.close();
@@ -122,6 +121,8 @@ const BuildSession = struct {
         try self.collectArticles(&tmdDocRenderer);
 
         try BuilderType.assembleOutputFiles(self);
+
+        std.debug.print("Done. Output directory: {s}\n", .{self.buildOutputPath});
     }
 
     fn confirmProjectVersion(self: *@This()) !void {
@@ -147,8 +148,8 @@ const BuildSession = struct {
         try w.writeByte(std.fs.path.sep);
         if (project.path.len != project.workspacePath.len) {
             try w.writeAll("@projects");
+            try w.writeByte(std.fs.path.sep);
         }
-        try w.writeByte(std.fs.path.sep);
         try w.writeAll(project.dirname());
         if (self.projectVersion.len > 0) {
             try w.writeByte('-');
@@ -203,7 +204,7 @@ const BuildSession = struct {
 
     // An article must be registered before being collected.
     fn collectArticle(self: *@This(), absPath: []const u8, tmdDocRenderer: *DocRenderer) !void {
-        const targetPath = self.fileMapping.get(absPath) orelse return error.ArticleNotRegistered;
+        const targetPath = self.fileMapping.get(.{ .local = absPath }) orelse return error.ArticleNotRegistered;
         if (self.targetFileContents.get(targetPath)) |_| return error.ArticleAlreadyCollected;
 
         // ToDo: not always need to cache the content, just output it directly.
@@ -282,13 +283,39 @@ const BuildSession = struct {
 
     pub fn tryToRegisterFile(self: *@This(), filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
         const targetPath = switch (filePath) {
-            .builtin => return error.NotSupportedBuiltInAssetYet,
+            .builtin => |name| blk: {
+                if (self.fileMapping.get(filePath)) |targetPath| return targetPath;
+
+                const info = try self.appContext.getBuiltinFileInfo(name);
+                switch (filePurpose) {
+                    .images => {
+                        const extInfo = tmd.getExtensionInfo(info.extension);
+                        if (!extInfo.isImage) return error.NonImageBuiltinAssertUsedAsImage;
+                    },
+                    .css => if (info.extension != .css) return error.NonCssBuiltinAssertUsedAsCss,
+                    else => return error.NoSuchBuiltinAssets,
+                }
+
+                const targetPath = try self.calTargetFilePath(self, filePath, filePurpose);
+                try self.fileMapping.put(filePath, targetPath);
+
+                switch (filePurpose) {
+                    .images => try self.imageFiles.append(targetPath),
+                    .css => {
+                        const element = try self.cssFiles.createElement(self.arenaAllocator, true);
+                        element.value = targetPath;
+                    },
+                    else => unreachable,
+                }
+
+                break :blk targetPath;
+            },
             .remote => |url| url,
             .local => |absPath| blk: {
-                if (self.fileMapping.get(absPath)) |targetPath| return targetPath;
+                if (self.fileMapping.get(filePath)) |targetPath| return targetPath;
 
-                const targetPath = try self.calTargetFilePath(self, absPath, filePurpose);
-                try self.fileMapping.put(absPath, targetPath);
+                const targetPath = try self.calTargetFilePath(self, filePath, filePurpose);
+                try self.fileMapping.put(filePath, targetPath);
 
                 switch (filePurpose) {
                     .navigationArticle, .contentArticle => try self.articleFiles.append(absPath),
@@ -313,7 +340,7 @@ const BuildSession = struct {
             },
         };
 
-        if (builtin.mode == .Debug) {
+        if (builtin.mode == .Debug and false) {
             switch (filePath) {
                 .remote => |url| {
                     std.debug.print(
@@ -321,18 +348,17 @@ const BuildSession = struct {
                         \\
                     , .{ @tagName(filePurpose), url });
                 },
-                .local => |absPath| {
-                    if (targetPath.len <= 256) std.debug.print(
+                inline .builtin, .local => |absPathOrName| {
+                    if (targetPath.len <= 128) std.debug.print(
                         \\[register] {s}: {s}
                         \\    -> {s}
                         \\
-                    , .{ @tagName(filePurpose), absPath, targetPath }) else std.debug.print(
+                    , .{ @tagName(filePurpose), absPathOrName, targetPath }) else std.debug.print(
                         \\[register] {s}: {s}
-                        \\    -> {s} ({} bytes)
+                        \\    -> {s}... ({} bytes)
                         \\
-                    , .{ @tagName(filePurpose), absPath, targetPath[0..64], targetPath.len });
+                    , .{ @tagName(filePurpose), absPathOrName, targetPath[0..64], targetPath.len });
                 },
-                .builtin => {},
             }
         }
 
@@ -514,18 +540,27 @@ pub const StaticWebsiteBuilder = struct {
         return ""; // "-website";
     }
 
-    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+    fn calTargetFilePath(session: *BuildSession, filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
         switch (filePurpose) {
             .navigationArticle, .contentArticle => {
-                const project = session.project;
-                if (!util.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
-                }
+                switch (filePath) {
+                    .local => |sourceAbsPath| {
+                        const project = session.project;
+                        if (!util.isFileInDir(sourceAbsPath, project.path)) {
+                            try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+                            return error.FileOutOfProject;
+                        }
 
-                const relPath = sourceAbsPath[project.path.len + 1 ..];
-                const ext = std.fs.path.extension(relPath);
-                return try std.mem.concat(session.arenaAllocator, u8, &.{ relPath[0 .. relPath.len - ext.len], ".html" });
+                        const relPath = sourceAbsPath[project.path.len + 1 ..];
+                        const ext = std.fs.path.extension(relPath);
+                        const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ relPath[0 .. relPath.len - ext.len], ".html" });
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        //try session.targetFileContents.put(targetPath, ""); // Don't
+                        return targetPath;
+                    },
+                    .builtin, .remote => unreachable,
+                }
             },
             //.html => {
             //    const project = session.project;
@@ -540,15 +575,32 @@ pub const StaticWebsiteBuilder = struct {
             inline .images, .css, .js => |tag| {
                 const folderName = @tagName(tag);
 
-                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
-                defer session.appContext.allocator.free(content);
+                switch (filePath) {
+                    .builtin => |name| {
+                        const info = try session.appContext.getBuiltinFileInfo(name);
 
-                const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
-                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+                        const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, name, info.content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
-                try util.writeFile(session.buildOutputDir, targetPath, content);
-                //try session.targetFileContents.put(targetPath, "");
-                return targetPath;
+                        try util.writeFile(session.buildOutputDir, targetPath, info.content);
+
+                        try session.targetFileContents.put(targetPath, "");
+                        return targetPath;
+                    },
+                    .local => |sourceAbsPath| {
+                        const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                        defer session.appContext.allocator.free(content);
+
+                        const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        try util.writeFile(session.buildOutputDir, targetPath, content);
+
+                        try session.targetFileContents.put(targetPath, "");
+                        return targetPath;
+                    },
+                    .remote => unreachable,
+                }
             },
         }
     }
@@ -574,14 +626,13 @@ pub const StaticWebsiteBuilder = struct {
             .targetFilePath = relPath,
         });
 
-        const htmlContent = try session.arenaAllocator.dupe(u8, fbs.getWritten());
+        const htmlContent = fbs.getWritten();
 
-        // ToDo: don't return the cache content (or just return "").
-        {
-            try util.writeFile(session.buildOutputDir, relPath, htmlContent);
-        }
+        try util.writeFile(session.buildOutputDir, relPath, htmlContent);
 
-        return htmlContent;
+        //const htmlContent = try session.arenaAllocator.dupe(u8, fbs.getWritten());
+        //return htmlContent;
+        return ""; // no need to cache it, because it has been written.
     }
 
     fn createDocRendererCallbacks(session: *BuildSession) DocRenderer.Callbacks {
@@ -689,28 +740,46 @@ pub const EpubBuilder = struct {
         return ".epub";
     }
 
-    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+    fn calTargetFilePath(session: *BuildSession, filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
         switch (filePurpose) {
             .navigationArticle => {
-                const project = session.project;
-                if (!util.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
+                switch (filePath) {
+                    .local => |sourceAbsPath| {
+                        const project = session.project;
+                        if (!util.isFileInDir(sourceAbsPath, project.path)) {
+                            try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+                            return error.FileOutOfProject;
+                        }
+                        const basename = std.fs.path.basename(sourceAbsPath);
+                        const ext = std.fs.path.extension(basename);
+                        const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ basename[0 .. basename.len - ext.len], ".xhtml" });
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        //try session.targetFileContents.put(targetPath, ""); // Don't
+                        return targetPath;
+                    },
+                    .builtin, .remote => unreachable,
                 }
-                const basename = std.fs.path.basename(sourceAbsPath);
-                const ext = std.fs.path.extension(basename);
-                return std.mem.concat(session.arenaAllocator, u8, &.{ basename[0 .. basename.len - ext.len], ".xhtml" });
             },
             .contentArticle => {
-                const project = session.project;
-                if (!util.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
-                }
+                switch (filePath) {
+                    .local => |sourceAbsPath| {
+                        const project = session.project;
+                        if (!util.isFileInDir(sourceAbsPath, project.path)) {
+                            try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+                            return error.FileOutOfProject;
+                        }
 
-                const relPath = sourceAbsPath[project.path.len + 1 ..];
-                const ext = std.fs.path.extension(relPath);
-                return util.buildPosixPath("tmd/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
+                        const relPath = sourceAbsPath[project.path.len + 1 ..];
+                        const ext = std.fs.path.extension(relPath);
+                        const targetPath = try util.buildPosixPath("tmd/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        //try session.targetFileContents.put(targetPath, ""); // Don't
+                        return targetPath;
+                    },
+                    .builtin, .remote => unreachable,
+                }
             },
             //.html => {
             //    const project = session.project;
@@ -727,12 +796,27 @@ pub const EpubBuilder = struct {
             inline .images, .css, .js => |tag| {
                 const folderName = @tagName(tag) ++ "/";
 
-                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
-                const targetPath = try util.buildPosixPathWithContentHashBase64(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
-                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+                switch (filePath) {
+                    .builtin => |name| {
+                        const info = try session.appContext.getBuiltinFileInfo(name);
 
-                try session.targetFileContents.put(targetPath, content);
-                return targetPath;
+                        const targetPath = try util.buildPosixPathWithContentHashBase64(folderName, name, info.content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        try session.targetFileContents.put(targetPath, info.content);
+                        return targetPath;
+                    },
+                    .local => |sourceAbsPath| {
+                        const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+
+                        const targetPath = try util.buildPosixPathWithContentHashBase64(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        try session.targetFileContents.put(targetPath, content);
+                        return targetPath;
+                    },
+                    .remote => unreachable,
+                }
             },
         }
     }
@@ -792,42 +876,78 @@ pub const StandaloneHtmlBuilder = struct {
         return "-standalone.html";
     }
 
-    fn calTargetFilePath(session: *BuildSession, sourceAbsPath: []const u8, filePurpose: FilePurpose) ![]const u8 {
+    fn calTargetFilePath(session: *BuildSession, filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
         switch (filePurpose) {
             .navigationArticle,
             .contentArticle, //, .html
             => {
-                const project = session.project;
-                if (!util.isFileInDir(sourceAbsPath, project.path)) {
-                    try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
-                    return error.FileOutOfProject;
+                switch (filePath) {
+                    .local => |sourceAbsPath| {
+                        const project = session.project;
+                        if (!util.isFileInDir(sourceAbsPath, project.path)) {
+                            try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+                            return error.FileOutOfProject;
+                        }
+                        const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ "#", sourceAbsPath[project.path.len + 1 ..] });
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        //try session.targetFileContents.put(targetPath, ""); // Don't
+                        return targetPath;
+                    },
+                    .builtin, .remote => unreachable,
                 }
-                return try std.mem.concat(session.arenaAllocator, u8, &.{ "#", sourceAbsPath[project.path.len + 1 ..] });
             },
             .images => {
-                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
-                defer session.appContext.allocator.free(content);
+                switch (filePath) {
+                    .builtin => |name| {
+                        const info = try session.appContext.getBuiltinFileInfo(name);
 
-                const ext = tmd.extension(sourceAbsPath) orelse return error.InvalidImageExtension;
-                const info = tmd.getExtensionInfo(ext);
-                if (!info.isImage) return error.NotImageExtension;
+                        const targetPath = try util.buildEmbeddedImageHref(info.extension, info.content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
-                const targetPath = try util.buildEmbeddedImageHref(ext, content, session.arenaAllocator);
-                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+                        try session.targetFileContents.put(targetPath, "");
+                        return targetPath;
+                    },
+                    .local => |sourceAbsPath| {
+                        const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                        defer session.appContext.allocator.free(content);
 
-                //try session.targetFileContents.put(targetPath, "");
-                return targetPath;
+                        const ext = tmd.extension(sourceAbsPath) orelse unreachable;
+                        const info = tmd.getExtensionInfo(ext);
+                        if (!info.isImage) unreachable;
+
+                        const targetPath = try util.buildEmbeddedImageHref(ext, content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        try session.targetFileContents.put(targetPath, "");
+                        return targetPath;
+                    },
+                    .remote => unreachable,
+                }
             },
             .css, .js => {
-                const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
-                defer session.appContext.allocator.free(content);
+                switch (filePath) {
+                    .builtin => |name| {
+                        const info = try session.appContext.getBuiltinFileInfo(name);
 
-                //const targetPath = try util.buildHashHexString(content, session.arenaAllocator);
-                const targetPath = try util.buildHashString(content, session.arenaAllocator);
-                if (session.targetFileContents.get(targetPath)) |_| return targetPath;
+                        const targetPath = try util.buildHashString(info.content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
-                try session.targetFileContents.put(targetPath, content);
-                return targetPath;
+                        try session.targetFileContents.put(targetPath, info.content);
+                        return targetPath;
+                    },
+                    .local => |sourceAbsPath| {
+                        const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                        defer session.appContext.allocator.free(content);
+
+                        const targetPath = try util.buildHashString(content, session.arenaAllocator);
+                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+
+                        try session.targetFileContents.put(targetPath, content);
+                        return targetPath;
+                    },
+                    .remote => unreachable,
+                }
             },
         }
     }
