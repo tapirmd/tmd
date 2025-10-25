@@ -44,8 +44,7 @@ pub const Callbacks = struct {
     assetElementsInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageTitleInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
-
-    // nav-content-in-body
+    navContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
 
     // local-file-url
 };
@@ -196,7 +195,12 @@ const TemplateFunctions = struct {
     pub fn @"nav-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         if (args != null) return error.TooManyTemplateFunctionArguments;
 
-        _ = r;
+        if (r.callbackConfig.navContentInBodyCallback) |callback| {
+            try callback(r.callbackConfig.owner, r);
+            return;
+        }
+
+        // @panic("nav-content-in-body template command has no default implementation");
     }
 
     pub fn @"embed-file-content"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
