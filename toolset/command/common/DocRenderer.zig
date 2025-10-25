@@ -61,16 +61,16 @@ pub fn onTemplateText(r: *const DocRenderer, text: []const u8) !void {
     try r.w.writeAll(text);
 }
 
-pub fn onTemplateTag(_: *const DocRenderer, tag: DocTemplate.Token.Tag) !void {
-    _ = tag;
-}
+//pub fn onTemplateTag(_: *const DocRenderer, tag: DocTemplate.Token.Tag) !void {
+//    _ = tag;
+//}
 
 pub fn onTemplateCommand(r: *const DocRenderer, command: DocTemplate.Token.Command) !void {
     const FunctionType = fn (r: *const DocRenderer, cmdName: []const u8, args: ?*DocTemplate.Token.Command.Argument) anyerror!void;
     const func: *const FunctionType = @ptrCast(@alignCast(command.obj));
 
-    try func(r, command.name, command.args);
-    //func(r, command.name, command.args) catch |err| {std.debug.print("@@@ error: {s}\n", .{@errorName(err)});} ;
+    try func(r, command.name(), command.args);
+    //func(r, command.name(), command.args) catch |err| {std.debug.print("@@@ error: {s}\n", .{@errorName(err)});} ;
 }
 
 const TemplateFunctions = struct {

@@ -18,20 +18,24 @@ pub const Token = struct {
 
     type: union(enum) {
         text: []const u8,
-        tag: Tag,
+        //tag: Tag,
         command: Command,
     } = undefined,
 
-    pub const Tag = struct {
-        text: []const u8,
-        type: enum {
-            open,
-            close,
-        },
-    };
+    //pub const Tag = struct {
+    //    text: []const u8,
+    //    type: enum {
+    //        open,
+    //        close,
+    //    },
+    //};
 
     pub const Command = struct {
-        name: []const u8, // muitlple names may share the same obj.
+        namePtr: [*]const u8, // muitlple names may share the same obj.
+        nameLen: u32,
+
+        tagLen: u32,
+
         obj: *const anyopaque,
         args: ?*Argument,
 
@@ -41,6 +45,10 @@ pub const Token = struct {
             next: ?*Argument = null,
             value: []const u8 = undefined,
         };
+
+        pub fn name(self: @This()) []const u8 {
+            return self.namePtr[0..self.nameLen];
+        }
     };
 };
 
@@ -87,9 +95,9 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
             } };
         }
 
-        fn createCommandToken(parser: *@This(), start: usize, end: usize, ctx: anytype) !void {
+        fn createCommandToken(parser: *@This(), start: usize, end: usize, tagLen: usize, ctx: anytype) !void {
             const t = try parser.newToken();
-            t.type = .{ .command = try parser.parseCommand(parser.contentStart[start..end], ctx) };
+            t.type = .{ .command = try parser.parseCommand(parser.contentStart[start..end], tagLen, ctx) };
         }
 
         fn denyOpening(parser: *@This()) void {
@@ -160,20 +168,21 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
                 try parser.createTextToken(parser.pendingOffset, openTagStart);
             } else std.debug.assert(openTagStart == parser.pendingOffset);
 
-            try parser.createTagToken(openTagStart, parser.pendingOpenTagEnd, true);
+            //try parser.createTagToken(openTagStart, parser.pendingOpenTagEnd, true);
+            const tagLen = parser.pendingOpenTagEnd - openTagStart;
 
             const closeTagStart = closeTagEndAt - parser.numOpenTagChars;
             if (closeTagStart > parser.pendingOpenTagEnd) {
-                try parser.createCommandToken(parser.pendingOpenTagEnd, closeTagStart, ctx);
+                try parser.createCommandToken(parser.pendingOpenTagEnd, closeTagStart, tagLen, ctx);
             } else std.debug.assert(closeTagStart == parser.pendingOpenTagEnd);
 
-            try parser.createTagToken(closeTagStart, closeTagEndAt, false);
+            //try parser.createTagToken(closeTagStart, closeTagEndAt, false);
 
             parser.pendingOffset = closeTagEndAt;
             parser.denyOpening();
         }
 
-        fn parseCommand(parser: *@This(), callContent: []const u8, ctx: anytype) !Token.Command {
+        fn parseCommand(parser: *@This(), callContent: []const u8, tagLen: usize, ctx: anytype) !Token.Command {
             var it = std.mem.splitAny(u8, callContent, " \t");
             const cmdName = while (it.next()) |item| {
                 if (item.len == 0) continue;
@@ -198,7 +207,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
                 lastArg = arg;
             }
 
-            return .{ .name = cmdName, .obj = obj, .args = headArg.next };
+            return .{ .namePtr = cmdName.ptr, .nameLen = @intCast(cmdName.len), .obj = obj, .args = headArg.next, .tagLen = @intCast(tagLen)};
         }
     };
 
@@ -244,7 +253,7 @@ pub fn render(template: *DocTemplate, context: anytype) !void {
     while (true) {
         switch (token.type) {
             .text => |text| try context.onTemplateText(text),
-            .tag => |tag| try context.onTemplateTag(tag),
+            //.tag => |tag| try context.onTemplateTag(tag),
             .command => |command| try context.onTemplateCommand(command),
         }
         token = token.next orelse break;
