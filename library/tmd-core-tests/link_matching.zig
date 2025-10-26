@@ -31,7 +31,9 @@ test "line end type" {
                     for (self.expectedURIs, 1..) |expected, i| {
                         const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
-                        if (!std.mem.eql(u8, uri, expected)) {
+                        const targetUrl, const result = if (std.mem.startsWith(u8, expected, "!"))
+                            .{std.mem.trimLeft(u8, expected, " \t"), false} else .{expected, true}; 
+                        if (std.mem.eql(u8, uri, targetUrl) != result) {
                             return error.UnmatchedLinkURL;
                         }
                         remaining = remaining[range.end + closeNeedle.len ..];
@@ -388,16 +390,28 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
+        \\__ #bbb __ 
+        \\
         \\__`` #ccc __ 
         \\
         \\__```` #ddd __ 
         \\
         \\__^`` #eee __ 
         \\
+        \\__`` `` #fff __ 
+        \\
+        \\__ #bbb __ 
+        \\
     , &.{
-        "#ccc",
+        "#fn:bbb",
+        "#fn:ccc",
         "#ddd",
         "#eee",
+        "#fff",
+        "#fn:bbb",
+        "#fn:bbb:ref-1",
+        "#fn:bbb:ref-2",
+        "#fn:ccc:ref-1",
     }));
 
     try std.testing.expect(try LinkChecker.check(

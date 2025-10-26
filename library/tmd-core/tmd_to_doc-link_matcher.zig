@@ -504,7 +504,7 @@ const Matcher = struct {
         const link = linkDef.getLink();
         std.debug.assert(link.owner == .block);
 
-        //const urlSource = link.url.sourceText.?;
+        //const urlSource = link.url.sourceContentToken.?;
         //const confirmed = link.urlConfirmed();
         const url = link.url.?;
 
@@ -598,7 +598,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         const link = &linkElement.value;
         std.debug.assert(link.url == null);
         blk: {
-            const firstTextToken: *const tmd.Token = if (link.firstPlainText) |first| first else {
+            const firstTextToken: *const tmd.Token = if (link.firstContentToken) |first| first else {
                 // The link should be ignored in rendering.
                 //std.debug.print("ignored for no content tokens\n", .{});
 
@@ -621,10 +621,12 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             var lastToken = firstTextToken;
             // count sum length without the last text token
             var linkText = LinkText{};
-            while (lastToken.nextContentTokenInLink()) |nextToken| {
+            if (link.owner == .media) {} // media link has only one token
+            else while (lastToken.nextContentTokenInLink()) |nextToken| {
                 defer lastToken = nextToken;
                 const str = self.tokenAsString(lastToken);
                 linkText.appendLinkTextPart(str, true);
+
                 if (lastToken.followedByLineEndSpaceInLink()) {
                     linkText.appendLinkTextPart(" ", true);
                 }
@@ -647,7 +649,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                         // This is a self-defined hyperlink.
 
                         //std.debug.print("self defined url: {s}\n", .{str});
-                        (try self.setLinkURL(link, url)).sourceText = lastToken;
+                        (try self.setLinkURL(link, url)).sourceContentToken = lastToken;
 
                         break :blk;
                     }
@@ -687,7 +689,8 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             const url = while (true) { // ToDo: use a labled non-loop block
                 lastToken = firstTextToken;
                 // build text data without the last text token
-                while (lastToken.nextContentTokenInLink()) |nextToken| {
+                if (link.owner == .media) {} // media link has only one token
+                else while (lastToken.nextContentTokenInLink()) |nextToken| {
                     defer lastToken = nextToken;
                     const str = self.tokenAsString(lastToken);
                     linkText.appendLinkTextPart(str, false);
@@ -727,7 +730,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
             std.debug.assert(link.linkBlock() != null);
 
-            (try self.setLinkURL(link, url)).sourceText = lastToken;
+            (try self.setLinkURL(link, url)).sourceContentToken = lastToken;
 
             matcher.doForLinkDefinition(linkForTree);
         }
@@ -769,8 +772,8 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
         while (element) |theElement| {
             const link = theElement.value.getLink();
             if (link.url == null) {
-                //link.setSourceOfURL(link.firstPlainText, false);
-                (try self.setLinkURL(link, .{})).sourceText = link.firstPlainText;
+                //link.setSourceOfURL(link.firstContentToken, false);
+                (try self.setLinkURL(link, .{})).sourceContentToken = link.firstContentToken;
             }
             element = theElement.next;
         }

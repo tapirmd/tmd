@@ -60,7 +60,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
             }
 
             const end = block.endLine();
-            while (true) {
+            while (false) {
                 var depth = block.nestingDepth + 1;
                 while (depth > 0) : (depth -= 1) {
                     std.debug.print("  ", .{});
@@ -169,7 +169,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
                     break;
                 }
 
-                const lineElement: *list.List(tmd.Line).Element = @alignCast(@fieldParentPtr("value", line));
+                const lineElement: *const list.List(tmd.Line).Element = @alignCast(@fieldParentPtr("value", line));
                 if (lineElement.next) |le| {
                     line = &le.value;
                 } else unreachable; // should always break from above

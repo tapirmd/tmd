@@ -158,8 +158,16 @@ fn on_new_content_token(self: *ContentParser, token: *tmd.Token) void {
     self.blockSession.atomBlock.more.hasNonMediaContentTokens = true;
 
     if (self.blockSession.lastLink) |link| {
-        if (link.firstPlainText == null) {
-            link.firstPlainText = token;
+        if (link.firstContentToken == null) {
+            const setIt = switch(token.*) {
+                .plaintext => true,
+                .evenBackticks => |t| t.more.secondary or t.more.pairCount > 1 or switch (token.prev().?.*) {
+                    .spanMark => |m| !(m.markType == .link and m.more.open),
+                    else => false,
+                },
+                else => unreachable,
+            };
+            if (setIt) link.firstContentToken = token;
         } else if (self.blockSession.lastContentToken) |content| {
             switch (content.*) {
                 inline .plaintext, .evenBackticks => |*t| t.nextInLink = token,
@@ -449,7 +457,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     const numBlanks = lineScanner.readUntilLineEnd();
                     const textEnd = lineScanner.cursor - numBlanks;
                     std.debug.assert(textEnd > textStart);
-                    link.firstPlainText = try self.create_media_spec_text_token(textStart, textEnd);
+                    link.firstContentToken = try self.create_media_spec_text_token(textStart, textEnd);
                     break :parse_tokens textEnd;
                 },
             }

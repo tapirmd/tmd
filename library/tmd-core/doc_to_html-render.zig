@@ -1097,13 +1097,11 @@ pub const TmdRender = struct {
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
         // These are only valid when activeLinkInfo != null.
-        firstPlainTextInLink: bool = undefined,
         linkFootnote: ?*Footnote = undefined,
         brokenLinkConfirmed: bool = undefined,
 
         fn onLinkInfo(self: *@This(), linkInfo: *tmd.Token.LinkInfo) void {
             self.activeLinkInfo = linkInfo;
-            self.firstPlainTextInLink = true;
             self.brokenLinkConfirmed = false;
         }
     };
@@ -1142,40 +1140,32 @@ pub const TmdRender = struct {
                     inline .commentText, .extra, .lineTypeMark, .containerMark => {},
                     .plaintext => blk: {
                         if (tracker.activeLinkInfo) |linkInfo| {
-                            const url = linkInfo.link.url orelse unreachable;
-                            if (!tracker.firstPlainTextInLink) {
+                            const link = linkInfo.link;
+                            const url = link.url orelse unreachable;
+                            if (token != link.firstContentToken) {
                                 std.debug.assert(url.manner != .footnote);
 
-                                if (url.sourceText) |sourceText| {
-                                    if (sourceText == token) break :blk;
-                                }
-                            } else {
-                                tracker.firstPlainTextInLink = false;
-
-                                if (url.manner == .footnote) {
-                                    if (usage == .general) {
-                                        //if (tracker.linkFootnote.block) |_| {
-                                        //    try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
-                                        //} else {
-                                        //    try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
-                                        //}
-                                        if (tracker.linkFootnote) |ft| {
-                                            std.debug.assert(tracker.brokenLinkConfirmed == (ft.block == null));
-                                            const sign = if (tracker.brokenLinkConfirmed) "?" else "";
-                                            try w.print("[{}]{s}", .{ ft.orderIndex, sign });
-                                        } else {
-                                            try w.print("[...]", .{});
-                                        }
+                                if (token == url.sourceContentToken)  break :blk;
+                            } else if (url.manner == .footnote) {
+                                if (usage == .general) {
+                                    //if (tracker.linkFootnote.block) |_| {
+                                    //    try w.print("[{}]", .{tracker.linkFootnote.orderIndex});
+                                    //} else {
+                                    //    try w.print("[{}]?", .{tracker.linkFootnote.orderIndex});
+                                    //}
+                                    if (tracker.linkFootnote) |ft| {
+                                        std.debug.assert(tracker.brokenLinkConfirmed == (ft.block == null));
+                                        const sign = if (tracker.brokenLinkConfirmed) "?" else "";
+                                        try w.print("[{}]{s}", .{ ft.orderIndex, sign });
+                                    } else {
+                                        try w.print("[...]", .{});
                                     }
-                                    break :blk;
                                 }
+                                break :blk;
                             }
                         }
                         const text = self.doc.rangeData(token.range());
                         try fns.writeHtmlContentText(w, text);
-                    },
-                    .linkInfo => |*l| {
-                        tracker.onLinkInfo(l);
                     },
                     .evenBackticks => |m| {
                         if (m.more.secondary) {
@@ -1184,16 +1174,17 @@ pub const TmdRender = struct {
                             for (0..m.more.pairCount) |_| {
                                 try w.writeAll("`");
                             }
-                        } else if (usage == .noStyling) {
-                            if (m.more.pairCount > 1) {
-                                try w.writeAll(" ");
-                            }
-                        } else {
-                            for (1..m.more.pairCount) |_| {
+                        } else if (m.more.pairCount > 1) {
+                            if (usage == .noStyling) {
+                                try w.writeAll(" "); // ToDo: why?
+                            } else for (1..m.more.pairCount) |_| {
                                 //try w.writeAll("&nbsp;");
                                 try w.writeAll("&#160;"); // better in epub
                             }
                         }
+                    },
+                    .linkInfo => |*l| {
+                        tracker.onLinkInfo(l);
                     },
                     .spanMark => |*m| {
                         if (m.more.blankSpan) {
@@ -1216,9 +1207,9 @@ pub const TmdRender = struct {
                                     if (url.manner == .footnote) {
                                         std.debug.assert(link.url != null);
                                         std.debug.assert(url.fragment.len > 0);
-                                        //std.debug.assert(url.sourceText != null);
+                                        //std.debug.assert(url.sourceContentToken != null);
 
-                                        //const t = url.sourceText.?;
+                                        //const t = url.sourceContentToken.?;
                                         //const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
 
                                         //const footnote_id = linkURL[1..];
@@ -1258,9 +1249,9 @@ pub const TmdRender = struct {
                                     }
 
                                     //if (link.urlConfirmed()) {
-                                    //    std.debug.assert(link.url.sourceText != null);
+                                    //    std.debug.assert(link.url.sourceContentToken != null);
                                     //
-                                    //    const t = link.url.sourceText.?;
+                                    //    const t = link.url.sourceContentToken.?;
                                     //    const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
                                     //
                                     //    try w.print(
@@ -1345,11 +1336,8 @@ pub const TmdRender = struct {
                             .comment => break,
                             .media => blk: {
                                 if (m.more.isBare) {
-                                    try w.writeAll(" ");
+                                    //try w.writeAll(" "); // uncessary. Medias are not surrounded spaces automatically.
                                     break :blk;
-                                }
-                                if (tracker.activeLinkInfo) |_| {
-                                    tracker.firstPlainTextInLink = false;
                                 }
                                 if (usage == .noStyling) break :blk;
 

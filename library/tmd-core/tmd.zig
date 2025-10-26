@@ -268,7 +268,7 @@ pub const URL = struct {
     //
     // This is the head of a list. See Token.PlainText.nextInLink.
     // It is only valid when .more.urlSourceSet == true.
-    sourceText: ?*const Token = null, // null for a blank link span
+    sourceContentToken: ?*const Token = null, // null for a blank link span
 
     // Without the fragment part.
     base: []const u8 = "",
@@ -302,9 +302,9 @@ pub const Link = struct {
     owner: Owner,
 
     // This is the head of a list. See Token.PlainText.nextInLink.
-    firstPlainText: ?*Token = null, // null for a blank link span
+    firstContentToken: ?*Token = null, // null for a blank link span
 
-    // null means .sourceText has not been determined.
+    // null means .sourceContentToken has not been determined.
     url: ?*URL = null,
 
     //more: packed struct {
@@ -323,44 +323,7 @@ pub const Link = struct {
         };
     }
 
-    //pub fn isFootnote(self: *const @This()) bool {
-    //    return self.url.manner == .footnote;
-    //}
 
-    //pub fn setFootnoteManner(self: *@This()) void {
-    //    self.url.manner = .footnote;
-    //    //self.more.isFootnote = is;
-    //}
-
-    //pub fn urlConfirmed(self: *const @This()) bool {
-    //    return self.more.urlConfirmed;
-    //}
-
-    //pub fn urlSourceSet(self: *@This()) bool {
-    //    return self.more.urlSourceSet;
-    //}
-
-    //pub fn setSourceOfURL(self: *@This(), urlSource: ?*Token, confirmed: bool) void {
-    //    std.debug.assert(!self.urlSourceSet());
-    //
-    //    self.more.urlConfirmed = confirmed;
-    //    self.url.sourceText = urlSource;
-    //
-    //    self.more.urlSourceSet = true;
-    //}
-
-    // ToDo: support blankSourceOfURL? Maybe not a good idea.
-    //       (what does this mean? The last token of a hyperlink
-    //       is a blank text token? href="" ?)
-    //pub fn confirmBlankSourceOfURL(self: *@This()) void {
-    //    std.debug.assert(!self.urlSourceSet());
-    //
-    //    self.more.urlConfirmed = true;
-    //    self.url.sourceText = null;
-    //    self.more.blankSourceOfURL = true;
-    //
-    //    self.more.urlSourceSet = true;
-    //}
 };
 
 pub const BaseBlockAttibutes = struct {
@@ -1368,33 +1331,6 @@ pub const Token = union(enum) {
         link: *Link,
 
         // ToDo: now here wastes a usize-size memory.
-        //       Optimization: Can be used to support future potential
-        //       self-defiend-image-link, to avoid parsing some image url definitions twice.
-        //
-        //          mediaLeadingToken: ?*LeadingSpanMark,
-        //
-        //       For example, in the following two cases, the hyperlink and the image
-        //       share the same link.
-        //
-        //       '''
-        //       __
-        //       && clickable-image.png
-        //       __
-        //
-        //       __
-        //       && clickable image
-        //       __
-        //
-        //       === clickable image: foo.png
-        //       '''
-        //
-        //  [rethink]: The link should be created for the hyperlink
-        //             and be shared with the enclosed image span.
-        //
-        //             Now, a LinkInfo token followings the meida
-        //             LeadingSpanMark token. Maybe the former
-        //             can be mergerd into the latter, by removing
-        //             .more.markLen field. (Looks not a good idea.)
     },
     leadingSpanMark: struct {
         start: DocSize,
@@ -1513,7 +1449,7 @@ pub const Token = union(enum) {
     }
 
     // Debug purpose. Used to verify end() == end2(line).
-    pub fn end2(self: *@This(), _: *Line) DocSize {
+    pub fn end2(self: *@This(), _: *const Line) DocSize {
         if (self.next()) |nextToken| {
             return nextToken.start();
         }
