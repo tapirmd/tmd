@@ -45,7 +45,7 @@ pub fn main() !void {
 
     if (args.len <= 1) {
         try stdout.print(
-            \\TapirMD toolset v{s}
+            \\TapirMD Toolchain v{s}
             \\
         , .{tmd.version});
 
@@ -83,6 +83,8 @@ fn listCommands(w: std.fs.File.Writer) !void {
 
     const unionTypeInfo = @typeInfo(Command).@"union";
     inline for (unionTypeInfo.fields) |unionField| {
+        if (@hasDecl(unionField.type, "notUserFaced")) continue;
+
         try w.print(
             \\  {s} {s}
             \\    {s}

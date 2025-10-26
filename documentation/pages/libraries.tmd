@@ -10,7 +10,7 @@ __TapirMD__ official maintains libraries for Zig, WebAssembly (WASM), JavaScript
 The Zig library is fully featured, while the others currently support only
 HTML generation (from TapirMD documents) and TapirMD document formatting.
 
-    === TapirMD:: index.html
+    === TapirMD:: index.tmd
 
 ###---
 
@@ -136,7 +136,7 @@ The steps to build the TapirMD JavaScript library:
 
 Please read the source code of the __online play page__ to get how to use the JavaScript library.
 
-    === online play page :: play.html
+    === online play page :: play.tmd
 
 @@@ #go-lib
 ###-------- The Go library

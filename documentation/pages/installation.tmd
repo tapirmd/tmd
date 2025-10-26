@@ -9,8 +9,8 @@
 This page shows the steps of installing and using the official __TapirMD__ toolset locally.
 You can also experience the toolset __online__.
 
-    === TapirMD:: index.html
-    === online:: play.html
+    === TapirMD:: index.tmd
+    === online:: play.tmd
 
 ###+++++ Installation steps
 
@@ -51,26 +51,50 @@ the offcial TapirMD commands locally.
 
 ###+++++ Use the toolset
 
-*  Run the following command to format TapirMD files:
+*  Run `tmd` without arguments to show the help information.
+
+*  Run the following command to format `.tmd` files:
    '''
     tmd fmt foo.tmd path-to-a-tmd-folder
    '''
+   ;;;
+   Run the following command to format all `.tmd` files within the current directory:
+   '''
+    tmd fmt
+   '''
 
-*  Run the following command to geneate incomplete HTML files for embedding purpose.
+*  Run the following command to geneate HTML snippet files for embedding purpose
+   in the same directories of corresponding `.tmd` files.
    '''
     tmd gen foo.tmd path-to-a-tmd-folder
    '''
+   ;;;
+   Run the following command to geneate HTML snippet files for all `.tmd` files
+   within the current directory:
+   '''
+    tmd gen
+   '''
 
-   -  Custom blocks can be enabled with the `--enabled-custom-apps` option:
-      '''
-    tmd gen --enabled-custom-apps=html foo.tmd path-to-a-tmd-folder
-      '''
-      Now, only `html` custom blocks can be enabled.
+*  Run the following command to geneate full HTML page files in the same directories
+   of corresponding `.tmd` files.
+   '''
+    tmd gen-full-page foo.tmd path-to-a-tmd-folder
+   '''
+   ;;;
+   Run the following command to geneate full HTML page files for all `.tmd` files
+   within the current directory:
+   '''
+    tmd gen-full-page
+   '''
 
-   -  Complete HTML files can be generated with the `--trial-page-css` option.
-      For example, the following command will use the built-in example css.
-      '''
-    tmd gen ---trial-page-css=@ foo.tmd path-to-a-tmd-folder
-      '''
-
-*  Just run `tmd` without arguments to show the help information.
+*  Run the following commands to build a TapirMD project located at the specified directory
+   and output target files in `@tmd-build` folder in the workspace directory of the project.
+   '''
+    tmd build foo.tmd project-dir
+    tmd build foo.tmd project-config-file
+   '''
+   ;;;
+   Run the following command to build a TapirMD project located at the current directory.
+   '''
+    tmd build
+   '''

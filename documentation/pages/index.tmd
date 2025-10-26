@@ -5,13 +5,13 @@
 -  ### Ecosystem
 
    *  Docs and references
-      +  __The specification`` specification.html __
-      +  __Demos`` demos.html __
-      +  __Use cases`` use-cases.html __
+      +  __The specification`` specification.tmd __
+      +  __Demos`` demos.tmd __
+      +  __Use cases`` use-cases.tmd __
    *  Tools and libraries
-      +  __The official toolset`` installation.html __
-      +  __An online playground`` play.html __
-      +  __Official libraries`` libraries.html__ (%% Zig, WASM, JavaScript, Go %%)
+      +  __The official toolset`` installation.tmd __
+      +  __An online playground`` play.tmd __
+      +  __Official libraries`` libraries.tmd__ (%% Zig, WASM, JavaScript, Go %%)
    *  Social
       +  __Source code`` https://github.com/tapirmd __
       +  __@zigo_101`` https://x.com/zigo_101 __

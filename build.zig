@@ -92,12 +92,12 @@ pub fn build(b: *std.Build) !void {
     });
     const runWasmLibTest = b.addRunArtifact(wasmLibTest);
 
-    //const toolsetTest = b.addTest(.{
-    //    .name = "toolset unit test",
-    //    .root_source_file = b.path("toolset/tmd/tests.zig"),
+    //const toolchainTest = b.addTest(.{
+    //    .name = "toolchain unit test",
+    //    .root_source_file = b.path("toolchain/tmd/tests.zig"),
     //    .target = target,
     //});
-    //const runToolsetTest = b.addRunArtifact(toolsetTest);
+    //const runToolchainTest = b.addRunArtifact(toolchainTest);
 
     const testStep = b.step("test", "Run unit tests");
     testStep.dependOn(&runListLibTest.step);
@@ -105,31 +105,31 @@ pub fn build(b: *std.Build) !void {
     testStep.dependOn(&runCoreLibTest.step);
     testStep.dependOn(&runCoreLibInternalTest.step);
     testStep.dependOn(&runWasmLibTest.step);
-    //testStep.dependOn(&runToolsetTest.step);
+    //testStep.dependOn(&runToolchainTest.step);
 
-    // toolset command
+    // toolchain command
 
-    const toolsetCommand = b.addExecutable(.{
+    const toolchainCommand = b.addExecutable(.{
         .name = "tmd",
         .root_module = b.createModule(.{
-            .root_source_file = b.path("toolset/app.zig"),
+            .root_source_file = b.path("toolchain/app.zig"),
             .target = target,
             .optimize = optimize,
         }),
     });
-    toolsetCommand.root_module.addImport("tmd", tmdLibModule);
-    toolsetCommand.root_module.addImport("list", listLibModule);
-    toolsetCommand.root_module.addImport("tree", treeLibModule);
-    const installToolset = b.addInstallArtifact(toolsetCommand, .{});
+    toolchainCommand.root_module.addImport("tmd", tmdLibModule);
+    toolchainCommand.root_module.addImport("list", listLibModule);
+    toolchainCommand.root_module.addImport("tree", treeLibModule);
+    const installToolchain = b.addInstallArtifact(toolchainCommand, .{});
 
-    const toolsetStep = b.step("toolset", "Build toolset");
-    toolsetStep.dependOn(&installToolset.step);
+    const toolchainStep = b.step("toolchain", "Build toolchain");
+    toolchainStep.dependOn(&installToolchain.step);
 
-    b.installArtifact(toolsetCommand);
+    b.installArtifact(toolchainCommand);
 
-    // run toolset cmd
+    // run toolchain cmd
 
-    const runTmdCommand = b.addRunArtifact(toolsetCommand);
+    const runTmdCommand = b.addRunArtifact(toolchainCommand);
     if (b.args) |args| runTmdCommand.addArgs(args);
 
     const runStep = b.step("run", "Run tmd command");
@@ -226,17 +226,17 @@ pub fn build(b: *std.Build) !void {
 
     // documentation fmt
 
-    const fmtDoc = b.addRunArtifact(toolsetCommand);
+    const fmtDoc = b.addRunArtifact(toolchainCommand);
     fmtDoc.setCwd(b.path("."));
     fmtDoc.addArg("fmt");
     fmtDoc.addArg("documentation/pages");
 
     // documentation gen
 
-    const buildWebsite = b.addRunArtifact(toolsetCommand);
+    const buildWebsite = b.addRunArtifact(toolchainCommand);
     buildWebsite.step.dependOn(&installJsLib.step);
     buildWebsite.setCwd(b.path("."));
-    buildWebsite.addArg("gen-full-page");
+    buildWebsite.addArg("build");
     buildWebsite.addArg("documentation/pages");
 
     const CompletePlayPage = struct {
@@ -268,11 +268,15 @@ pub fn build(b: *std.Build) !void {
             const theBuild = step.owner;
             var dir = try self.docPagesPath.getPath3(theBuild, null).openDir("", .{});
             defer dir.close();
-            const oldContent = try dir.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
+            var outputDir = try dir.openDir("@tmd-build", .{});
+            defer outputDir.close();
+            var outputPagesDir = try outputDir.openDir("pages", .{});
+            defer outputPagesDir.close();
+            const oldContent = try outputPagesDir.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
                 const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
-                const file = try dir.createFile("play.html", .{ .truncate = true });
+                const file = try outputPagesDir.createFile("play.html", .{ .truncate = true });
                 defer file.close();
                 try file.writeAll(oldContent[0..k]);
                 try file.writeAll(jsLibContent);

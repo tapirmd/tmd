@@ -7,7 +7,7 @@
 
 This page lists some use cases of __TapirMD__.
 
-    === TapirMD:: index.html
+    === TapirMD:: index.tmd
 
 *  __All pages__ of the TapirMD official website are written in TapirMD.
        === All pages:: https://github.com/tapirmd/tmd/tree/master/doc/pages

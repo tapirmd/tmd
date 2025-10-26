@@ -89,6 +89,8 @@ pub const Formatter = struct {
 };
 
 pub const FormatTester = struct {
+    pub const notUserFaced: void = {};
+
     pub fn argsDesc() []const u8 {
         return "[Dir | TmdFile]...";
     }

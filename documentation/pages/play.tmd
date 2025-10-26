@@ -1,11 +1,11 @@
 
 ### TapirMD Playground
 
-This is a playground for the __TapirMD``index.html__ markup format.
+This is a playground for the __TapirMD``index.tmd__ markup format.
 For learning and reference, please visit
-__demos``demos.html__,
-__use cases``use-cases.html__, and
-__the specification``specification.html__.
+__demos``demos.tmd__,
+__use cases``use-cases.tmd__, and
+__the specification``specification.tmd__.
 
 @@@ #note-enable-js
 %%(Note: This page needs JavaScript to function.)

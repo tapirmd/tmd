@@ -358,7 +358,7 @@ const BuildSession = struct {
             },
         };
 
-        if (builtin.mode == .Debug and true) {
+        if (builtin.mode == .Debug and false) {
             switch (filePath) {
                 .remote => |url| {
                     std.debug.print(

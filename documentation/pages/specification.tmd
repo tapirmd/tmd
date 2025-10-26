@@ -11,7 +11,7 @@ simplifies content creation.
 Inspired by Markdown's straightforward syntax, it offers
 enhanced specificity and greater control over formatting __#note-markdown__.
 
-    === TapirMD:: index.html
+    === TapirMD:: index.tmd
 
 While inspired by Markdown, TapirMD is not directly compatible.
 It's designed to generate rich HTML content,

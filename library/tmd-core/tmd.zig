@@ -234,10 +234,6 @@ pub const ElementAttibutes = struct {
     id: []const u8 = "", // ToDo: should be a Range?
     classes: []const u8 = "", // ToDo: should be Range list?
     //kvs: []const u8 = "", // ToDo: should be Range list?
-
-    pub fn isForFootnote(self: *const @This()) bool {
-        return self.id.len > 0 and self.id[0] == '^';
-    }
 };
 
 // The definition is not the same as web URL.
