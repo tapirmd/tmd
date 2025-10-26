@@ -542,6 +542,9 @@ fn parse(parser: *DocParser) !void {
                     suffixBlankStart = contentEnd;
                 },
                 '{', '}' => |mark| handle: {
+                    // mark length must be 1.
+                    if (lineScanner.peekNext() == mark) break :handle;
+
                     const isOpenMark = mark == '{';
                     if (isOpenMark) {
                         if (!blockArranger.canOpenBaseBlock()) break :handle;
@@ -550,7 +553,8 @@ fn parse(parser: *DocParser) !void {
                     }
 
                     lineScanner.advance(1);
-                    const markLen = lineScanner.readUntilNotChar(mark) + 1;
+                    //const markLen = lineScanner.readUntilNotChar(mark) + 1;
+                    const markLen = 1;
 
                     var playloadStart = lineScanner.cursor;
                     if (lineScanner.lineEnd) |_| {
