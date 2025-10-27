@@ -133,7 +133,7 @@ TapirMD supports a variety of block types, categorized into three groups:
    -  quotation blocks
    -  notice blocks
    -  reveal blocks
-   -  plain blocks
+   -  unstyled blocks
    }
    ;;;
    Except item blocks, predefined container blocks can only directly nest
@@ -220,7 +220,7 @@ The character in the leading mark token is
 -  `>` for quotation blocks,
 -  `!` for notice blocks,
 -  `?` for reveal blocks,
--  `.` for plain blocks.
+-  `.` for unstyled blocks.
 
 During line-by-line parsing, a non-item predefined container block will end
 *  before a blank block, or
@@ -1398,17 +1398,17 @@ the first-level header block is rendered as the always-visible title of the reve
       ''' << #reveal-examples-2
    }
 
-@@@ #plain-semantics
-###+++++ Plain block semantics
+@@@ #unstyled-semantics
+###+++++ Unstyled block semantics
 
-A plain block is a simple container without specific styling.
+A unstyled block is a simple container without specific styling.
 However, if its first non-attribute child block is a first-level header block,
 then the first-level header block is rendered with a specific header style.
 
-?  ### (a plain block example)
+?  ### (a unstyled block example)
    {
    *  ### Render Result
-      @@@ #plain-examples
+      @@@ #unstyled-examples
       {
       .  ### main.zig
          ''' zig
@@ -1422,15 +1422,15 @@ then the first-level header block is rendered with a specific header style.
 
    *  ### TapirMD Source
       '''
-      ''' << #plain-examples
+      ''' << #unstyled-examples
    }
 
-?  ### (another plain block example)
+?  ### (another unstyled block example)
    {
    *  ### Render Result
-      @@@ #plain-examples-2
+      @@@ #unstyled-examples-2
       {
-      A bare plain block is placed between the two lists to
+      A bare unstyled block is placed between the two lists to
       avoid them being interpreted as a single, continuous list.
 
       *. foo
@@ -1446,7 +1446,7 @@ then the first-level header block is rendered with a specific header style.
 
    *  ### TapirMD Source
       '''
-      ''' << #plain-examples-2
+      ''' << #unstyled-examples-2
    }
 
 @@@ #reserved-marks

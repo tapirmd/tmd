@@ -499,16 +499,16 @@ pub const TmdRender = struct {
 
                 try fns.writeCloseTag(w, tag, true);
             },
-            .plain => {
+            .unstyled => {
                 const tag = "div";
-                const classes = "tmd-plain";
+                const classes = "tmd-unstyled";
 
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     {
                         const headerTag = "div";
-                        const headerClasses = "tmd-plain-header";
+                        const headerClasses = "tmd-unstyled-header";
 
                         try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
                         try self.writeUsualContentBlockLines(w, headerBlock);
@@ -580,8 +580,12 @@ pub const TmdRender = struct {
                     try fns.writeBareTag(w, blankTag, blankClasses, null, self.options.identSuffix, true);
                 }
 
+                const dropCap = if (block.startLine().firstTokenOf(.others)) |t| t.isVoid() else false;
+
                 const tag = "div";
-                const classes = if (self.toRenderSubtitles) "tmd-usual tmd-subtitle" else "tmd-usual";
+                const classes = if (self.toRenderSubtitles) "tmd-usual tmd-subtitle" else blk: {
+                    break :blk if (dropCap) "tmd-usual tmd-dropcap" else "tmd-usual";
+                };
 
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
                 try self.writeUsualContentBlockLines(w, block);
@@ -1046,7 +1050,7 @@ pub const TmdRender = struct {
             },
 
             // built-in containers
-            .list, .item, .table, .quotation, .notice, .reveal, .plain => {
+            .list, .item, .table, .quotation, .notice, .reveal, .unstyled => {
                 try self.renderTmdCodeForBlockChildren(w, block);
             },
 

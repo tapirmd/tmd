@@ -546,7 +546,7 @@ pub const Block = struct {
                 break :blk itemList.lastBullet.blockType.item.nextSibling;
             },
             .item => |*item| if (item.ownerBlock() == item.list.blockType.list.lastBullet) null else item.nextSibling,
-            inline .table, .quotation, .notice, .reveal, .plain => |container| blk: {
+            inline .table, .quotation, .notice, .reveal, .unstyled => |container| blk: {
                 const nextBlock = container.nextSibling orelse break :blk null;
                 // ToDo: the assurence might be unnecessary.
                 break :blk if (nextBlock.nestingDepth == self.nestingDepth) nextBlock else null;
@@ -577,7 +577,7 @@ pub const Block = struct {
                 //itemList.lastBullet.blockType.item.nextSibling = sibling;
                 unreachable; // .list.nextSibling is always set through its .lastItem.
             },
-            inline .item, .table, .quotation, .notice, .reveal, .plain => |*container| {
+            inline .item, .table, .quotation, .notice, .reveal, .unstyled => |*container| {
                 container.nextSibling = sibling;
             },
             else => {
@@ -680,7 +680,7 @@ pub const BlockType = union(enum) {
         const Container = void;
         nextSibling: ?*Block = null,
     },
-    plain: struct {
+    unstyled: struct {
         const Container = void;
         nextSibling: ?*Block = null,
     },

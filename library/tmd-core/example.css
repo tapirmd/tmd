@@ -157,10 +157,10 @@ body {
 .tmd-reveal-header {
 }
 
-.tmd-plain {
+.tmd-unstyled {
 }
 
-.tmd-plain-header {
+.tmd-unstyled-header {
   font-style: italic;
   background: #e5b05b;
   padding: 0px 6px 6px;
@@ -237,6 +237,15 @@ header.tmd-with-subtitle h1 {
 
 .tmd-header-5 {
   font-size: 1em;
+}
+
+.tmd.usual {
+}
+
+.tmd-dropcap::first-letter {
+  font-size: 3em;
+  float: left;
+  margin: 0.1em;
 }
 
 .tmd-bold {

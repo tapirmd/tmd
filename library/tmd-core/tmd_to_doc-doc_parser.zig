@@ -476,7 +476,7 @@ fn parse(parser: *DocParser) !void {
                         },
                         '.' => {
                             containerBlock.blockType = .{
-                                .plain = .{},
+                                .unstyled = .{},
                             };
                         },
                         else => unreachable,
