@@ -230,7 +230,7 @@ fn generateHTML() ![]const u8 {
             const callback = handler.htmlGenCallback;
 
             const attrs = custom.attributes();
-            if (std.ascii.eqlIgnoreCase(attrs.app, "html")) {
+            if (std.ascii.eqlIgnoreCase(attrs.contentType, "html")) {
                 callback.custom = custom;
                 return .init(callback);
             }

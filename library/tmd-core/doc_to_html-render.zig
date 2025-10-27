@@ -606,7 +606,7 @@ pub const TmdRender = struct {
             },
             .custom => |*custom| {
                 const attrs = custom.attributes();
-                if (attrs.app.len > 0 and !attrs.commentedOut) {
+                if (attrs.contentType.len > 0 and !attrs.commentedOut) {
                     try self.writeCustomBlock(w, block, attrs);
                 }
             },
@@ -955,7 +955,7 @@ pub const TmdRender = struct {
     //======================== custom
 
     fn writeCustomBlock(self: *TmdRender, w: anytype, block: *const tmd.Block, attrs: tmd.CustomBlockAttibutes) !void {
-        std.debug.assert(attrs.app.len > 0);
+        std.debug.assert(attrs.contentType.len > 0);
 
         // Not a good idea to wrapping the content.
         // For example, the wrapper will break some

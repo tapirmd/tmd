@@ -11,17 +11,9 @@ handlers:
   upload: pages/index.html
   expiration: "1d"
 
-- url: /images/(.*)
-  static_files: pages/@tmd-build/pages/images/\1
-  upload: pages/images/(.*)
-
-- url: /css/(.*)
-  static_files: pages/@tmd-build/pages/css/\1
-  upload: pages/images/(.*)
-
-- url: /js/(.*)
-  static_files: pages/@tmd-build/pages/js/\1
-  upload: pages/images/(.*)
+- url: /@assets/(.*)
+  static_files: pages/@tmd-build/pages/@assets/\1
+  upload: pages/@assets/(.*)
 
 - url: /(.*)
   static_files: pages/@tmd-build/pages/\1

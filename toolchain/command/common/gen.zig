@@ -160,7 +160,7 @@ pub const ExternalBlockGenerator = struct {
     pub fn makeGenCallback(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
         const generators = (configEx.basic.@"custom-block-generators" orelse return null)._parsed;
         const attrs = custom.attributes();
-        const generator = generators.getPtr(attrs.app) orelse return null;
+        const generator = generators.getPtr(attrs.contentType) orelse return null;
         switch (generator.*) {
             .builtin => |app| {
                 if (std.mem.eql(u8, app, "html")) {

@@ -539,7 +539,7 @@ pub fn parse_custom_block_open_playload(playload: []const u8) tmd.CustomBlockAtt
     var attrs = tmd.CustomBlockAttibutes{};
 
     const commentedOut = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "commentedOut").?;
-    //const app = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "app").?;
+    //const contentType = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "contentType").?;
 
     const lastOrder: isize = -1;
 
@@ -564,7 +564,7 @@ pub fn parse_custom_block_open_playload(playload: []const u8) tmd.CustomBlockAtt
                         //if (c >= 128) break :parse;
                         if (!charPropertiesTable[c].canBeInAppName) break :parse;
                     }
-                    attrs.app = item;
+                    attrs.contentType = item;
                     break; // break the loop
                 },
             }
@@ -587,28 +587,28 @@ test "parse_custom_block_open_playload" {
         \\// 
     ), tmd.CustomBlockAttibutes{
         .commentedOut = true,
-        .app = "",
+        .contentType = "",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\// html
     ), tmd.CustomBlockAttibutes{
         .commentedOut = true,
-        .app = "",
+        .contentType = "",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\html
     ), tmd.CustomBlockAttibutes{
         .commentedOut = false,
-        .app = "html",
+        .contentType = "html",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\html bla bla bla ...
     ), tmd.CustomBlockAttibutes{
         .commentedOut = false,
-        .app = "html",
+        .contentType = "html",
     });
 }
 

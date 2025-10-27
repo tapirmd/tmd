@@ -360,7 +360,7 @@ pub const ContentStreamAttributes = struct {
 
 pub const CustomBlockAttibutes = struct {
     commentedOut: bool = false,
-    app: []const u8 = "",
+    contentType: []const u8 = "",
     //arguments: []const []const u8 = "",
     // The last argument is the content in the following custom block.
     // ToDo: support streaming. (more arguments)

@@ -591,7 +591,7 @@ pub const StaticWebsiteBuilder = struct {
             //    return try std.fs.path.join(session.arenaAllocator, &.{ "@html", relPath });
             //},
             inline .images, .css, .js => |tag| {
-                const folderName = @tagName(tag);
+                const folderName = "@assets" ++ &[1]u8{std.fs.path.sep} ++ @tagName(tag);
 
                 switch (filePath) {
                     .builtin => |name| {
