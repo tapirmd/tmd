@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const config = collectConfig(b, optimize);
+    const compileOptions = collectCompileOptions(b, optimize);
 
     // list module
 
@@ -61,8 +61,8 @@ pub fn build(b: *std.Build) !void {
     tmdLibModule.addImport("tree", treeLibModule);
 
     const libOptions = b.addOptions();
-    libOptions.addOption(bool, "dump_ast", config.dumpAST);
-    tmdLibModule.addOptions("config", libOptions);
+    libOptions.addOption(bool, "option1", compileOptions.option1);
+    tmdLibModule.addOptions("compile_options", libOptions); // @import("compile_options");
 
     // test
 
@@ -316,16 +316,16 @@ pub fn build(b: *std.Build) !void {
     // ToDo: write a "release" target to update version and git hash.
 }
 
-const Config = struct {
-    dumpAST: bool = false,
+const CompileOptions = struct {
+    option1: bool = false,
 };
 
-fn collectConfig(b: *std.Build, mode: std.builtin.OptimizeMode) Config {
-    var c = Config{};
+fn collectCompileOptions(b: *std.Build, mode: std.builtin.OptimizeMode) CompileOptions {
+    var c = CompileOptions{};
 
-    if (b.option(bool, "dump_ast", "dump TMD doc AST")) |dump| {
-        if (mode == .Debug) c.dumpAST = dump else std.debug.print(
-            \\The "dump_ast" definition is ignored, because it is only valid in Debug optimization mode.
+    if (b.option(bool, "option1", "option 1")) |o| {
+        if (mode == .Debug) c.option1 = o else std.debug.print(
+            \\The "options1" definition is ignored, because it is only valid in Debug optimization mode.
             \\
         , .{});
     }

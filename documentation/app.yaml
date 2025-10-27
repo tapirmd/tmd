@@ -7,16 +7,24 @@ manual_scaling:
   
 handlers:
 - url: /
-  static_files: pages/index.html
+  static_files: pages/@tmd-build/pages/index.html
   upload: pages/index.html
   expiration: "1d"
 
-- url: /static/(.*)
-  static_files: pages/static/\1
-  upload: pages/static/(.*)
+- url: /images/(.*)
+  static_files: pages/@tmd-build/pages/images/\1
+  upload: pages/images/(.*)
+
+- url: /css/(.*)
+  static_files: pages/@tmd-build/pages/css/\1
+  upload: pages/images/(.*)
+
+- url: /js/(.*)
+  static_files: pages/@tmd-build/pages/js/\1
+  upload: pages/images/(.*)
 
 - url: /(.*)
-  static_files: pages/\1
+  static_files: pages/@tmd-build/pages/\1
   upload: pages/(.*)
   expiration: "1d"
 

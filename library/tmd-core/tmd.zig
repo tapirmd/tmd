@@ -63,7 +63,7 @@ pub const Doc = struct {
     const BlockRedBlackNodeList = list.List(BlockRedBlack.Node);
 
     pub fn parse(tmdData: []const u8, allocator: std.mem.Allocator) !Doc {
-        return try @import("tmd_to_doc.zig").parse_tmd(tmdData, allocator, true);
+        return try @import("tmd_to_doc.zig").parse_tmd(tmdData, allocator);
     }
 
     pub fn destroy(doc: *Doc) void {
@@ -109,6 +109,9 @@ pub const Doc = struct {
     pub fn writeTMD(doc: *const Doc, writer: anytype, comptime format: bool) !void {
         try @import("doc_to_tmd.zig").doc_to_tmd(writer, doc, format);
     }
+
+    pub const verify = @import("tmd_to_doc-doc_verifier.zig").verifyTmdDoc;
+    pub const dumpAst = @import("tmd_to_doc-doc_dumper.zig").dumpTmdDoc;
 
     // A doc always has a root block. And the root
     // block is always the first block of the doc.
@@ -322,8 +325,6 @@ pub const Link = struct {
             else => null,
         };
     }
-
-
 };
 
 pub const BaseBlockAttibutes = struct {
@@ -1395,13 +1396,15 @@ pub const Token = union(enum) {
     pub fn start(self: *const @This()) DocSize {
         switch (self.*) {
             .linkInfo => {
-                if (self.next()) |nextToken| {
+                if (self.prev()) |prexToken| {
                     if (builtin.mode == .Debug) {
-                        std.debug.assert(nextToken.* == .spanMark);
-                        const m = nextToken.spanMark;
-                        std.debug.assert(m.markType == .link and m.more.open == true);
+                        switch (prexToken.*) {
+                            .spanMark => |m| std.debug.assert(m.markType == .link and m.more.open == true),
+                            .leadingSpanMark => |m| std.debug.assert(m.more.markType == .media),
+                            else => unreachable,
+                        }
                     }
-                    return nextToken.start();
+                    return prexToken.end();
                 } else unreachable;
             },
             .extra => {
@@ -1493,16 +1496,12 @@ pub const Token = union(enum) {
         };
     }
 
-    //fn followingSpanMark(self: *const @This()) *SpanMark {
-    //    if (self.next()) |nextToken| {
-    //        switch (nextToken.*) {
-    //            .spanMark => |*m| {
-    //                return m;
-    //            },
-    //            else => unreachable,
-    //        }
-    //    } else unreachable;
-    //}
+    pub fn isVoid(self: *const @This()) bool {
+        return switch (self.*) {
+            .evenBackticks => |t| !t.more.secondary and t.more.pairCount == 1,
+            else => false,
+        };
+    }
 };
 
 pub const SpanMarkType = enum(u4) {

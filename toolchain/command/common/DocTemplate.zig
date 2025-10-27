@@ -207,7 +207,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
                 lastArg = arg;
             }
 
-            return .{ .namePtr = cmdName.ptr, .nameLen = @intCast(cmdName.len), .obj = obj, .args = headArg.next, .tagLen = @intCast(tagLen)};
+            return .{ .namePtr = cmdName.ptr, .nameLen = @intCast(cmdName.len), .obj = obj, .args = headArg.next, .tagLen = @intCast(tagLen) };
         }
     };
 

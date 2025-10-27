@@ -9,6 +9,7 @@ const vet = @import("./command/vet.zig");
 const gen = @import("./command/gen.zig");
 const run = @import("./command/run.zig");
 const build = @import("./command/build.zig");
+const dump = @import("./command/dump.zig");
 
 const Command = union(enum) {
     fmt: fmt.Formatter,
@@ -21,11 +22,13 @@ const Command = union(enum) {
     gen: gen.Generator, // gen partial html
     @"gen-full-page": gen.FullPageGenerator,
 
-    build: build.TmdToStaticWebsite,
-    @"build-epub": build.TmdToEpub,
-    @"build-standalone-html": build.TmdToStandaloneHtml,
+    build: build.StaticWebsiteBuilder,
+    //@"build-epub": build.EpubBuilder,
+    //@"build-standalone-html": build.StandaloneHtmlBuilder,
 
-    run: run.Runner,
+    //run: run.Runner,
+
+    @"dump-ast": dump.AstDumper,
 
     help: Helper, // must be the last one
 };

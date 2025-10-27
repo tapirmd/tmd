@@ -5,13 +5,15 @@ const tmd = @import("tmd.zig");
 const list = @import("list");
 const tree = @import("tree");
 
+// const compile_options = @import("compile_options"); // to use compile_options.option1 etc.
+
 //const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 //const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 const DocDumper = @import("tmd_to_doc-doc_dumper.zig");
 const DocVerifier = @import("tmd_to_doc-doc_verifier.zig");
 const DocParser = @import("tmd_to_doc-doc_parser.zig");
 
-pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator, comptime canDump: bool) !tmd.Doc {
+pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator) !tmd.Doc {
     if (tmdData.len > tmd.MaxDocSize) return error.DocSizeTooLarge;
 
     var tmdDoc = tmd.Doc{ .allocator = allocator, .data = tmdData };
@@ -28,8 +30,7 @@ pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator, comptime can
     };
     try docParser.parseAll();
 
-    if (canDump) DocDumper.dumpTmdDoc(&tmdDoc);
-    DocVerifier.verifyTmdDoc(&tmdDoc);
+    if (builtin.mode == .Debug) tmdDoc.verify();
 
     return tmdDoc;
 }

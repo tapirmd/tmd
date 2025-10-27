@@ -773,8 +773,7 @@ The URL for a hyperlink can be defined either inside or outside the correspondin
     === described below :: #link-blocks
 
 A content token is a valid URL if its text
-*  starts with `http://` (ignore case), or
-*  starts with `https://` (ignore case), or
+*  contains but doesn't start with `://`, or
 *  ends with `.tmd[#fragment]` (ignore case), or
 *  ends with `.htm[#fragment]` (ignore case), or
 *  ends with `.html[#fragment]` (ignore case), or

@@ -623,6 +623,9 @@ pub fn checkFilePathType(path: []const u8) FilePathType {
     if (path.len == 0 or path[0] == '/' or path[0] == '\\') return .invalid;
 
     if (std.mem.indexOf(u8, path, "://")) |k| {
+        //return .remote;
+        // Not to support protocol-relative URLs.
+        // Protocol-relative URLs behave bad wiith file:/// protocol.
         if (k > 0) return .remote else return .invalid;
     }
 

@@ -32,7 +32,9 @@ test "line end type" {
                         const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
                         const uri = remaining[range.start..range.end];
                         const targetUrl, const result = if (std.mem.startsWith(u8, expected, "!"))
-                            .{std.mem.trimLeft(u8, expected, " \t"), false} else .{expected, true}; 
+                            .{ std.mem.trimLeft(u8, expected, " \t"), false }
+                        else
+                            .{ expected, true };
                         if (std.mem.eql(u8, uri, targetUrl) != result) {
                             return error.UnmatchedLinkURL;
                         }

@@ -26,7 +26,7 @@ blockSession: struct {
     currentTextNumber: u32 = 0,
 
     lastLink: ?*tmd.Link = null, // ignore media links
-    lastContentToken: ?*tmd.Token = null,
+    lastLinkContentToken: ?*tmd.Token = null,
     //spanStatusChangesAfterTheLastPlainTextToken: u32 = 0,
 
     //endLine: ?*tmd.Line = null,
@@ -101,28 +101,28 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
 }
 
 fn end_atom_block(self: *ContentParser) void {
-    if (self.bolockSessionValid) {
-        self.close_opening_spans(); // for the last block
+    if (!self.bolockSessionValid) return;
 
-        //if (self.blockSession.endLine) |line| {
-        //    line.treatEndAsSpace = false;
-        //}
-        if (self.blockSession.lineWithPending_treatEndAsSpace) |line| {
-            std.debug.assert(line.treatEndAsSpace == false);
-            //line.treatEndAsSpace = false;
-        }
+    self.close_opening_spans(); // for the last block
 
-        // Yes, the two are not consistent.
-        //
-        //const b = self.blockSession.currentTextNumber > 0;
-        //std.debug.assert(b == self.blockSession.atomBlock.more.hasNonMediaContentTokens);
-        //if (b != self.blockSession.atomBlock.more.hasNonMediaContentTokens) {
-        //    std.debug.print("hasNonMediaContentTokens: {}, currentTextNumber: {}\n", .{
-        //        self.blockSession.atomBlock.more.hasNonMediaContentTokens,
-        //        self.blockSession.currentTextNumber,
-        //    });
-        //}
+    //if (self.blockSession.endLine) |line| {
+    //    line.treatEndAsSpace = false;
+    //}
+    if (self.blockSession.lineWithPending_treatEndAsSpace) |line| {
+        std.debug.assert(line.treatEndAsSpace == false);
+        //line.treatEndAsSpace = false;
     }
+
+    // Yes, the two are not consistent.
+    //
+    //const b = self.blockSession.currentTextNumber > 0;
+    //std.debug.assert(b == self.blockSession.atomBlock.more.hasNonMediaContentTokens);
+    //if (b != self.blockSession.atomBlock.more.hasNonMediaContentTokens) {
+    //    std.debug.print("hasNonMediaContentTokens: {}, currentTextNumber: {}\n", .{
+    //        self.blockSession.atomBlock.more.hasNonMediaContentTokens,
+    //        self.blockSession.currentTextNumber,
+    //    });
+    //}
 }
 
 fn set_currnet_line(self: *ContentParser, line: *tmd.Line, lineStart: u32) void {
@@ -157,25 +157,22 @@ fn open_new_link(self: *ContentParser, owner: tmd.Link.Owner, forHyperlinkOrDefi
 fn on_new_content_token(self: *ContentParser, token: *tmd.Token) void {
     self.blockSession.atomBlock.more.hasNonMediaContentTokens = true;
 
-    if (self.blockSession.lastLink) |link| {
+    if (self.blockSession.lastLink) |link| blk: {
+        if (token.isVoid()) break :blk;
+
         if (link.firstContentToken == null) {
-            const setIt = switch(token.*) {
-                .plaintext => true,
-                .evenBackticks => |t| t.more.secondary or t.more.pairCount > 1 or switch (token.prev().?.*) {
-                    .spanMark => |m| !(m.markType == .link and m.more.open),
-                    else => false,
-                },
-                else => unreachable,
-            };
-            if (setIt) link.firstContentToken = token;
-        } else if (self.blockSession.lastContentToken) |content| {
+            std.debug.assert(self.blockSession.lastLinkContentToken == null);
+
+            link.firstContentToken = token;
+        } else if (self.blockSession.lastLinkContentToken) |content| {
             switch (content.*) {
                 inline .plaintext, .evenBackticks => |*t| t.nextInLink = token,
                 else => unreachable,
             }
         } else unreachable;
+
+        self.blockSession.lastLinkContentToken = token;
     }
-    self.blockSession.lastContentToken = token;
     //self.blockSession.spanStatusChangesAfterTheLastPlainTextToken = 0;
 
     if (self.lineSession.firstContentToken == null)
@@ -443,21 +440,26 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     break :parse_tokens textEnd;
                 },
                 .media => {
-                    const link = try self.open_new_link(.{ .media = undefined }, false); // will be modified below
+                    const link = if (self.blockSession.atomBlock.blockType == .link) null else blk: {
+                        const link = try self.open_new_link(.{ .media = undefined }, false); // will be modified below
 
-                    // Media needs 2 tokens to store information.
-                    const token = try self.create_token();
-                    token.* = .{
-                        .linkInfo = .{
-                            .link = link,
-                        },
+                        // Media needs 2 tokens to store information.
+                        const token = try self.create_token();
+                        token.* = .{
+                            .linkInfo = .{
+                                .link = link,
+                            },
+                        };
+                        link.owner.media = token;
+
+                        break :blk link;
                     };
-                    link.owner.media = token;
 
                     const numBlanks = lineScanner.readUntilLineEnd();
                     const textEnd = lineScanner.cursor - numBlanks;
                     std.debug.assert(textEnd > textStart);
-                    link.firstContentToken = try self.create_media_spec_text_token(textStart, textEnd);
+                    const textToken = try self.create_media_spec_text_token(textStart, textEnd);
+                    if (link) |lnk| lnk.firstContentToken = textToken;
                     break :parse_tokens textEnd;
                 },
             }
@@ -596,9 +598,12 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             } else std.debug.assert(textEnd == textStart);
 
                             if (isLinkMark) {
-                                std.debug.assert(openMark.more.secondary or self.blockSession.lastLink != null);
+                                if (openMark.more.secondary) std.debug.assert(self.blockSession.lastLink == null) else {
+                                    std.debug.assert(self.blockSession.lastLink != null);
 
-                                self.blockSession.lastLink = null;
+                                    self.blockSession.lastLink = null;
+                                    self.blockSession.lastLinkContentToken = null;
+                                }
                             }
 
                             const closeMark = try self.close_span(spanMarkType, textEnd, markLen, openMark);
@@ -618,6 +623,8 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                                 _ = try self.create_plain_text_token(textStart, textEnd);
                             } else std.debug.assert(textEnd == textStart);
 
+                            const openMark = try self.open_span(spanMarkType, textEnd, markLen, isSecondary);
+
                             if (isLinkMark and !isSecondary) {
                                 const link = try self.open_new_link(.{ .hyper = undefined }, true); // will be modified below
 
@@ -631,8 +638,6 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
                                 link.owner.hyper = token;
                             }
-
-                            const openMark = try self.open_span(spanMarkType, textEnd, markLen, isSecondary);
 
                             std.debug.assert(markEnd == lineScanner.cursor);
 
@@ -757,7 +762,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                 self.blockSession.lineWithPending_treatEndAsSpace = self.lineSession.currentLine;
 
                 if (self.blockSession.lastLink != null) {
-                    if (self.blockSession.lastContentToken) |t| {
+                    if (self.blockSession.lastLinkContentToken) |t| {
                         std.debug.assert(t == self.lineSession.lastContentToken);
                         self.blockSession.lastContentTokenWithPending_followedByLineEndSpaceInLink = t;
                     }

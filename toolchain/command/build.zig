@@ -8,7 +8,7 @@ const Project = @import("./common/Project.zig");
 const maxTmdFileSize = 1 << 23; // 8M
 const bufferSize = maxTmdFileSize * 8;
 
-pub const TmdToStaticWebsite = struct {
+pub const StaticWebsiteBuilder = struct {
     pub fn argsDesc() []const u8 {
         return "[ProjectDir | ProjectConfigFile]...";
     }
@@ -29,7 +29,7 @@ pub const TmdToStaticWebsite = struct {
     }
 };
 
-pub const TmdToEpub = struct {
+pub const EpubBuilder = struct {
     pub fn argsDesc() []const u8 {
         return "[ProjectDir | ProjectConfigFile]...";
     }
@@ -50,7 +50,7 @@ pub const TmdToEpub = struct {
     }
 };
 
-pub const TmdToStandaloneHtml = struct {
+pub const StandaloneHtmlBuilder = struct {
     pub fn argsDesc() []const u8 {
         return "[ProjectDir | ProjectConfigFile]...";
     }

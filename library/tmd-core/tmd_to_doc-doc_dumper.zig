@@ -4,12 +4,7 @@ const builtin = @import("builtin");
 const tmd = @import("tmd.zig");
 const list = @import("list");
 
-const config = @import("config");
-
 pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
-    if (!config.dump_ast) return;
-    std.debug.assert(builtin.mode == .Debug);
-
     var block = tmdDoc.rootBlock();
     while (true) {
         {
@@ -60,7 +55,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
             }
 
             const end = block.endLine();
-            while (false) {
+            while (true) {
                 var depth = block.nestingDepth + 1;
                 while (depth > 0) : (depth -= 1) {
                     std.debug.print("  ", .{});

@@ -1145,7 +1145,7 @@ pub const TmdRender = struct {
                             if (token != link.firstContentToken) {
                                 std.debug.assert(url.manner != .footnote);
 
-                                if (token == url.sourceContentToken)  break :blk;
+                                if (token == url.sourceContentToken) break :blk;
                             } else if (url.manner == .footnote) {
                                 if (usage == .general) {
                                     //if (tracker.linkFootnote.block) |_| {
@@ -1183,9 +1183,7 @@ pub const TmdRender = struct {
                             }
                         }
                     },
-                    .linkInfo => |*l| {
-                        tracker.onLinkInfo(l);
-                    },
+                    .linkInfo => {}, // unreachable, // still some cases go here
                     .spanMark => |*m| {
                         if (m.more.blankSpan) {
                             // skipped
@@ -1195,7 +1193,12 @@ pub const TmdRender = struct {
 
                             markElement.value.mark = m;
                             if (m.markType == .link and !m.more.secondary) {
-                                std.debug.assert(tracker.activeLinkInfo != null);
+                                std.debug.assert(tracker.activeLinkInfo == null);
+
+                                const linkInfoElement = tokenElement.next.?;
+                                const linkInfoToken = &linkInfoElement.value;
+                                std.debug.assert(linkInfoToken.* == .linkInfo);
+                                tracker.onLinkInfo(&linkInfoToken.linkInfo);
 
                                 tracker.marksStack.pushHead(markElement);
                                 try writeCloseMarks(w, markElement, usage);
@@ -1248,38 +1251,13 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    //if (link.urlConfirmed()) {
-                                    //    std.debug.assert(link.url.sourceContentToken != null);
-                                    //
-                                    //    const t = link.url.sourceContentToken.?;
-                                    //    const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
-                                    //
-                                    //    try w.print(
-                                    //        \\<a href="{s}">
-                                    //    , .{linkURL});
-                                    //} else {
-                                    //    std.debug.assert(link.url.manner != .absolute);
-                                    //    std.debug.assert(!link.isFootnote());
-                                    //
-                                    //    // ToDo: call custom callback to try to generate a url.
-                                    //
-                                    //    try w.writeAll(
-                                    //        \\<span class="tmd-broken-link">
-                                    //    );
-                                    //
-                                    //    tracker.brokenLinkConfirmed = true;
-                                    //}
-
                                     sw: switch (url.manner) {
                                         .absolute => {
-                                            //try w.print(
-                                            //    \\<a href="{s}{s}">
-                                            //, .{url.base, url.fragment});
-
+                                            //const fromIndex: usize = if (std.mem.startsWith(u8, url.base, "://")) 1 else 0;
                                             try w.writeAll(
                                                 \\<a href="
                                             );
-                                            try fns.writeUrlAttributeValue(w, url.base);
+                                            try fns.writeUrlAttributeValue(w, url.base); // url.base[fromIndex..]);
                                             try fns.writeUrlAttributeValue(w, url.fragment);
                                             try w.writeAll(
                                                 \\">
@@ -1315,6 +1293,9 @@ pub const TmdRender = struct {
                                 }
 
                                 try writeOpenMarks(w, markElement, usage);
+
+                                element = linkInfoElement.next; // skip the media specification text token
+                                continue;
                             } else {
                                 tracker.marksStack.pushTail(markElement);
                                 try writeOpenMark(w, markElement.value.mark.?, usage);
@@ -1342,35 +1323,6 @@ pub const TmdRender = struct {
                                 if (usage == .noStyling) break :blk;
 
                                 const isInline = inHeader or block.more.hasNonMediaContentTokens;
-
-                                //const mediaInfoElement = tokenElement.next.?;
-                                //writeMedia: {
-                                //    const mediaInfoToken = mediaInfoElement.value;
-                                //    std.debug.assert(mediaInfoToken == .plaintext);
-                                //
-                                //    if (self.getMediaUrlGenCallback(mediaInfoToken)) |callback| {
-                                //        try w.writeAll("<img src=\"");
-                                //        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
-                                //        try callback.gen(aw);
-                                //    } else {
-                                //        const mediaInfo = self.doc.rangeData(mediaInfoToken.range());
-                                //        const src = AttributeParser.parse_media_info(mediaInfo);
-                                //
-                                //        if (!AttributeParser.endsWithValidMediaExtension(src)) break :writeMedia;
-                                //
-                                //        try w.writeAll("<img src=\"");
-                                //        try fns.writeHtmlAttributeValue(w, src);
-                                //    }
-                                //
-                                //    if (isInline) {
-                                //        try w.writeAll("\" class=\"tmd-inline-media\"/>");
-                                //    } else {
-                                //        try w.writeAll("\" class=\"tmd-media\"/>");
-                                //    }
-                                //}
-                                //
-                                //element = mediaInfoElement.next;
-                                //continue;
 
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
@@ -1776,7 +1728,7 @@ test "footnotes" {
             \\
         ;
 
-        var doc = try @import("tmd_to_doc.zig").parse_tmd(example1, std.testing.allocator, false);
+        var doc = try @import("tmd_to_doc.zig").parse_tmd(example1, std.testing.allocator);
         defer doc.destroy();
 
         var r = TmdRender{
