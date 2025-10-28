@@ -14,11 +14,11 @@ pub const RelativePathWriter = struct {
     relativeToSep: u8,
     fragment: []const u8,
 
-    pub fn gen(self: *const RelativePathWriter, aw: std.io.AnyWriter) !void {
-        try writeRelativeUrl(aw, self.path, self.pathSep, self.relativeTo, self.relativeToSep);
+    pub fn gen(self: *const RelativePathWriter, w: *std.Io.Writer) !void {
+        try writeRelativeUrl(w, self.path, self.pathSep, self.relativeTo, self.relativeToSep);
 
         if (self.fragment.len > 0) {
-            try tmd.writeUrlAttributeValue(aw, self.fragment);
+            try tmd.writeUrlAttributeValue(w, self.fragment);
         }
     }
 
@@ -34,7 +34,7 @@ pub const RelativePathWriter = struct {
     }
 };
 
-pub fn writeRelativeUrl(w: anytype, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8) !void {
+pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8) !void {
     if (relativeToSep == '/') {
         if (pathSep) |sep| if (sep == '/') {
             const n, const s = util.relativePath(relativeTo, path, '/');
@@ -88,7 +88,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
 
     //
 
-    pub fn gen(self: *const ShellCommandCustomBlockGenerator, w: std.io.AnyWriter) !void {
+    pub fn gen(self: *const ShellCommandCustomBlockGenerator, w: *std.Io.Writer) !void {
         const startDataLine = self.custom.startDataLine() orelse return;
         const endDataLine = self.custom.endDataLine().?;
         std.debug.assert(endDataLine.lineType == .data);
@@ -109,7 +109,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
 };
 
 // by grok3
-fn writeShellCommandOutput(w: std.io.AnyWriter, commandWithArgs: []const []const u8, stdinText: []const u8) !void {
+fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u8, stdinText: []const u8) !void {
     const allocator = std.heap.page_allocator;
 
     var child = std.process.Child.init(commandWithArgs, allocator);
@@ -117,21 +117,36 @@ fn writeShellCommandOutput(w: std.io.AnyWriter, commandWithArgs: []const []const
     child.stdout_behavior = .Pipe;
     try child.spawn();
 
-    if (child.stdin) |stdin| {
-        if (stdinText.len > 0) try stdin.writeAll(stdinText);
-        stdin.close();
+    if (child.stdin) |stdin_file| {
+        var buffer: [4096]u8 = undefined;
+        var stdout_writer = stdin_file.writer(&buffer);
+        const stdin = &stdout_writer.interface;
+
+        if (stdinText.len > 0) {
+            try stdin.writeAll(stdinText);
+            try stdin.flush();
+        }
+
+        stdin_file.close();
         child.stdin = null; // Prevent double-close
     }
 
-    var stdout_buf = std.ArrayList(u8).init(allocator);
-    defer stdout_buf.deinit();
-    if (child.stdout) |stdout| {
-        try stdout.reader().readAllArrayList(&stdout_buf, 1024 * 1024);
+    // ToDo: use .initOwnedSlice instead.
+    var stdout_wa: std.Io.Writer.Allocating = .init(allocator);
+    defer stdout_wa.deinit();
+
+    if (child.stdout) |stdout_file| {
+        var buffer: [4096]u8 = undefined;
+        var stdout_reader = stdout_file.reader(&buffer);
+        const stdout = &stdout_reader.interface;
+
+        _ = try stdout.streamRemaining(&stdout_wa.writer);
+        try stdout_wa.writer.flush(); // no-op
     } else {
         return error.NoStdout;
     }
 
-    const output = std.mem.trim(u8, stdout_buf.items, " \t\r\n");
+    const output = std.mem.trim(u8, stdout_wa.written(), " \t\r\n");
     try w.writeAll(output);
 
     _ = try child.wait();
@@ -209,7 +224,7 @@ pub const BlockGeneratorCallbackOwner = struct {
     }
 };
 
-pub fn writeFaviconAssetInHead(w: anytype, faviconFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
+pub fn writeFaviconAssetInHead(w: *std.Io.Writer, faviconFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
     switch (faviconFilePath) {
         .builtin, .local => {
             const targetPath = try fileRegister.tryToRegisterFile(faviconFilePath, .images);
@@ -240,7 +255,7 @@ pub fn writeFaviconAssetInHead(w: anytype, faviconFilePath: config.FilePath, fil
     }
 }
 
-pub fn writeCssAssetInHead(w: anytype, cssFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
+pub fn writeCssAssetInHead(w: *std.Io.Writer, cssFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
     switch (cssFilePath) {
         .builtin, .local => {
             const targetPath = try fileRegister.tryToRegisterFile(cssFilePath, .css);
@@ -271,7 +286,7 @@ pub fn writeCssAssetInHead(w: anytype, cssFilePath: config.FilePath, fileRegiste
     }
 }
 
-pub fn writeJsAssetInHead(w: anytype, jsFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
+pub fn writeJsAssetInHead(w: *std.Io.Writer, jsFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
     switch (jsFilePath) {
         .builtin, .local => {
             const targetPath = try fileRegister.tryToRegisterFile(jsFilePath, .js);

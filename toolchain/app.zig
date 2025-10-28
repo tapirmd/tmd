@@ -41,8 +41,12 @@ pub fn main() !void {
     const args = try std.process.argsAlloc(gpaAllocator);
     defer std.process.argsFree(gpaAllocator, args);
 
-    const stdout = std.io.getStdOut().writer();
-    const stderr = std.io.getStdErr().writer();
+    var stdout_buffer: [1024]u8 = undefined;
+    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    const stdout = &stdout_writer.interface;
+    var stderr_buffer: [1024]u8 = undefined;
+    var stderr_writer = std.fs.File.stdout().writer(&stderr_buffer);
+    const stderr = &stderr_writer.interface;
 
     std.debug.assert(args.len > 0);
 
@@ -51,8 +55,9 @@ pub fn main() !void {
             \\TapirMD Toolchain v{s}
             \\
         , .{tmd.version});
-
         try listCommands(stdout);
+        try stdout.flush();
+
         return;
     }
 
@@ -69,14 +74,16 @@ pub fn main() !void {
         }
     } else {
         try stderr.print("Unknown command: {s}\n", .{args[1]});
-
         try listCommands(stderr);
+        try stderr.flush();
+
         std.process.exit(1);
         unreachable;
     }
 }
 
-fn listCommands(w: std.fs.File.Writer) !void {
+// Note: it doesn't flush/
+fn listCommands(w: *std.Io.Writer) !void {
     try w.print(
         \\
         \\Supported commands:
@@ -108,6 +115,8 @@ const Helper = struct {
             1 => args[0],
             else => {
                 try ctx.stderr.print("Too many arguments.\n\n", .{});
+                try ctx.stderr.flush();
+                
                 std.process.exit(1);
                 unreachable;
             },
@@ -130,12 +139,14 @@ const Helper = struct {
                         CommandType.argsDesc(),
                         CommandType.completeDesc(),
                     });
+                    try ctx.stdout.flush();
                 },
             }
         } else {
             try ctx.stderr.print("Unknown command: {s}\n", .{command});
-
             try listCommands(ctx.stderr);
+            try ctx.stderr.flush();
+
             std.process.exit(1);
         }
     }

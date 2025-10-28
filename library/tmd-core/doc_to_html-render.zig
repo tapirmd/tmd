@@ -32,10 +32,10 @@ pub const GenOptions = struct {
 
 pub const GenCallback = struct {
     obj: *const anyopaque,
-    genFn: *const fn (obj: *const anyopaque, aw: std.io.AnyWriter) anyerror!void,
+    genFn: *const fn (obj: *const anyopaque, w: *std.Io.Writer) anyerror!void,
 
-    fn gen(self: GenCallback, aw: std.io.AnyWriter) !void {
-        return self.genFn(self.obj, aw);
+    fn gen(self: GenCallback, w: *std.Io.Writer) !void {
+        return self.genFn(self.obj, w);
     }
 
     pub fn init(obj: anytype) GenCallback {
@@ -44,10 +44,10 @@ pub const GenCallback = struct {
         switch (typeInfo) {
             .pointer => |pointer| {
                 const C = struct {
-                    pub fn writeAll(v: *const anyopaque, aw: std.io.AnyWriter) !void {
+                    pub fn writeAll(v: *const anyopaque, w: *std.Io.Writer) !void {
                         const Base = pointer.child;
                         const ptr: *const Base = @ptrCast(@alignCast(v));
-                        return try Base.gen(ptr, aw);
+                        return try Base.gen(ptr, w);
                     }
                 };
                 return .{ .obj = obj, .genFn = C.writeAll };
@@ -56,8 +56,8 @@ pub const GenCallback = struct {
                 if (@sizeOf(T) != 0) @compileError("The sizes of non-pointer GenCallback types must be zero.");
 
                 const C = struct {
-                    pub fn writeAll(_: *const anyopaque, aw: std.io.AnyWriter) !void {
-                        return try T.gen(T{}, aw);
+                    pub fn writeAll(_: *const anyopaque, w: *std.Io.Writer) !void {
+                        return try T.gen(T{}, w);
                     }
                 };
                 return .{ .obj = undefined, .genFn = C.writeAll };
@@ -68,7 +68,7 @@ pub const GenCallback = struct {
 
     pub fn dummy() GenCallback {
         const GenCallback_Dummy = struct {
-            pub fn gen(_: @This(), _: std.io.AnyWriter) !void {}
+            pub fn gen(_: @This(), _: *std.Io.Writer) !void {}
         };
 
         return .init(GenCallback_Dummy{});
@@ -192,7 +192,7 @@ pub const TmdRender = struct {
         return footnote;
     }
 
-    pub fn writeTitleInHtmlHead(self: *TmdRender, w: anytype) !bool {
+    pub fn writeTitleInHtmlHead(self: *TmdRender, w: *std.Io.Writer) !bool {
         if (self.doc.titleHeader) |titleHeader| {
             try self.writeUsualContentBlockLinesForNoStyling(w, titleHeader);
             return true;
@@ -202,7 +202,7 @@ pub const TmdRender = struct {
         }
     }
 
-    pub fn writeTitleInTocItem(self: *TmdRender, w: anytype) !bool {
+    pub fn writeTitleInTocItem(self: *TmdRender, w: *std.Io.Writer) !bool {
         if (self.doc.titleHeader) |titleHeader| {
             try self.writeUsualContentBlockLinesForTocItem(w, titleHeader);
             return true;
@@ -212,11 +212,11 @@ pub const TmdRender = struct {
         }
     }
 
-    pub fn render(self: *TmdRender, w: anytype) !void {
+    pub fn render(self: *TmdRender, w: *std.Io.Writer) !void {
         try self._render(w, true);
     }
 
-    fn _render(self: *TmdRender, w: anytype, doCleanup: bool) !void {
+    fn _render(self: *TmdRender, w: *std.Io.Writer, doCleanup: bool) !void {
         defer if (doCleanup) self.cleanup();
 
         var nilFootnoteTreeNode = FootnoteRedBlack.Node{
@@ -234,7 +234,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn renderBlock(self: *TmdRender, w: anytype, block: *const tmd.Block) anyerror!void {
+    fn renderBlock(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) anyerror!void {
         const footerTag = if (block.footerAttibutes()) |footerAttrs| blk: {
             const tag = "footer";
             const classes = "tmd-footer";
@@ -617,7 +617,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn renderBlockChildren(self: *TmdRender, w: anytype, firstChild: ?*const tmd.Block) !void {
+    fn renderBlockChildren(self: *TmdRender, w: *std.Io.Writer, firstChild: ?*const tmd.Block) !void {
         var child = firstChild orelse return;
         while (true) {
             try self.renderBlock(w, child);
@@ -800,7 +800,7 @@ pub const TmdRender = struct {
         return cells;
     }
 
-    fn writeTableCellSpans(w: anytype, spans: TableCell.Spans) !void {
+    fn writeTableCellSpans(w: *std.Io.Writer, spans: TableCell.Spans) !void {
         std.debug.assert(spans.rowSpan > 0);
         if (spans.rowSpan != 1) {
             try w.print(
@@ -814,7 +814,7 @@ pub const TmdRender = struct {
     }
 
     // ToDo: write align
-    fn renderTableHeaderCellBlock(self: *TmdRender, w: anytype, tableHeaderCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
+    fn renderTableHeaderCellBlock(self: *TmdRender, w: *std.Io.Writer, tableHeaderCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
         try w.writeAll("<th");
         try writeTableCellSpans(w, spans);
         try w.writeAll(">\n");
@@ -823,7 +823,7 @@ pub const TmdRender = struct {
     }
 
     // ToDo: write align
-    fn renderTableCellBlock(self: *TmdRender, w: anytype, tableCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
+    fn renderTableCellBlock(self: *TmdRender, w: *std.Io.Writer, tableCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
         var tdClass: []const u8 = "";
         switch (tableCellBlock.blockType) {
             .header => |header| {
@@ -854,7 +854,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlock_RowOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
+    fn renderTableBlock_RowOriented(self: *TmdRender, w: *std.Io.Writer, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
         const cells = try self.collectTableCells(firstChild);
         if (cells.len == 0) {
             try self.renderTableBlocks_WithoutCells(w, tableBlock);
@@ -884,7 +884,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlock_ColumnOriented(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
+    fn renderTableBlock_ColumnOriented(self: *TmdRender, w: *std.Io.Writer, tableBlock: *const tmd.Block, firstChild: *const tmd.Block) !void {
         const cells = try self.collectTableCells(firstChild);
         if (cells.len == 0) {
             try self.renderTableBlocks_WithoutCells(w, tableBlock);
@@ -916,7 +916,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlocks_WithoutCells(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block) !void {
+    fn renderTableBlocks_WithoutCells(self: *TmdRender, w: *std.Io.Writer, tableBlock: *const tmd.Block) !void {
         const tag = "div";
         const classes = "tmd-table-no-cells";
 
@@ -924,7 +924,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTableBlock(self: *TmdRender, w: anytype, tableBlock: *const tmd.Block) !void {
+    fn renderTableBlock(self: *TmdRender, w: *std.Io.Writer, tableBlock: *const tmd.Block) !void {
         const child = tableBlock.next() orelse unreachable;
         const columnOriented = switch (child.blockType) {
             .usual => |usual| blk: {
@@ -954,7 +954,7 @@ pub const TmdRender = struct {
 
     //======================== custom
 
-    fn writeCustomBlock(self: *TmdRender, w: anytype, block: *const tmd.Block, attrs: tmd.CustomBlockAttibutes) !void {
+    fn writeCustomBlock(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, attrs: tmd.CustomBlockAttibutes) !void {
         std.debug.assert(attrs.contentType.len > 0);
 
         // Not a good idea to wrapping the content.
@@ -966,16 +966,15 @@ pub const TmdRender = struct {
 
         //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
-        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
         const callback = try self.getCustomBlockGenCallback(&block.blockType.custom);
-        try callback.gen(aw);
+        try callback.gen(w);
 
         //try fns.writeCloseTag(w, tag, true);
     }
 
     //============================== code
 
-    fn writeCodeBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block, attrs: tmd.CodeBlockAttibutes) !void {
+    fn writeCodeBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, attrs: tmd.CodeBlockAttibutes) !void {
         std.debug.assert(block.blockType == .code);
 
         //std.debug.print("\n==========\n", .{});
@@ -1040,7 +1039,7 @@ pub const TmdRender = struct {
         try fns.writeCloseTag(w, tag, true);
     }
 
-    fn renderTmdCode(self: *TmdRender, w: anytype, block: *const tmd.Block, trimBoundaryLines: bool) anyerror!void {
+    fn renderTmdCode(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, trimBoundaryLines: bool) anyerror!void {
         switch (block.blockType) {
             .root => unreachable,
             .base => |base| {
@@ -1059,7 +1058,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn renderTmdCodeForBlockChildren(self: *TmdRender, w: anytype, parentBlock: *const tmd.Block) !void {
+    fn renderTmdCodeForBlockChildren(self: *TmdRender, w: *std.Io.Writer, parentBlock: *const tmd.Block) !void {
         var child = parentBlock.firstChild() orelse return;
         while (true) {
             try self.renderTmdCode(w, child, false);
@@ -1067,7 +1066,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn renderTmdCodeForAtomBlock(self: *TmdRender, w: anytype, atomBlock: *const tmd.Block, trimBoundaryLines: bool) !void {
+    fn renderTmdCodeForAtomBlock(self: *TmdRender, w: *std.Io.Writer, atomBlock: *const tmd.Block, trimBoundaryLines: bool) !void {
         var line = atomBlock.startLine();
         const endLine = atomBlock.endLine();
         while (true) {
@@ -1078,7 +1077,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn renderTmdCodeOfLine(self: *TmdRender, w: anytype, line: *const tmd.Line, trimBoundaryLines: bool) !void {
+    fn renderTmdCodeOfLine(self: *TmdRender, w: *std.Io.Writer, line: *const tmd.Line, trimBoundaryLines: bool) !void {
         if (trimBoundaryLines and line.isBoundary()) return;
 
         const start = line.start(.none);
@@ -1096,7 +1095,7 @@ pub const TmdRender = struct {
         const List = list.List(@This());
     };
     const MarkStatusesTracker = struct {
-        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{}} ** MarkCount,
+        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{.value=.{}}} ** MarkCount,
         marksStack: MarkStatus.List = .{},
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
@@ -1110,15 +1109,15 @@ pub const TmdRender = struct {
         }
     };
 
-    fn writeUsualContentBlockLinesForNoStyling(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+    fn writeUsualContentBlockLinesForNoStyling(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) !void {
         try self.writeContentBlockLines(w, block, .noStyling);
     }
 
-    fn writeUsualContentBlockLinesForTocItem(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+    fn writeUsualContentBlockLinesForTocItem(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) !void {
         try self.writeContentBlockLines(w, block, .tocItem);
     }
 
-    fn writeUsualContentBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block) !void {
+    fn writeUsualContentBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) !void {
         try self.writeContentBlockLines(w, block, .general);
     }
 
@@ -1128,7 +1127,7 @@ pub const TmdRender = struct {
         noStyling, // disable all styles (for HTML page title in head)
     };
 
-    fn writeContentBlockLines(self: *TmdRender, w: anytype, block: *const tmd.Block, usage: contentUsage) !void {
+    fn writeContentBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, usage: contentUsage) !void {
         const inHeader = block.blockType == .header;
         var tracker: MarkStatusesTracker = .{};
 
@@ -1246,8 +1245,7 @@ pub const TmdRender = struct {
                                         try w.writeAll(
                                             \\<a href="
                                         );
-                                        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
-                                        try callback.gen(aw);
+                                        try callback.gen(w);
                                         try w.writeAll(
                                             \\">
                                         );
@@ -1337,8 +1335,7 @@ pub const TmdRender = struct {
                                 writeMedia: {
                                     if (try self.getMediaUrlGenCallback(link)) |callback| {
                                         try w.writeAll("<img src=\"");
-                                        const aw = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
-                                        try callback.gen(aw);
+                                        try callback.gen(w);
                                     } else switch (url.manner) {
                                         .absolute, .relative => {
                                             const src = url.base;
@@ -1401,7 +1398,7 @@ pub const TmdRender = struct {
 
     // Genreally, m is a close mark. But for missing close marks in the end,
     // their open counterparts are passed in here.
-    fn closeMark(w: anytype, m: *tmd.Token.SpanMark, tracker: *MarkStatusesTracker, usage: contentUsage) !void {
+    fn closeMark(w: *std.Io.Writer, m: *tmd.Token.SpanMark, tracker: *MarkStatusesTracker, usage: contentUsage) !void {
         const markElement = &tracker.markStatusElements[m.markType.asInt()];
         std.debug.assert(markElement.value.mark != null);
 
@@ -1468,7 +1465,7 @@ pub const TmdRender = struct {
         markElement.value.mark = null;
     }
 
-    fn writeOpenMarks(w: anytype, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
+    fn writeOpenMarks(w: *std.Io.Writer, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
             try writeOpenMark(w, element.value.mark.?, usage);
@@ -1476,7 +1473,7 @@ pub const TmdRender = struct {
         }
     }
 
-    fn writeCloseMarks(w: anytype, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
+    fn writeCloseMarks(w: *std.Io.Writer, bottomElement: *MarkStatus.List.Element, usage: contentUsage) !void {
         var next = bottomElement.next;
         while (next) |element| {
             try writeCloseMark(w, element.value.mark.?, usage);
@@ -1485,7 +1482,7 @@ pub const TmdRender = struct {
     }
 
     // ToDo: to optimize by using a table.
-    fn writeOpenMark(w: anytype, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
+    fn writeOpenMark(w: *std.Io.Writer, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
@@ -1572,7 +1569,7 @@ pub const TmdRender = struct {
     }
 
     // ToDo: to optimize
-    fn writeCloseMark(w: anytype, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
+    fn writeCloseMark(w: *std.Io.Writer, spanMark: *tmd.Token.SpanMark, usage: contentUsage) !void {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
@@ -1597,7 +1594,7 @@ pub const TmdRender = struct {
 
     //================================= TOC and footnotes
 
-    fn writeTableOfContents(self: *TmdRender, w: anytype, level: u8) !void {
+    fn writeTableOfContents(self: *TmdRender, w: *std.Io.Writer, level: u8) !void {
         if (self.doc.tocHeaders.empty()) return;
 
         try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
@@ -1657,16 +1654,20 @@ pub const TmdRender = struct {
         try w.writeAll("</ul>\n");
     }
 
-    fn writeFootnotes(self: *TmdRender, w: anytype) !void {
+    fn writeFootnotes(self: *TmdRender, w: *std.Io.Writer) !void {
         self.incFootnoteRefWrittenCounts = false;
-        try self._writeFootnotes(std.io.null_writer);
+
+        var buffer: [4096]u8 = undefined;
+        var discarding: std.Io.Writer.Discarding = .init(&buffer);
+        try self._writeFootnotes(&discarding.writer);
+
         self.incFootnoteRefWrittenCounts = true;
         self.incFootnoteRefCounts = false;
         try self._writeFootnotes(w);
         self.incFootnoteRefCounts = true; // needless?
     }
 
-    fn _writeFootnotes(self: *TmdRender, w: anytype) !void {
+    fn _writeFootnotes(self: *TmdRender, w: *std.Io.Writer) !void {
         if (self.footnoteNodes.empty()) return;
 
         try w.print("\n<ol class=\"tmd-list tmd-footnotes\" id=\"fn{s}:\">\n", .{self.options.identSuffix});

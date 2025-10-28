@@ -12,12 +12,13 @@ pub fn readFile(
             maxFileSize: usize,
         },
     },
-    stderr: std.fs.File.Writer,
+    stderr: *std.Io.Writer,
 ) ![]u8 {
     const dir = inputDir orelse std.fs.cwd();
     const file = dir.openFile(filePath, .{}) catch |err| {
         if (err == error.FileNotFound) {
             try stderr.print("File ({s}) is not found.\n", .{filePath});
+            try stderr.flush();
         }
         return err;
     };
@@ -29,12 +30,14 @@ pub fn readFile(
         .buffer => |buffer| {
             if (stat.size > buffer.len) {
                 try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, buffer.len });
+                try stderr.flush();
                 return error.FileSizeTooLarge;
             }
 
             const readSize = try file.readAll(buffer[0..stat.size]);
             if (stat.size != readSize) {
                 try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, readSize });
+                try stderr.flush();
                 return error.FileSizeNotMatch;
             }
             return buffer[0..readSize];
@@ -42,11 +45,13 @@ pub fn readFile(
         .alloc => |alloc| {
             if (stat.size > alloc.maxFileSize) {
                 try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, alloc.maxFileSize });
+                try stderr.flush();
                 return error.FileSizeTooLarge;
             }
             const content = try file.readToEndAlloc(alloc.allocator, alloc.maxFileSize);
             if (stat.size != content.len) {
                 try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, content.len });
+                try stderr.flush();
                 return error.FileSizeNotMatch;
             }
             return content;
@@ -61,6 +66,11 @@ pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []con
 
     var file = try dir.createFile(filePath, .{});
     defer file.close();
+
+    // tricky !!
+    var file_writer = file.writer(@constCast(fileContent));
+    file_writer.interface.end = fileContent.len;
+    try file_writer.interface.flush();
 
     try file.writeAll(fileContent);
 }

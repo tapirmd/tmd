@@ -68,9 +68,9 @@ pub const Formatter = struct {
 
         // format file
 
-        var fbs = std.io.fixedBufferStream(remainingBuffer);
-        try tmdDoc.writeTMD(fbs.writer(), true);
-        const newContent = fbs.getWritten();
+        var w: std.Io.Writer = .fixed(remainingBuffer);
+        try tmdDoc.writeTMD(&w, true);
+        const newContent = w.buffered();
 
         // write file
 
@@ -143,9 +143,9 @@ pub const FormatTester = struct {
         if (true) {
             // write file without formatting
 
-            var fbs = std.io.fixedBufferStream(remainingBuffer);
-            try tmdDoc.writeTMD(fbs.writer(), false);
-            const newContent = fbs.getWritten();
+            var w: std.Io.Writer = .fixed(remainingBuffer);
+            try tmdDoc.writeTMD(&w, false);
+            const newContent = w.buffered();
             if (!std.mem.eql(u8, tmdContent, newContent)) {
                 std.debug.print("test#1 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
                 return;
@@ -154,9 +154,9 @@ pub const FormatTester = struct {
 
         // write file with formatting
 
-        var fbs = std.io.fixedBufferStream(remainingBuffer);
-        try tmdDoc.writeTMD(fbs.writer(), true);
-        const newTmdContent = fbs.getWritten();
+        var w: std.Io.Writer = .fixed(remainingBuffer);
+        try tmdDoc.writeTMD(&w, true);
+        const newTmdContent = w.buffered();
         if (std.mem.eql(u8, tmdContent, newTmdContent)) return;
         remainingBuffer = remainingBuffer[newTmdContent.len..];
 
@@ -171,9 +171,9 @@ pub const FormatTester = struct {
 
             // write file with formatting again.
 
-            fbs = std.io.fixedBufferStream(remainingBuffer);
-            try newTmdDoc.writeTMD(fbs.writer(), true);
-            const newNewTmdContent = fbs.getWritten();
+            w = .fixed(remainingBuffer);
+            try newTmdDoc.writeTMD(&w, true);
+            const newNewTmdContent = w.buffered();
             if (!std.mem.eql(u8, newNewTmdContent, newTmdContent)) {
                 std.debug.print("test#2 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
                 return;
@@ -190,14 +190,14 @@ pub const FormatTester = struct {
         //
         // test 3: to_html(tmdDoc) and to_html(newTmdDoc) should be identical
         if (false) {
-            fbs = std.io.fixedBufferStream(remainingBuffer);
-            try tmdDoc.writeHTML(fbs.writer(), .{}, ctx.allocator);
-            const html = fbs.getWritten();
+            w = .fixed(remainingBuffer);
+            try tmdDoc.writeHTML(&w, .{}, ctx.allocator);
+            const html = w.buffered();
             remainingBuffer = remainingBuffer[html.len..];
 
-            fbs = std.io.fixedBufferStream(remainingBuffer);
-            try newTmdDoc.writeHTML(fbs.writer(), .{}, ctx.allocator);
-            const newHtml = fbs.getWritten();
+            w = .fixed(remainingBuffer);
+            try newTmdDoc.writeHTML(&w, .{}, ctx.allocator);
+            const newHtml = w.buffered();
             //remainingBuffer = remainingBuffer[newHtml.len..];
 
             if (!std.mem.eql(u8, html, newHtml)) {

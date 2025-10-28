@@ -7,8 +7,8 @@ const Project = @import("Project.zig");
 const AppContext = @This();
 
 allocator: std.mem.Allocator,
-stdout: std.fs.File.Writer,
-stderr: std.fs.File.Writer,
+stdout: *std.Io.Writer,
+stderr: *std.Io.Writer,
 
 _arenaAllocator: std.heap.ArenaAllocator,
 arenaAllocator: std.mem.Allocator = undefined,
@@ -20,7 +20,7 @@ _dirPathToConfigAndRootMap: std.StringHashMap(struct { configEx: *ConfigEx, root
 _templateFunctions: std.StringHashMap(*const anyopaque) = undefined,
 _cachedContents: std.HashMap(ContentCacheKey, []const u8, ContentCacheKey.HashMapContext, 33) = undefined,
 
-pub fn init(allocator: std.mem.Allocator, stdout: std.fs.File.Writer, stderr: std.fs.File.Writer) AppContext {
+pub fn init(allocator: std.mem.Allocator, stdout: *std.Io.Writer, stderr: *std.Io.Writer) AppContext {
     const ctx = AppContext{
         .allocator = allocator,
         .stdout = stdout,

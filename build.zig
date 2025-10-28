@@ -18,8 +18,10 @@ pub fn build(b: *std.Build) !void {
 
     const listLibTest = b.addTest(.{
         .name = "list lib unit test",
-        .root_source_file = b.path("library/list/list.zig"),
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("library/list/list.zig"),
+            .target = target,
+        }),
     });
     const runListLibTest = b.addRunArtifact(listLibTest);
 
@@ -33,8 +35,10 @@ pub fn build(b: *std.Build) !void {
 
     const treeLibTest = b.addTest(.{
         .name = "list lib unit test",
-        .root_source_file = b.path("library/tree/tree.zig"),
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("library/tree/tree.zig"),
+            .target = target,
+        }),
     });
     const runTreeLibTest = b.addRunArtifact(treeLibTest);
 
@@ -70,8 +74,10 @@ pub fn build(b: *std.Build) !void {
 
     const coreLibTest = b.addTest(.{
         .name = "tmd core lib unit test",
-        .root_source_file = b.path("library/tmd-core-tests/all.zig"),
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("library/tmd-core-tests/all.zig"),
+            .target = target,
+        }),
     });
     coreLibTest.root_module.addImport("tmd", tmdLibModule);
     coreLibTest.root_module.addImport("list", listLibModule);
@@ -80,8 +86,10 @@ pub fn build(b: *std.Build) !void {
 
     const coreLibInternalTest = b.addTest(.{
         .name = "tmd core lib internal unit test",
-        .root_source_file = b.path("library/tmd-core/tests.zig"),
-        .target = target,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("library/tmd-core/tests.zig"),
+            .target = target,
+        }),
     });
     coreLibInternalTest.root_module.addImport("list", listLibModule);
     coreLibInternalTest.root_module.addImport("tree", treeLibModule);
@@ -89,15 +97,19 @@ pub fn build(b: *std.Build) !void {
 
     const wasmLibTest = b.addTest(.{
         .name = "tmd wasm lib unit test",
-        .root_source_file = b.path("library/tmd-wasm/tests.zig"),
-        .target = target, // ToDo: related to wasmTarget?
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("library/tmd-wasm/tests.zig"),
+            .target = target, // ToDo: related to wasmTarget?
+        }),
     });
     const runWasmLibTest = b.addRunArtifact(wasmLibTest);
 
     //const toolchainTest = b.addTest(.{
     //    .name = "toolchain unit test",
-    //    .root_source_file = b.path("toolchain/tmd/tests.zig"),
-    //    .target = target,
+    //    .root_module = b.createModule(.{
+    //        .root_source_file = b.path("toolchain/tmd/tests.zig"),
+    //        .target = target,
+    //    }),
     //});
     //const runToolchainTest = b.addRunArtifact(toolchainTest);
 
@@ -213,9 +225,14 @@ pub fn build(b: *std.Build) !void {
                 const wasmContent = try libDir.readFileAlloc(theBuild.allocator, wasmFileName, 1 << 19);
                 const file = try libDir.createFile(self.dest_sub_path, .{ .truncate = true });
                 defer file.close();
-                try file.writeAll(oldContent[0..k]);
-                try std.base64.standard.Encoder.encodeWriter(file.writer(), wasmContent);
-                try file.writeAll(oldContent[k + needle.len ..]);
+
+                var buffer: [4096]u8 = undefined;
+                var writer = file.writer(&buffer);
+                const w = &writer.interface;
+                try w.writeAll(oldContent[0..k]);
+                try std.base64.standard.Encoder.encodeWriter(w, wasmContent);
+                try w.writeAll(oldContent[k + needle.len ..]);
+                try w.flush();
             } else return error.WasmNeedleNotFound;
         }
     };
@@ -280,9 +297,14 @@ pub fn build(b: *std.Build) !void {
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
                 const file = try outputPagesDir.createFile("play.html", .{ .truncate = true });
                 defer file.close();
-                try file.writeAll(oldContent[0..k]);
-                try file.writeAll(jsLibContent);
-                try file.writeAll(oldContent[k + needle.len ..]);
+                
+                var buffer: [4096]u8 = undefined;
+                var writer = file.writer(&buffer);
+                const w = &writer.interface;
+                try w.writeAll(oldContent[0..k]);
+                try w.writeAll(jsLibContent);
+                try w.writeAll(oldContent[k + needle.len ..]);
+                try w.flush();
             } else return error.JsLibNeedleNotFound;
         }
     };

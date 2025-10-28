@@ -5,12 +5,12 @@ const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 
 // doc_to_tmd is the inverse of parsing tmd files.
 // format==false is mainly used in tests.
-pub fn doc_to_tmd(writer: anytype, tmdDoc: *const tmd.Doc, comptime format: bool) !void {
+pub fn doc_to_tmd(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc, comptime format: bool) !void {
     if (format) try doc_to_tmd_with_formatting(writer, tmdDoc) else try doc_to_tmd_without_formatting(writer, tmdDoc);
 }
 
 // Mainly for tests.
-fn doc_to_tmd_without_formatting(writer: anytype, tmdDoc: *const tmd.Doc) !void {
+fn doc_to_tmd_without_formatting(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc) !void {
     var uw = UnchangeWriter{ .tmdDoc = tmdDoc };
     try uw.writeAll(writer);
 }
@@ -22,7 +22,7 @@ const UnchangeWriter = struct {
         return uw.tmdDoc.rangeData(.{ .start = start, .end = end });
     }
 
-    fn writeAll(uw: *const UnchangeWriter, writer: anytype) !void {
+    fn writeAll(uw: *const UnchangeWriter, writer: *std.Io.Writer) !void {
         var line: *const tmd.Line = &(uw.tmdDoc.lines.head orelse return).value;
         var lineStartAt: tmd.DocSize = 0;
         while (true) {
@@ -103,7 +103,7 @@ const UnchangeWriter = struct {
 // @@@ ;;; ###, are always followed by one space if not bare.
 //
 
-fn doc_to_tmd_with_formatting(writer: anytype, tmdDoc: *const tmd.Doc) !void {
+fn doc_to_tmd_with_formatting(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc) !void {
     var fw = FormatWriter{ .tmdDoc = tmdDoc };
     try fw.writeAll(writer);
 }
@@ -125,11 +125,11 @@ const FormatWriter = struct {
         return spaces[0..fw.currentIndentLen];
     }
 
-    fn writeAll(fw: *FormatWriter, w: anytype) !void {
+    fn writeAll(fw: *FormatWriter, w: *std.Io.Writer) !void {
         try fw.writeBlockChildren(w, fw.tmdDoc.rootBlock());
     }
 
-    fn writeBlockChildren(fw: *FormatWriter, w: anytype, parent: *const tmd.Block) !void {
+    fn writeBlockChildren(fw: *FormatWriter, w: *std.Io.Writer, parent: *const tmd.Block) !void {
         std.debug.assert(!parent.isAtom());
 
         var child = parent.firstChild() orelse {
@@ -172,7 +172,7 @@ const FormatWriter = struct {
         }
     }
 
-    fn writeBlock(fw: *FormatWriter, w: anytype, block: *const tmd.Block, firstLineIndentationWritten: bool, tryToIndentUsualLines: bool) anyerror!void {
+    fn writeBlock(fw: *FormatWriter, w: *std.Io.Writer, block: *const tmd.Block, firstLineIndentationWritten: bool, tryToIndentUsualLines: bool) anyerror!void {
         if (block.isAtom()) {
             defer fw.needExtraIndentUnit = false;
             fw.needExtraIndentUnit = !firstLineIndentationWritten and block.blockType == .link;
@@ -211,7 +211,7 @@ const FormatWriter = struct {
         }
     }
 
-    fn writeContainerMark(fw: *FormatWriter, w: anytype, line: *const tmd.Line) !void {
+    fn writeContainerMark(fw: *FormatWriter, w: *std.Io.Writer, line: *const tmd.Line) !void {
         const token = line.containerMarkToken() orelse unreachable;
         const mark = token.*.containerMark;
         try w.writeAll(fw.indentSpaces());
@@ -225,7 +225,7 @@ const FormatWriter = struct {
         }
     }
 
-    fn writeLine(fw: *FormatWriter, w: anytype, line: *const tmd.Line, indentationWritten: bool) !void {
+    fn writeLine(fw: *FormatWriter, w: *std.Io.Writer, line: *const tmd.Line, indentationWritten: bool) !void {
         switch (line.lineType) {
             .blank => {},
             .data, .code => {

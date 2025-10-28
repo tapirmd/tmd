@@ -95,18 +95,18 @@ pub const Doc = struct {
         doc.* = .{ .data = "" };
     }
 
-    pub fn writePageTitle(doc: *const Doc, writer: anytype, comptime purpose: enum { inHtmlHead, htmlTocItem }) !bool {
+    pub fn writePageTitle(doc: *const Doc, writer: *std.Io.Writer, comptime purpose: enum { inHtmlHead, htmlTocItem }) !bool {
         return switch (purpose) {
             .inHtmlHead => try @import("doc_to_html.zig").write_doc_title_in_html_head(writer, doc),
             .htmlTocItem => try @import("doc_to_html.zig").write_doc_title_in_html_toc_item(writer, doc),
         };
     }
 
-    pub fn writeHTML(doc: *const Doc, writer: anytype, genOptions: GenOptions, allocator: std.mem.Allocator) !void {
+    pub fn writeHTML(doc: *const Doc, writer: *std.Io.Writer, genOptions: GenOptions, allocator: std.mem.Allocator) !void {
         try @import("doc_to_html.zig").doc_to_html(writer, doc, genOptions, allocator);
     }
 
-    pub fn writeTMD(doc: *const Doc, writer: anytype, comptime format: bool) !void {
+    pub fn writeTMD(doc: *const Doc, writer: *std.Io.Writer, comptime format: bool) !void {
         try @import("doc_to_tmd.zig").doc_to_tmd(writer, doc, format);
     }
 
@@ -611,7 +611,7 @@ pub const ListType = enum {
 };
 
 pub const BlockType = union(enum) {
-    pub const Custom = std.meta.FieldType(BlockType, .custom);
+    pub const Custom = @FieldType(BlockType, "custom");
     // ToDo: others ..., when needed.
 
     // container block types
@@ -1244,15 +1244,15 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 
 pub const Token = union(enum) {
     // Same results as using std.meta.TagPayload(Token, .XXX)
-    pub const PlainText = std.meta.FieldType(Token, .plaintext);
-    pub const CommentText = std.meta.FieldType(Token, .commentText);
-    pub const EvenBackticks = std.meta.FieldType(Token, .evenBackticks);
-    pub const SpanMark = std.meta.FieldType(Token, .spanMark);
-    pub const LinkInfo = std.meta.FieldType(Token, .linkInfo);
-    pub const LeadingSpanMark = std.meta.FieldType(Token, .leadingSpanMark);
-    pub const ContainerMark = std.meta.FieldType(Token, .containerMark);
-    pub const LineTypeMark = std.meta.FieldType(Token, .lineTypeMark);
-    pub const Extra = std.meta.FieldType(Token, .extra);
+    pub const PlainText = @FieldType(Token, "plaintext");
+    pub const CommentText = @FieldType(Token, "commentText");
+    pub const EvenBackticks = @FieldType(Token, "evenBackticks");
+    pub const SpanMark = @FieldType(Token, "spanMark");
+    pub const LinkInfo = @FieldType(Token, "linkInfo");
+    pub const LeadingSpanMark = @FieldType(Token, "leadingSpanMark");
+    pub const ContainerMark = @FieldType(Token, "containerMark");
+    pub const LineTypeMark = @FieldType(Token, "lineTypeMark");
+    pub const Extra = @FieldType(Token, "extra");
 
     plaintext: struct {
         start: DocSize,
@@ -1369,7 +1369,7 @@ pub const Token = union(enum) {
         //       will not needed any more.
     },
     extra: struct {
-        pub const Info = std.meta.FieldType(@This(), .info);
+        pub const Info = @FieldType(@This(), "info");
 
         info: packed union {
             // followed by a .lineTypeMark token in a .baseBlockClose line

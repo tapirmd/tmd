@@ -6,7 +6,7 @@ const FileIterator = @This();
 
 paths: []const []const u8,
 allocator: std.mem.Allocator,
-stderr: std.fs.File.Writer,
+stderr: *std.Io.Writer,
 pathFilterFn: *const fn ([]const u8) bool,
 
 _curIndex: usize = 0,
@@ -21,7 +21,7 @@ _filePathBuffer: [std.fs.max_path_bytes]u8 = undefined,
 pub fn init(
     paths: []const []const u8,
     allocator: std.mem.Allocator,
-    stderr: std.fs.File.Writer,
+    stderr: *std.Io.Writer,
     pathFilter: ?*const fn ([]const u8) bool,
 ) FileIterator {
     return .{
@@ -74,6 +74,7 @@ pub fn next(fi: *FileIterator) !?Entry {
             if (err == error.FileNotFound) {
                 fi._curIndex += 1;
                 try fi.stderr.print("Path ({s}) is not found.\n", .{path});
+                try fi.stderr.flush();
                 continue;
             }
             return err;

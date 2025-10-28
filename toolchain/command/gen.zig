@@ -136,7 +136,7 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     // generate HTML snippet
 
-    var fbs = std.io.fixedBufferStream(remainingBuffer);
+    var w: std.Io.Writer = .fixed(remainingBuffer);
 
     switch (fullPage) {
         false => {
@@ -148,12 +148,12 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
             };
             const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
 
-            try tmdDoc.writeHTML(fbs.writer(), genOptions, ctx.allocator);
+            try tmdDoc.writeHTML(&w, genOptions, ctx.allocator);
         },
         true => {
             var tmdDocRenderer: DocRenderer = .init(ctx, configEx, .{});
 
-            try tmdDocRenderer.render(fbs.writer(), .{
+            try tmdDocRenderer.render(&w, .{
                 .doc = &tmdDoc,
                 .sourceFilePath = absFilePath,
                 .targetFilePath = outputFilename,
@@ -161,7 +161,7 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
         },
     }
 
-    const htmlContent = fbs.getWritten();
+    const htmlContent = w.buffered();
 
     // write file
 

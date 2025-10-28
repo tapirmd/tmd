@@ -16,7 +16,7 @@ _template: *DocTemplate,
 
 callbackConfig: Callbacks,
 
-w: std.io.AnyWriter = undefined,
+w: *std.Io.Writer = undefined,
 tmdDocInfo: ?TmdDocInfo = null,
 
 pub fn init(ctx: *AppContext, configEx: *AppContext.ConfigEx, cc: Callbacks) DocRenderer {
@@ -29,8 +29,8 @@ pub fn init(ctx: *AppContext, configEx: *AppContext.ConfigEx, cc: Callbacks) Doc
     };
 }
 
-pub fn render(r: *DocRenderer, w: anytype, docInfo: ?TmdDocInfo) !void {
-    r.w = if (@TypeOf(w) == std.io.AnyWriter) w else w.any();
+pub fn render(r: *DocRenderer, w: *std.Io.Writer, docInfo: ?TmdDocInfo) !void {
+    r.w = w;
     r.tmdDocInfo = docInfo;
 
     try r._template.render(r);

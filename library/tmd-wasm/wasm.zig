@@ -80,8 +80,8 @@ export fn tmd_format() isize {
 fn tryToInit() ![]u8 {
     if (buffer.len == 0) {
         buffer = try std.heap.wasm_allocator.alloc(u8, bufferSize);
-        var fbs = std.io.fixedBufferStream(buffer);
-        try fbs.writer().writeInt(u32, 0, .little);
+        var w: std.Io.Writer = .fixed(buffer);
+        try w.writeInt(u32, 0, .little);
     }
 
     return buffer;
@@ -96,8 +96,8 @@ const DataWithLengthHeader = struct {
 };
 
 fn retrieveData(dataBuffer: []const u8, maxAllowedSize: usize) !DataWithLengthHeader {
-    var fbs = std.io.fixedBufferStream(dataBuffer);
-    const dataLen = try fbs.reader().readInt(u32, .little);
+    var r: std.Io.Reader = .fixed(dataBuffer);
+    const dataLen = try r.peekInt(u32, .little);
     if (maxAllowedSize > 0 and dataLen > maxAllowedSize) {
         return error.DataSizeTooLarge;
     }
@@ -158,14 +158,14 @@ fn generatePageTitle() ![]const u8 {
 
     const titleBuffer = remainingBuffer[optionsInput.size()..];
 
-    var fbs = std.io.fixedBufferStream(titleBuffer);
-    try fbs.writer().writeInt(u32, 0, .little);
+    var w: std.Io.Writer = .fixed(titleBuffer);
+    try w.writeInt(u32, 0, .little);
 
-    const hasTitle = try tmdDoc.writePageTitle(fbs.writer(), .inHtmlHead);
-    const titleWithLengthHeader = fbs.getWritten();
+    const hasTitle = try tmdDoc.writePageTitle(&w, .inHtmlHead);
+    const titleWithLengthHeader = w.buffered();
 
-    try fbs.seekTo(0);
-    try fbs.writer().writeInt(u32, if (hasTitle) titleWithLengthHeader.len - 4 else 0xFFFFFFFF, .little);
+    var w2: std.Io.Writer = .fixed(titleBuffer[0..4]);
+    try w2.writeInt(u32, if (hasTitle) titleWithLengthHeader.len - 4 else 0xFFFFFFFF, .little);
 
     //logMessage("", "generatePageTitle: titleWithLengthHeader.len: ", @intCast(titleWithLengthHeader.len));
 
@@ -219,8 +219,8 @@ fn generateHTML() ![]const u8 {
 
     const renderBuffer = optionsBuffer[fba.end_index..];
 
-    var fbs = std.io.fixedBufferStream(renderBuffer);
-    try fbs.writer().writeInt(u32, 0, .little);
+    var w: std.Io.Writer = .fixed(renderBuffer);
+    try w.writeInt(u32, 0, .little);
 
     const CustomHandler = struct {
         htmlGenCallback: *tmd.HtmlBlockGenerator,
@@ -251,10 +251,11 @@ fn generateHTML() ![]const u8 {
         .getCustomBlockGenCallback = if (supportHTML) CustomHandler.getCustomBlockGenCallback else null,
     };
 
-    try tmdDoc.writeHTML(fbs.writer(), genOptions, std.heap.wasm_allocator);
-    const htmlWithLengthHeader = fbs.getWritten();
-    try fbs.seekTo(0);
-    try fbs.writer().writeInt(u32, htmlWithLengthHeader.len - 4, .little);
+    try tmdDoc.writeHTML(&w, genOptions, std.heap.wasm_allocator);
+    const htmlWithLengthHeader = w.buffered();
+
+    var w2: std.Io.Writer = .fixed(renderBuffer);
+    try w2.writeInt(u32, htmlWithLengthHeader.len - 4, .little);
 
     //logMessage("", "generateHTML: htmlWithLengthHeader.len: ", @intCast(htmlWithLengthHeader.len));
 
@@ -281,15 +282,15 @@ fn formatTMD() ![]const u8 {
 
     const formatBuffer = remainingBuffer[optionsInput.size()..];
 
-    var fbs = std.io.fixedBufferStream(formatBuffer);
-    try fbs.writer().writeInt(u32, 0, .little);
+    var w: std.Io.Writer = .fixed(formatBuffer);
+    try w.writeInt(u32, 0, .little);
 
-    try tmdDoc.writeTMD(fbs.writer(), true);
+    try tmdDoc.writeTMD(&w, true);
+    const tmdWithLengthHeader = w.buffered();
 
-    const tmdWithLengthHeader = fbs.getWritten();
-    try fbs.seekTo(0);
     const length = if (std.mem.eql(u8, tmdContent, tmdWithLengthHeader[4..])) 0xFFFFFFFF else tmdWithLengthHeader.len - 4;
-    try fbs.writer().writeInt(u32, length, .little);
+    var w2: std.Io.Writer = .fixed(formatBuffer[0..4]);
+    try w2.writeInt(u32, length, .little);
 
     //logMessage("formatTMD: ", "tmdWithLengthHeader.len: ", @intCast(tmdWithLengthHeader.len));
 

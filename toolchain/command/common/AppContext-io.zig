@@ -86,7 +86,7 @@ pub const ContentCacheKey = struct {
     };
 };
 
-pub fn writeFile(ctx: *AppContext, w: anytype, filePath: config.FilePath, comptime contentOp: ?ContentOp, cacheIt: bool) !void {
+pub fn writeFile(ctx: *AppContext, w: *std.Io.Writer, filePath: config.FilePath, comptime contentOp: ?ContentOp, cacheIt: bool) !void {
     if (ctx._cachedContents.get(.{ .filePath = filePath, .contentOp = contentOp })) |content| {
         try w.writeAll(content);
         return;

@@ -52,7 +52,7 @@ pub const Token = struct {
     };
 };
 
-pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: anytype, allocator: std.mem.Allocator, stderr: std.fs.File.Writer) !*DocTemplate {
+pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: anytype, allocator: std.mem.Allocator, stderr: *std.Io.Writer) !*DocTemplate {
     if (content.len > maxTemplateSize) return error.TemplateSizeTooLarge;
 
     // std.debug.print("========== content:\n\n{s}\n\n", .{content});
@@ -72,7 +72,7 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
         contentStart: [*]const u8,
         ownerFilePath: []const u8,
         allocator: std.mem.Allocator,
-        stderr: std.fs.File.Writer,
+        stderr: *std.Io.Writer,
 
         fn newToken(parser: *@This()) !*Token {
             const t = try parser.allocator.create(Token);
@@ -189,11 +189,13 @@ pub fn parseTemplate(content: []const u8, ownerFilePath: []const u8, context: an
                 break item;
             } else {
                 try parser.stderr.print("error: DocTemplate command is not specified in file '{s}'.\n", .{parser.ownerFilePath});
+                try parser.stderr.flush();
                 return error.TemplateCommandNotSpecified;
             };
 
             const obj = (try ctx.getTemplateCommandObject(cmdName)) orelse {
                 try parser.stderr.print("error: DocTemplate command '{s}' in file '{s}' is not defined.\n", .{ cmdName, parser.ownerFilePath });
+                try parser.stderr.flush();
                 return error.TemplateCommandNotDefined;
             };
 

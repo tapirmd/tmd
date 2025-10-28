@@ -15,11 +15,13 @@ test "tmd format" {
         var doc = try tmd.Doc.parse(tmdContent, std.testing.allocator);
         defer doc.destroy();
 
-        var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 19);
-        defer buf.deinit();
+        var wa: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 19);
+        defer wa.deinit();
 
-        try doc.writeTMD(buf.writer(), true);
-        const newContent = buf.items;
+        try doc.writeTMD(&wa.writer, true);
+        try wa.writer.flush(); // no-op
+
+        const newContent = wa.written();
         if (std.mem.eql(u8, newContent, tmdContent)) continue;
 
         // 2nd pass
@@ -27,12 +29,14 @@ test "tmd format" {
         var doc2 = try tmd.Doc.parse(newContent, std.testing.allocator);
         defer doc2.destroy();
 
-        var buf2 = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 19);
-        defer buf2.deinit();
+        var wa2: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 19);
+        defer wa2.deinit();
 
-        try doc2.writeTMD(buf2.writer(), true);
-        const newContent2 = buf2.items;
+        try doc2.writeTMD(&wa2.writer, true);
+        try wa2.writer.flush(); // no-op
 
+        const newContent2 = wa2.written();
+        
         try std.testing.expectEqualStrings(newContent, newContent2);
     }
 }

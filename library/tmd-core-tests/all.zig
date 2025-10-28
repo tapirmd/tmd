@@ -101,8 +101,8 @@ pub const RenderChecker = struct {
         var tmdDoc = try tmd.Doc.parse(data, std.testing.allocator);
         defer tmdDoc.destroy();
 
-        var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
-        defer buf.deinit();
+        var wa: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 20);
+        defer wa.deinit();
 
         const CustomHandler = struct {
             htmlGenCallback: *tmd.HtmlBlockGenerator = undefined,
@@ -129,8 +129,11 @@ pub const RenderChecker = struct {
             .getCustomBlockGenCallback = CustomHandler.getCustomBlockGenCallback,
         };
 
-        try tmdDoc.writeHTML(buf.writer(), options, std.testing.allocator);
-        const html = buf.items;
+
+        try tmdDoc.writeHTML(&wa.writer, options, std.testing.allocator);
+        try wa.writer.flush(); // no-op
+
+        const html = wa.written();
         try v.checkFn(html);
         return true;
     }
@@ -155,11 +158,13 @@ pub const TitleRenderChecker = struct {
         var doc = try tmd.Doc.parse(data, std.testing.allocator);
         defer doc.destroy();
 
-        var buf = try std.ArrayList(u8).initCapacity(std.testing.allocator, 1 << 20);
-        defer buf.deinit();
+        var wa: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 16);
+        defer wa.deinit();
 
-        const hasTitle = try doc.writePageTitle(buf.writer(), .inHtmlHead);
-        const titleText = buf.items;
+        const hasTitle = try doc.writePageTitle(&wa.writer, .inHtmlHead);
+        try wa.writer.flush(); // no-op
+
+        const titleText = wa.written();
         try v.checkFn(hasTitle, titleText);
         return true;
     }

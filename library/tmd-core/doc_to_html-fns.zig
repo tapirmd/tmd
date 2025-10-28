@@ -2,7 +2,7 @@ const std = @import("std");
 
 const tmd = @import("tmd.zig");
 
-pub fn writeOpenTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, endAndWriteNewLine: ?bool) !void {
+pub fn writeOpenTag(w: *std.Io.Writer, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, endAndWriteNewLine: ?bool) !void {
     std.debug.assert(tag.len > 0);
 
     try w.writeAll("<");
@@ -14,7 +14,7 @@ pub fn writeOpenTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []cons
     }
 }
 
-pub fn writeCloseTag(w: anytype, tag: []const u8, writeNewLine: bool) !void {
+pub fn writeCloseTag(w: *std.Io.Writer, tag: []const u8, writeNewLine: bool) !void {
     std.debug.assert(tag.len > 0);
 
     try w.writeAll("</");
@@ -23,7 +23,7 @@ pub fn writeCloseTag(w: anytype, tag: []const u8, writeNewLine: bool) !void {
     if (writeNewLine) try w.writeAll("\n");
 }
 
-pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, writeNewLine: bool) !void {
+pub fn writeBareTag(w: *std.Io.Writer, tag: []const u8, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8, writeNewLine: bool) !void {
     std.debug.assert(tag.len > 0);
 
     try w.writeAll("<");
@@ -34,7 +34,7 @@ pub fn writeBareTag(w: anytype, tag: []const u8, classesSeperatedBySpace: []cons
     if (writeNewLine) try w.writeAll("\n");
 }
 
-pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8) !void {
+pub fn writeBlockAttributes(w: *std.Io.Writer, classesSeperatedBySpace: []const u8, attributes: ?*const tmd.ElementAttibutes, identSuffix: []const u8) !void {
     if (attributes) |as| {
         if (as.id.len != 0) try writeID(w, as.id, identSuffix);
         try writeClasses(w, classesSeperatedBySpace, as.classes);
@@ -43,14 +43,14 @@ pub fn writeBlockAttributes(w: anytype, classesSeperatedBySpace: []const u8, att
     }
 }
 
-pub fn writeID(w: anytype, id: []const u8, identSuffix: []const u8) !void {
+pub fn writeID(w: *std.Io.Writer, id: []const u8, identSuffix: []const u8) !void {
     try w.writeAll(" id=\"");
     try w.writeAll(id);
     if (identSuffix.len > 0) try w.writeAll(identSuffix);
     try w.writeAll("\"");
 }
 
-pub fn writeClasses(w: anytype, classesSeperatedBySpace: []const u8, classesSeperatedBySemicolon: []const u8) !void {
+pub fn writeClasses(w: *std.Io.Writer, classesSeperatedBySpace: []const u8, classesSeperatedBySemicolon: []const u8) !void {
     if (classesSeperatedBySpace.len == 0 and classesSeperatedBySemicolon.len == 0) return;
 
     try w.writeAll(" class=\"");
@@ -73,7 +73,7 @@ pub fn writeClasses(w: anytype, classesSeperatedBySpace: []const u8, classesSepe
     try w.writeAll("\"");
 }
 
-pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
+pub fn writeHtmlAttributeValue(w: *std.Io.Writer, text: []const u8) !void {
     var last: usize = 0;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {
@@ -109,7 +109,7 @@ pub fn writeHtmlAttributeValue(w: anytype, text: []const u8) !void {
     try w.writeAll(text[last..i]);
 }
 
-pub fn writeUrlAttributeValue(w: anytype, text: []const u8) !void {
+pub fn writeUrlAttributeValue(w: *std.Io.Writer, text: []const u8) !void {
     var last: usize = 0;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {
@@ -155,7 +155,7 @@ pub fn writeUrlAttributeValue(w: anytype, text: []const u8) !void {
     try w.writeAll(text[last..i]);
 }
 
-pub fn writeHtmlContentText(w: anytype, text: []const u8) !void {
+pub fn writeHtmlContentText(w: *std.Io.Writer, text: []const u8) !void {
     var last: usize = 0;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {
