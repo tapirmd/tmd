@@ -101,7 +101,7 @@ pub const RenderChecker = struct {
         var tmdDoc = try tmd.Doc.parse(data, std.testing.allocator);
         defer tmdDoc.destroy();
 
-        var wa: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 20);
+        var wa: std.Io.Writer.Allocating = try .initCapacity(std.testing.allocator, 1 << 20);
         defer wa.deinit();
 
         const CustomHandler = struct {
@@ -158,7 +158,7 @@ pub const TitleRenderChecker = struct {
         var doc = try tmd.Doc.parse(data, std.testing.allocator);
         defer doc.destroy();
 
-        var wa: std.Io.Writer.Allocating = ..initCapacity(std.testing.allocator, 1 << 16);
+        var wa: std.Io.Writer.Allocating = try .initCapacity(std.testing.allocator, 1 << 16);
         defer wa.deinit();
 
         const hasTitle = try doc.writePageTitle(&wa.writer, .inHtmlHead);

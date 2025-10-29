@@ -1657,8 +1657,8 @@ pub const TmdRender = struct {
     fn writeFootnotes(self: *TmdRender, w: *std.Io.Writer) !void {
         self.incFootnoteRefWrittenCounts = false;
 
-        var buffer: [4096]u8 = undefined;
-        var discarding: std.Io.Writer.Discarding = .init(&buffer);
+        //var buffer: [4096]u8 = undefined;
+        var discarding: std.Io.Writer.Discarding = .init(&.{});
         try self._writeFootnotes(&discarding.writer);
 
         self.incFootnoteRefWrittenCounts = true;
@@ -1742,7 +1742,8 @@ test "footnotes" {
             .options = .{},
         };
 
-        try r._render(std.io.null_writer, false);
+        var discarding: std.Io.Writer.Discarding = .init(&.{});
+        try r._render(&discarding.writer, false);
         defer r.cleanup();
 
         const footnotes = &r.footnoteNodes;

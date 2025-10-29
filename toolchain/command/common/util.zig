@@ -47,8 +47,8 @@ pub fn readFile(
         },
     };
 
-    var file_writer = file.reader(peekBuffer);
-    const content = try file_writer.interface.peek(stat.size);
+    var file_reader = file.reader(peekBuffer);
+    const content = try file_reader.interface.peek(stat.size);
     if (content.len != stat.size){
         try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, content.len, stat.size });
         try stderr.flush();

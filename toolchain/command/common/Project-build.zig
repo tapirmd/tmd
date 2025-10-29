@@ -577,11 +577,15 @@ pub const StaticWebsiteBuilder = struct {
                         defer session.appContext.allocator.free(content);
 
                         const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
-                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                        if(session.targetFileContents.get(targetPath) != null) {
+                            if (builtin.mode == .Debug)
+                                std.debug.print("Duplicated image: {s}\n", .{sourceAbsPath});
+                        } else {
+                            try util.writeFile(session.buildOutputDir, targetPath, content);
 
-                        try util.writeFile(session.buildOutputDir, targetPath, content);
+                            try session.targetFileContents.put(targetPath, "");
+                        }
 
-                        try session.targetFileContents.put(targetPath, "");
                         return targetPath;
                     },
                     .remote => unreachable,
