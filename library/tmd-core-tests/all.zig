@@ -129,7 +129,6 @@ pub const RenderChecker = struct {
             .getCustomBlockGenCallback = CustomHandler.getCustomBlockGenCallback,
         };
 
-
         try tmdDoc.writeHTML(&wa.writer, options, std.testing.allocator);
         //try wa.writer.flush(); // no-op
 

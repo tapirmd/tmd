@@ -36,7 +36,7 @@ test "tmd format" {
         //try wa2.writer.flush(); // no-op
 
         const newContent2 = wa2.written();
-        
+
         try std.testing.expectEqualStrings(newContent, newContent2);
     }
 }

@@ -297,7 +297,7 @@ pub fn build(b: *std.Build) !void {
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
                 const file = try outputPagesDir.createFile("play.html", .{ .truncate = true });
                 defer file.close();
-                
+
                 var buffer: [4096]u8 = undefined;
                 var writer = file.writer(&buffer);
                 const w = &writer.interface;

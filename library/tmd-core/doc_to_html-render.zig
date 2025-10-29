@@ -1095,7 +1095,7 @@ pub const TmdRender = struct {
         const List = list.List(@This());
     };
     const MarkStatusesTracker = struct {
-        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{.value=.{}}} ** MarkCount,
+        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{ .value = .{} }} ** MarkCount,
         marksStack: MarkStatus.List = .{},
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,

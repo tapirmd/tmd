@@ -577,10 +577,7 @@ pub const StaticWebsiteBuilder = struct {
                         defer session.appContext.allocator.free(content);
 
                         const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
-                        if(session.targetFileContents.get(targetPath) != null) {
-                            if (builtin.mode == .Debug)
-                                std.debug.print("Duplicated image: {s}\n", .{sourceAbsPath});
-                        } else {
+                        if (session.targetFileContents.get(targetPath) == null) {
                             try util.writeFile(session.buildOutputDir, targetPath, content);
 
                             try session.targetFileContents.put(targetPath, "");
@@ -746,7 +743,6 @@ pub const StaticWebsiteBuilder = struct {
                         return;
                     },
                 }
-
             }
         };
 
@@ -844,9 +840,10 @@ pub const EpubBuilder = struct {
                         const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
 
                         const targetPath = try util.buildPosixPathWithContentHashBase64(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
-                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                        if (session.targetFileContents.get(targetPath) == null) {
+                            try session.targetFileContents.put(targetPath, content);
+                        }
 
-                        try session.targetFileContents.put(targetPath, content);
                         return targetPath;
                     },
                     .remote => unreachable,
@@ -951,9 +948,10 @@ pub const StandaloneHtmlBuilder = struct {
                         if (!info.isImage) unreachable;
 
                         const targetPath = try util.buildEmbeddedImageHref(ext, content, session.arenaAllocator);
-                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                        if (session.targetFileContents.get(targetPath) == null) {
+                            try session.targetFileContents.put(targetPath, "");
+                        }
 
-                        try session.targetFileContents.put(targetPath, "");
                         return targetPath;
                     },
                     .remote => unreachable,
@@ -975,9 +973,10 @@ pub const StandaloneHtmlBuilder = struct {
                         defer session.appContext.allocator.free(content);
 
                         const targetPath = try util.buildHashString(content, session.arenaAllocator);
-                        if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                        if (session.targetFileContents.get(targetPath) == null) {
+                            try session.targetFileContents.put(targetPath, content);
+                        }
 
-                        try session.targetFileContents.put(targetPath, content);
                         return targetPath;
                     },
                     .remote => unreachable,

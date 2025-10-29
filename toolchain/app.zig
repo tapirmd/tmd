@@ -116,7 +116,7 @@ const Helper = struct {
             else => {
                 try ctx.stderr.print("Too many arguments.\n\n", .{});
                 try ctx.stderr.flush();
-                
+
                 std.process.exit(1);
                 unreachable;
             },
