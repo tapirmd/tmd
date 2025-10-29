@@ -131,7 +131,7 @@ pub const RenderChecker = struct {
 
 
         try tmdDoc.writeHTML(&wa.writer, options, std.testing.allocator);
-        try wa.writer.flush(); // no-op
+        //try wa.writer.flush(); // no-op
 
         const html = wa.written();
         try v.checkFn(html);
@@ -162,7 +162,7 @@ pub const TitleRenderChecker = struct {
         defer wa.deinit();
 
         const hasTitle = try doc.writePageTitle(&wa.writer, .inHtmlHead);
-        try wa.writer.flush(); // no-op
+        //try wa.writer.flush(); // no-op
 
         const titleText = wa.written();
         try v.checkFn(hasTitle, titleText);

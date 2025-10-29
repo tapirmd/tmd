@@ -67,9 +67,12 @@ pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []con
     defer file.close();
 
     // tricky !!
-    var file_writer = file.writer(@constCast(fileContent));
-    file_writer.interface.end = fileContent.len;
-    try file_writer.interface.flush();
+    //var file_writer = file.writer(@constCast(fileContent));
+    //file_writer.interface.end = fileContent.len;
+    //try file_writer.interface.flush();
+    // see: https://ziggit.dev/t/is-the-constcast-used-correctly-and-safely-with-the-0-15-new-io-design/12734
+    var file_writer = file.writer(&.{});
+    try file_writer.interface.writeAll(fileContent);
 
     try file.writeAll(fileContent);
 }

@@ -132,21 +132,21 @@ fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u
     }
 
     // ToDo: use .initOwnedSlice instead.
-    var stdout_wa: std.Io.Writer.Allocating = .init(allocator);
-    defer stdout_wa.deinit();
+    var wa: std.Io.Writer.Allocating = .init(allocator);
+    defer wa.deinit();
 
     if (child.stdout) |stdout_file| {
         var buffer: [4096]u8 = undefined;
         var stdout_reader = stdout_file.reader(&buffer);
-        const stdout = &stdout_reader.interface;
+        const reader = &stdout_reader.interface;
 
-        _ = try stdout.streamRemaining(&stdout_wa.writer);
-        try stdout_wa.writer.flush(); // no-op
+        _ = try reader.streamRemaining(&wa.writer);
+        //try wa.writer.flush(); // no-op
     } else {
         return error.NoStdout;
     }
 
-    const output = std.mem.trim(u8, stdout_wa.written(), " \t\r\n");
+    const output = std.mem.trim(u8, wa.written(), " \t\r\n");
     try w.writeAll(output);
 
     _ = try child.wait();
