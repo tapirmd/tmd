@@ -723,9 +723,12 @@ Before deactivation, additional style mark tokens of the same type are ignored (
 if their character count does not match the opening mark token,
 ensuring they do not deactivate the style prematurely.
 All content tokens between when the style is activated and when it is deactivated
-form a %%**text span**%% of the style.
+form the %%**content span**%% of the style.
 
-Style mark tokens in the secondary mode (code span) of the font-face type
+The content span of style might be blank. If the first content span in a usual block
+is blank,  then it signals that the first letter in the normal block should be a drop cap.
+
+Style mark tokens in the primary mode (code span) of the font-face type
 take precedence over other style mark tokens.
 This means that, within a usual or header block,
 when the code style is activated,
@@ -740,15 +743,15 @@ What does this rule mean? It means:
 *  A sequence of backticks with an odd number of characters
    will be interpreted as an even-backtick mark token followed by a code span mark token.
 
-Due to the rules outlined above in TapirMD, text spans with different styles may intersect.
-When generating HTML, some text spans may need to be split into smaller pieces.
-However, TapirMD is carefully designed to ensure that text spans with link or code styles
+Due to the rules outlined above in TapirMD, content spans with different styles may intersect.
+When generating HTML, some content spans may need to be split into smaller pieces.
+However, TapirMD is carefully designed to ensure that content spans with link or code styles
 never need to be split apart.
 
 @@@ #links
 ###----- links and footnotes
 
-Below, we will refer to text spans with link style as %%**link spans**%% (or just links).
+Below, we will refer to content spans with link style as %%**link spans**%% (or just links).
 
 A not-empty link span will be rendered as a hyperlink in HTML output.
 *  If the link span contains only one content token,

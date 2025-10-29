@@ -1,4 +1,5 @@
 @debug
+@tmd-build
 zig-out
 zig-cache
 .zig-cache

@@ -580,7 +580,7 @@ pub const TmdRender = struct {
                     try fns.writeBareTag(w, blankTag, blankClasses, null, self.options.identSuffix, true);
                 }
 
-                const dropCap = if (block.startLine().firstTokenOf(.others)) |t| t.isVoid() else false;
+                const dropCap = if (block.startLine().firstTokenOf(.others)) |t| t.isBlankSpanMark() else false;
 
                 const tag = "div";
                 const classes = if (self.toRenderSubtitles) "tmd-usual tmd-subtitle" else blk: {

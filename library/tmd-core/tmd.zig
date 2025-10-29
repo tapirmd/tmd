@@ -1502,6 +1502,13 @@ pub const Token = union(enum) {
             else => false,
         };
     }
+
+    pub fn isBlankSpanMark(self: *const @This()) bool {
+        return switch (self.*) {
+            .spanMark => |t| t.more.blankSpan,
+            else => false,
+        };
+    }
 };
 
 pub const SpanMarkType = enum(u4) {

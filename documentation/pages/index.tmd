@@ -64,7 +64,7 @@
       +  Subscript and superscript (without nesting).
       +  Text marking for highlighting.
       +  Underline for emphasis.
-      +  Drop cap.
+      +  First-letter drop cap.
       +  Hyperlinks.
          ~  Self-defined links.
          ~  Link definitions based on exact, **prefix, or suffix matching**.

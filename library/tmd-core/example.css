@@ -244,8 +244,11 @@ header.tmd-with-subtitle h1 {
 
 .tmd-dropcap::first-letter {
   font-size: 3em;
-  float: left;
-  margin: 0.1em;
+  line-height: 0.8;
+  vertical-align: -0.1em;
+  margin-right: 0.1em;
+  float: none;
+  display: inline-block;
 }
 
 .tmd-bold {
