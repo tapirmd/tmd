@@ -19,7 +19,7 @@ test "tmd format" {
         defer wa.deinit();
 
         try doc.writeTMD(&wa.writer, true);
-        try wa.writer.flush(); // no-op
+        //try wa.writer.flush(); // no-op
 
         const newContent = wa.written();
         if (std.mem.eql(u8, newContent, tmdContent)) continue;
@@ -33,7 +33,7 @@ test "tmd format" {
         defer wa2.deinit();
 
         try doc2.writeTMD(&wa2.writer, true);
-        try wa2.writer.flush(); // no-op
+        //try wa2.writer.flush(); // no-op
 
         const newContent2 = wa2.written();
         

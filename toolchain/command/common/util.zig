@@ -26,37 +26,36 @@ pub fn readFile(
 
     const stat = try file.stat();
 
-    switch (manner) {
-        .buffer => |buffer| {
+    const peekBuffer = switch (manner) {
+        .buffer => |buffer| blk: {
             if (stat.size > buffer.len) {
                 try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, buffer.len });
                 try stderr.flush();
                 return error.FileSizeTooLarge;
             }
 
-            const readSize = try file.readAll(buffer[0..stat.size]);
-            if (stat.size != readSize) {
-                try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, readSize });
-                try stderr.flush();
-                return error.FileSizeNotMatch;
-            }
-            return buffer[0..readSize];
+            break :blk buffer;
         },
-        .alloc => |alloc| {
+        .alloc => |alloc| blk: {
             if (stat.size > alloc.maxFileSize) {
                 try stderr.print("File ({s}) size is too large ({} > {}).\n", .{ filePath, stat.size, alloc.maxFileSize });
                 try stderr.flush();
                 return error.FileSizeTooLarge;
             }
-            const content = try file.readToEndAlloc(alloc.allocator, alloc.maxFileSize);
-            if (stat.size != content.len) {
-                try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, stat.size, content.len });
-                try stderr.flush();
-                return error.FileSizeNotMatch;
-            }
-            return content;
+
+            break :blk try alloc.allocator.alloc(u8, stat.size);
         },
+    };
+
+    var file_writer = file.reader(peekBuffer);
+    const content = try file_writer.interface.peek(stat.size);
+    if (content.len != stat.size){
+        try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, content.len, stat.size });
+        try stderr.flush();
+        return error.FileSizeNotMatch;
     }
+    
+    return content;
 }
 
 pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []const u8) !void {
