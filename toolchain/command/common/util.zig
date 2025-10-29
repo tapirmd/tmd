@@ -73,8 +73,6 @@ pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []con
     // see: https://ziggit.dev/t/is-the-constcast-used-correctly-and-safely-with-the-0-15-new-io-design/12734
     var file_writer = file.writer(&.{});
     try file_writer.interface.writeAll(fileContent);
-
-    try file.writeAll(fileContent);
 }
 
 pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
