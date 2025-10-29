@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) !void {
 
     // options
 
-    const compileOptions = collectCompileOptions(b, optimize);
+    const compileOptions = try collectCompileOptions(b, optimize);
 
     // list module
 
@@ -67,6 +67,7 @@ pub fn build(b: *std.Build) !void {
     tmdLibModule.addImport("tree", treeLibModule);
 
     const libOptions = b.addOptions();
+    libOptions.addOption([]const u8, "version", compileOptions.version);
     libOptions.addOption(bool, "option1", compileOptions.option1);
     tmdLibModule.addOptions("compile_options", libOptions); // @import("compile_options");
 
@@ -104,14 +105,14 @@ pub fn build(b: *std.Build) !void {
     });
     const runWasmLibTest = b.addRunArtifact(wasmLibTest);
 
-    //const toolchainTest = b.addTest(.{
-    //    .name = "toolchain unit test",
-    //    .root_module = b.createModule(.{
-    //        .root_source_file = b.path("toolchain/tmd/tests.zig"),
-    //        .target = target,
-    //    }),
-    //});
-    //const runToolchainTest = b.addRunArtifact(toolchainTest);
+    const toolchainTest = b.addTest(.{
+        .name = "toolchain unit test",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("toolchain/tests.zig"),
+            .target = target,
+        }),
+    });
+    const runToolchainTest = b.addRunArtifact(toolchainTest);
 
     const testStep = b.step("test", "Run unit tests");
     testStep.dependOn(&runListLibTest.step);
@@ -119,7 +120,7 @@ pub fn build(b: *std.Build) !void {
     testStep.dependOn(&runCoreLibTest.step);
     testStep.dependOn(&runCoreLibInternalTest.step);
     testStep.dependOn(&runWasmLibTest.step);
-    //testStep.dependOn(&runToolchainTest.step);
+    testStep.dependOn(&runToolchainTest.step);
 
     // toolchain command
 
@@ -341,11 +342,14 @@ pub fn build(b: *std.Build) !void {
 }
 
 const CompileOptions = struct {
+    version: []const u8,
     option1: bool = false,
 };
 
-fn collectCompileOptions(b: *std.Build, mode: std.builtin.OptimizeMode) CompileOptions {
-    var c = CompileOptions{};
+fn collectCompileOptions(b: *std.Build, mode: std.builtin.OptimizeMode) !CompileOptions {
+    var c = CompileOptions{
+        .version = try retrieveVersionFromZon(b),
+    };
 
     if (b.option(bool, "option1", "option 1")) |o| {
         if (mode == .Debug) c.option1 = o else std.debug.print(
@@ -371,3 +375,20 @@ const RequireOptimizeMode_ReleaseSmall = struct {
         return error.InvalidOptimizeMode;
     }
 };
+
+fn retrieveVersionFromZon(b: *std.Build) ![]const u8 {
+    const zonContent = try std.fs.cwd().readFileAlloc(b.allocator, "build.zig.zon", 1 << 16);
+    defer b.allocator.free(zonContent);
+
+    const needle =
+        \\.version = "
+        ;
+    if (std.mem.indexOf(u8, zonContent, needle)) |index| {
+        const start = index + needle.len;
+        if (std.mem.indexOfPos(u8, zonContent, start, "\"")) |end| {
+            return try b.allocator.dupe(u8, zonContent[start..end]);
+        }
+    }
+
+    return error.VersionNotFoundInZon;
+}

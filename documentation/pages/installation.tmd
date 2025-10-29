@@ -58,10 +58,7 @@ the offcial TapirMD commands locally.
     tmd fmt foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run the following command to format all `.tmd` files within the current directory:
-   '''
-    tmd fmt
-   '''
+   Run `tmd fmt` without any arguments to format all `.tmd` files within the current directory:
 
 *  Run the following command to geneate HTML snippet files for embedding purpose
    in the same directories of corresponding `.tmd` files.
@@ -69,11 +66,8 @@ the offcial TapirMD commands locally.
     tmd gen foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run the following command to geneate HTML snippet files for all `.tmd` files
+   Run `tmd gen` without any arguments to geneate HTML snippet files for all `.tmd` files
    within the current directory:
-   '''
-    tmd gen
-   '''
 
 *  Run the following command to geneate full HTML page files in the same directories
    of corresponding `.tmd` files.
@@ -81,11 +75,8 @@ the offcial TapirMD commands locally.
     tmd gen-full-page foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run the following command to geneate full HTML page files for all `.tmd` files
+   Run `tmd gen-full-page` without any arguments to geneate full HTML page files for all `.tmd` files
    within the current directory:
-   '''
-    tmd gen-full-page
-   '''
 
 *  Run the following commands to build a TapirMD project located at the specified directory
    and output target files in `@tmd-build` folder in the workspace directory of the project.
@@ -94,7 +85,5 @@ the offcial TapirMD commands locally.
     tmd build foo.tmd project-config-file
    '''
    ;;;
-   Run the following command to build a TapirMD project located at the current directory.
-   '''
-    tmd build
-   '''
+   Run `tmd build` without any arguments to build a TapirMD project located at the current directory.
+

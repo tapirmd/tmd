@@ -1,3 +1,2 @@
-// Since 0.1.0, the patch version must be 0.
-// ToDo: remove this one, use the one in build.zig.zon.
-pub const version = "0.0.9-preview";
+
+pub const version = @import("compile_options").version; // set in build.zig.zon

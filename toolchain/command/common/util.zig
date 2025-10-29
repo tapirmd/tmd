@@ -372,3 +372,8 @@ pub fn relativePath(relativeTo: []const u8, path: []const u8, sep: u8) struct { 
     }
     return .{ n, path[c.len..] };
 }
+
+
+test "relativePath" {
+    try std.testing.expect(true);
+}

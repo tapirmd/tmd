@@ -5,8 +5,6 @@ const tmd = @import("tmd.zig");
 const list = @import("list");
 const tree = @import("tree");
 
-// const compile_options = @import("compile_options"); // to use compile_options.option1 etc.
-
 //const AttributeParser = @import("tmd_to_doc-attribute_parser.zig");
 //const LineScanner = @import("tmd_to_doc-line_scanner.zig");
 const DocDumper = @import("tmd_to_doc-doc_dumper.zig");
