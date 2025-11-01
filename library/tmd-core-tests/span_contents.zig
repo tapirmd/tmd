@@ -118,12 +118,12 @@ test "span contents" {
     ), "``");
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontWeight,
-        \\aaa *** ** %% ** *** %%% %% bbb
+        \\aaa *** ** // ** *** /// // bbb
     ), "** **");
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontStyle,
-        \\--- *** ** %% ** *** %%% %% +++
-    ), "** %%%");
+        \\--- *** ** // ** *** /// // +++
+    ), "** ///");
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
         \\aaa ** foo :: bar--
@@ -132,19 +132,19 @@ test "span contents" {
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
         \\aaa ** foo :: bar--
-        \\// comments
-        \\!! %%foo**
+        \\%% comments
+        \\!! //foo**
         \\ \\ xyz::
         \\hello ** world
-    ), "bar--%%foo**xyz");
+    ), "bar--//foo**xyz");
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
         \\aaa ** foo :: bar--
-        \\// comments
-        \\!! %%foo**
-        \\ \\ xyz %%
+        \\%% comments
+        \\!! //foo**
+        \\ \\ xyz //
         \\hello ** world
-    ), "bar--%%foo**xyz hello world");
+    ), "bar--//foo**xyz hello world");
 
     try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(null,
         \\^*** bbb ** ccc ^***

@@ -112,6 +112,7 @@ pub fn build(b: *std.Build) !void {
             .target = target,
         }),
     });
+    toolchainTest.root_module.addImport("tmd", tmdLibModule);
     const runToolchainTest = b.addRunArtifact(toolchainTest);
 
     const testStep = b.step("test", "Run unit tests");
@@ -382,7 +383,7 @@ fn retrieveVersionFromZon(b: *std.Build) ![]const u8 {
 
     const needle =
         \\.version = "
-        ;
+    ;
     if (std.mem.indexOf(u8, zonContent, needle)) |index| {
         const start = index + needle.len;
         if (std.mem.indexOfPos(u8, zonContent, start, "\"")) |end| {

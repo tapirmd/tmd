@@ -294,7 +294,7 @@ test "block attributes" {
     }.check));
 
     try std.testing.expect(try all.DocChecker.check(
-        \\ ** ** %% %%
+        \\ ** ** // //
         \\ && example.png
         \\
     , struct {

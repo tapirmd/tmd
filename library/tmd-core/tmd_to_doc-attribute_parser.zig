@@ -260,13 +260,13 @@ pub fn parse_base_block_open_playload(playload: []const u8) tmd.BaseBlockAttibut
     parse: while (true) {
         if (item.len != 0) {
             switch (item[0]) {
-                '/' => {
+                '%' => {
                     if (lastOrder >= commentedOut) break;
                     defer lastOrder = commentedOut;
 
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
-                        if (c != '/') break :parse;
+                        if (c != '%') break :parse;
                     }
                     attrs.commentedOut = true;
                     return attrs;
@@ -341,7 +341,7 @@ test "parse_base_block_open_playload" {
     ), tmd.BaseBlockAttibutes{});
 
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
-        \\// >> ^^ ..2:3
+        \\%% >> ^^ ..2:3
     ), tmd.BaseBlockAttibutes{
         .commentedOut = true,
     });
@@ -417,11 +417,11 @@ pub fn parse_code_block_open_playload(playload: []const u8) tmd.CodeBlockAttibut
     parse: while (true) {
         if (item.len != 0) {
             switch (item[0]) {
-                '/' => {
+                '%' => {
                     if (lastOrder >= commentedOut) break;
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
-                        if (c != '/') break :parse;
+                        if (c != '%') break :parse;
                     }
                     attrs.commentedOut = true;
                     //lastOrder = commentedOut;
@@ -452,14 +452,14 @@ test "parse_code_block_open_playload" {
     ), tmd.CodeBlockAttibutes{});
 
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
-        \\// 
+        \\%% 
     ), tmd.CodeBlockAttibutes{
         .commentedOut = true,
         .language = "",
     });
 
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
-        \\// zig
+        \\%% zig
     ), tmd.CodeBlockAttibutes{
         .commentedOut = true,
         .language = "",
@@ -548,11 +548,11 @@ pub fn parse_custom_block_open_playload(playload: []const u8) tmd.CustomBlockAtt
     parse: while (true) {
         if (item.len != 0) {
             switch (item[0]) {
-                '/' => {
+                '%' => {
                     if (lastOrder >= commentedOut) break;
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
-                        if (c != '/') break :parse;
+                        if (c != '%') break :parse;
                     }
                     attrs.commentedOut = true;
                     //lastOrder = commentedOut;
@@ -584,14 +584,14 @@ test "parse_custom_block_open_playload" {
     ), tmd.CustomBlockAttibutes{});
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
-        \\// 
+        \\%% 
     ), tmd.CustomBlockAttibutes{
         .commentedOut = true,
         .contentType = "",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
-        \\// html
+        \\%% html
     ), tmd.CustomBlockAttibutes{
         .commentedOut = true,
         .contentType = "",

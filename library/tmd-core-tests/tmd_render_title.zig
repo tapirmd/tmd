@@ -38,7 +38,7 @@ test "tmd render" {
     , true, "foobar.png"));
 
     try std.testing.expect(try PageTitleChecker.check(
-        \\   ### __link__ **bold **%% italic
+        \\   ### __link__ **bold **// italic
         \\
     , true, "link bolditalic"));
 }

@@ -53,13 +53,13 @@ pub const bytesKindTable = blk: {
     table['\t'] = .{ .blank = .{ .isSpace = true } };
 
     table['\\'] = .{ .leadingSpanMark = .lineBreak };
-    table['/'] = .{ .leadingSpanMark = .comment };
+    table['%'] = .{ .leadingSpanMark = .comment };
     table['&'] = .{ .leadingSpanMark = .media };
     table['!'] = .{ .leadingSpanMark = .escape };
     table['?'] = .{ .leadingSpanMark = .spoiler };
 
     table['*'] = .{ .spanMark = .fontWeight };
-    table['%'] = .{ .spanMark = .fontStyle };
+    table['/'] = .{ .spanMark = .fontStyle };
     table[':'] = .{ .spanMark = .fontSize };
     table['~'] = .{ .spanMark = .deleted };
     table['|'] = .{ .spanMark = .marked };
@@ -313,7 +313,7 @@ pub fn readUntilNotChar(ls: *LineScanner, char: u8) u32 {
 
 test "LineScanner" {
     const data =
-        "   \t \t abcdef***rst \x00\x7f %% xyz \r\t\r\r\r\n" ++
+        "   \t \t abcdef***rst \x00\x7f // xyz \r\t\r\r\r\n" ++
         " - foo\t\x00 \n" ++
         "- \t bar";
     var ls = LineScanner{ .data = data };

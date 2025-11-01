@@ -558,13 +558,13 @@ pub const StaticWebsiteBuilder = struct {
             //    return try std.fs.path.join(session.arenaAllocator, &.{ "@html", relPath });
             //},
             inline .images, .css, .js => |tag| {
-                const folderName = "@assets" ++ &[1]u8{std.fs.path.sep} ++ @tagName(tag);
+                const folderName = "@assets" ++ &[1]u8{std.fs.path.sep} ++ @tagName(tag) ++ &[1]u8{std.fs.path.sep};
 
                 switch (filePath) {
                     .builtin => |name| {
                         const info = try session.appContext.getBuiltinFileInfo(name);
 
-                        const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, name, info.content, session.arenaAllocator);
+                        const targetPath = try util.buildAssetFilePath(folderName, name, info.content, session.arenaAllocator);
                         if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                         try util.writeFile(session.buildOutputDir, targetPath, info.content);
@@ -576,7 +576,7 @@ pub const StaticWebsiteBuilder = struct {
                         const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                         defer session.appContext.allocator.free(content);
 
-                        const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.sep, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                        const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
                         if (session.targetFileContents.get(targetPath) == null) {
                             try util.writeFile(session.buildOutputDir, targetPath, content);
 
@@ -962,6 +962,7 @@ pub const StandaloneHtmlBuilder = struct {
                     .builtin => |name| {
                         const info = try session.appContext.getBuiltinFileInfo(name);
 
+                        // ToDo: why buildHashString?
                         const targetPath = try util.buildHashString(info.content, session.arenaAllocator);
                         if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
@@ -972,6 +973,7 @@ pub const StandaloneHtmlBuilder = struct {
                         const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                         defer session.appContext.allocator.free(content);
 
+                        // ToDo: why buildHashString?
                         const targetPath = try util.buildHashString(content, session.arenaAllocator);
                         if (session.targetFileContents.get(targetPath) == null) {
                             try session.targetFileContents.put(targetPath, content);

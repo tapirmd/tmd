@@ -64,40 +64,40 @@ test "line end spacing" {
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\hello
-        \\**%%world**
+        \\**//world**
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
-        \\**hello%%**
+        \\**hello//**
         \\world
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
-        \\%%hello
-        \\%%**world**
+        \\//hello
+        \\//**world**
     ) == false);
 
     try std.testing.expect(try LineEndSpacingChecker.check(
-        \\hello%%
-        \\world%%
+        \\hello//
+        \\world//
     ) == false);
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\hello
-        \\** %%** %%
+        \\** //** //
         \\world
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\hello
-        \\** %%**
+        \\** //**
         \\world
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\hello
-        \\**%%
-        \\world%%
+        \\**//
+        \\world//
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
@@ -185,31 +185,31 @@ test "line end spacing" {
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\foo
-        \\//
+        \\%%
         \\bar
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\森
-        \\//
+        \\%%
         \\林
     ) == false);
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\foo
-        \\// comment
+        \\%% comment
         \\bar
     ));
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\森
-        \\// comment
+        \\%% comment
         \\林
     ) == false);
 
     try std.testing.expect(try LineEndSpacingChecker.check(
         \\**foo
-        \\// comment
+        \\%% comment
         \\**bar
     ) == false);
 

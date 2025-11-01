@@ -49,38 +49,38 @@ test "span marks" {
     , &.{.fontWeight}));
 
     try std.testing.expect(try SpanMarksChecker.check(
-        \\aaa **bbb%% cc **dd%%
+        \\aaa **bbb// cc **dd//
     , &.{ .fontWeight, .fontStyle, .fontWeight, .fontStyle }));
 
     try std.testing.expect(try SpanMarksChecker.check(
-        \\aaa *******bbb%% cc **dd%%%%%%%
+        \\aaa *******bbb// cc **dd///////
     , &.{ .fontWeight, .fontStyle }));
 
     try std.testing.expect(try SpanMarksChecker.check(
-        \\aaa ********bbb%% cc **dd%%%%%%%%
+        \\aaa ********bbb// cc **dd////////
     , &.{ .fontStyle, .fontWeight }));
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\aaa **bbb
-        \\// %% cc **
-        \\dd%%
+        \\%% // cc **
+        \\dd//
     , &.{ .fontWeight, .fontStyle }));
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\aaa **bbb
-        \\!! %% cc **
-        \\dd%%
+        \\!! // cc **
+        \\dd//
     , &.{ .fontWeight, .fontStyle }));
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\aaa **bbb
-        \\?? %% cc **
-        \\dd%%
+        \\?? // cc **
+        \\dd//
     , &.{ .fontWeight, .fontStyle }));
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\^~~aaa ***bbb**
-        \\%%ccc ::dddd ^|| eee
+        \\//ccc ::dddd ^|| eee
         \\:: fff || __ggg $$2$$ hhh
         \\`code`__
     , &.{ .deleted, .fontWeight, .fontStyle, .fontSize, .marked, .fontSize, .marked, .link, .supsub, .supsub, .code, .code, .link }));

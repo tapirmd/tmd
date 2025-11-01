@@ -33,34 +33,34 @@ The recommended file extension for TapirMD documents is `.tmd`.
 @@@ #chars
 ###+++++ Character and character sequences
 
-A %%**line end**%% in a TapirMD document is defined as one of the following:
+A //**line end**// in a TapirMD document is defined as one of the following:
 *  A character sequence consisting of
    -  An ASCII Carriage Return character (Unicode: `U+000D`), followed by
    -  An ASCII Line Feed character (Unicode: `U+000A`).
 *  A single ASCII Line Feed character that doesn't follow an ASCII Carriage Return character.
 *  The end of the document if it doesn't end with either of the above two cases.
 
-A %%**whitespace character**%% is defined as any of the following:
+A //**whitespace character**// is defined as any of the following:
 *  An ASCII Space character (Unicode: `U+0020`).
 *  An ASCII Horizontal Tab character (Unicode: `U+0009`).
 *  A CJK Space character (Unicode: `U+3000`).
 
-A %%**blank character**%% is defined as any of the following:
+A //**blank character**// is defined as any of the following:
 *  The ASCII DEL character (Unicode: `U+007F`).
 *  Any ASCII character with a Unicode value in the inclusive range `U+0000` to `U+0020`.
 
 Most blank characters are invisible in popular text editing software.
 
-A %%**blank character sequence**%% is defined as a sequence of blank characters
+A //**blank character sequence**// is defined as a sequence of blank characters
 and can contain at most one line end.
 If it contains a line end, it must end with the line end.
 
-A %%**perceivable blank character sequence**%% s defined as a blank character sequence that
+A //**perceivable blank character sequence**// s defined as a blank character sequence that
 satisfies at least one of the following conditions:
 *  it contains at least one whitespace character.
 *  it ends with a line end.
    \\ Perceivable blank character sequences of this case are
-   specifically called %%**line-end blank character sequences**%%.
+   specifically called //**line-end blank character sequences**//.
 
 @@@ #elements
 ###+++++ Blocks, lines, and tokens
@@ -69,25 +69,25 @@ TapirMD uses ASCII punctuation characters as mark characters.
 
 Each TapirMD document is a plain text file that intermixes content, marks, and blanks.
 
-After parsing, a TapirMD document is composed of a sequence of various %%**blocks**%%,
+After parsing, a TapirMD document is composed of a sequence of various //**blocks**//,
 which form a hierarchical structure.
 
-Each block consists of one or more %%**lines**%%.
+Each block consists of one or more //**lines**//.
 
 Each line ends with a line-end blank character sequence.
 
 TapirMD documents are parsed line by line.
 The TapirMD format is carefully designed to allow each document to be parsed in a single pass.
 
-After parsing, each line is divided into one or more %%**tokens**%% (text segments),
-such as %%**plain-text tokens**%%, %%**mark tokens**%% and %%**blank tokens**%%.
+After parsing, each line is divided into one or more //**tokens**// (text segments),
+such as //**plain-text tokens**//, //**mark tokens**// and //**blank tokens**//.
 Tokens cannot cross lines.
 
 Each blank token represents a sequence of blank characters.
 *  Specifically, if the sequence of blank characters is perceivable,
-   the corresponding blank token is called a %%**perceivable blank token**%%.
+   the corresponding blank token is called a //**perceivable blank token**//.
 *  More specifically, if the sequence of blank characters ends with a line-end blank character sequence,
-   the corresponding blank token is called a %%**line-end blank token**%%.
+   the corresponding blank token is called a //**line-end blank token**//.
 
 A line
 *  Always ends with a line-end blank token.
@@ -178,13 +178,13 @@ Within a parent base block,
 ###+++++ Data lines and syntaxable lines
 
 Code and custom data blocks are explicitly defined by start and end boundary lines.
-The lines between the boundary lines of a custom data block are referred to as %%**data lines**%%.
-Similarly, the lines between the boundary lines of a code block are called %%**code lines**%%.
+The lines between the boundary lines of a custom data block are referred to as //**data lines**//.
+Similarly, the lines between the boundary lines of a code block are called //**code lines**//.
 In essence, code blocks can be viewed as a type of data block, making code lines a subset of data lines.
 
 Data lines are guaranteed to contain no TapirMD marks.
 Non-data lines, which may or may not contain TapirMD marks,
-are referred to as %%**syntaxable lines**%%.
+are referred to as //**syntaxable lines**//.
 
 Line ends of data lines are always viewed as a single ASCII Line Feed character,
 even if they are not.
@@ -210,7 +210,7 @@ During the line-by-line parsing process,
 a non-item predefined container block starts at a syntaxable line that begins with:
 which begins with
 *  an opitional blank token followed by
-*  a %%**predefined-container-leading mark token**%% which
+*  a //**predefined-container-leading mark token**// which
    -  begins with a one-character mark and
       +  ends with a perceivable blank character sequence or
       +  is followed by a line-end blank token.
@@ -233,7 +233,7 @@ A non-item predefined container block is always directly nested within its paren
 @@@ #item-blocks
 ###+++++ Start and end of item predefined container blocks
 
-For simplicity, we will refer to item predefined container blocks as %%**item blocks**%% from here on.
+For simplicity, we will refer to item predefined container blocks as //**item blocks**// from here on.
 
 Item blocks share some common rules with other predefined container blocks.
 However, since TapirMD supports list nesting in a parent base block,
@@ -242,7 +242,7 @@ the rules for item blocks are somewhat more complex.
 During line-by-line parsing, an item block starts at a syntaxable line
 which begins with
 *  an opitional blank token followed by
-*  a one-character or two-character %%**item predefined-container-leading mark token**%% which
+*  a one-character or two-character //**item predefined-container-leading mark token**// which
    -  ends with a perceivable blank character sequence, or
    -  is followed by a line-end blank token.
 
@@ -340,11 +340,11 @@ starting atom blocks all ignore leading mark tokens of predefined container bloc
 ###+++++ Start and end of explciit base blocks
 
 During line-by-line parsing, an explciit base block
-*  opens at a syntaxable line beginning with a %%**base-open-leading mark token**%%,
+*  opens at a syntaxable line beginning with a //**base-open-leading mark token**//,
    which is a character sequence containing one or more consecutive `{` characters.
 *  closes at
    -  a syntaxable line beginning with one or more consecutive `}` characters
-      (a %%**base-close-leading mark token**%%), or
+      (a //**base-close-leading mark token**//), or
    -  at the end of the containing document.
 
 The numbers of the `}` characters in the base-close-leading mark token
@@ -357,14 +357,14 @@ to set some attributes for the explciit base block.
 The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
-//
+%%
 << >> >< <>
 ^^
 ..N:M ..N :M
 '''
 
 Here,
-*  `//` means the explciit base block is commented out and will not be rendered in HTML output.
+*  `%%` means the explciit base block is commented out and will not be rendered in HTML output.
    However, the internal of the explciit base block will still be parsed.
 *  `<< >> >< <>` are four text horizontal alignment tokens. At most one of them can present.
    {
@@ -395,12 +395,12 @@ Base blocks should be rendered as `<div>` elements in HTML output.
 @@@ #attribute-blocks
 ###+++++ Attribute blocks
 
-A syntaxable line is a %%**attribute line**%%
-if it begins with an %%**attribute line leadng mark token**%%, which
+A syntaxable line is a //**attribute line**//
+if it begins with an //**attribute line leadng mark token**//, which
 *  begins with three or more consecutive `@` characters
 *  and ends with an optional blank character sequence.
 
-A sequence of consecutive attribute lines form a %%**attribute block**%%.
+A sequence of consecutive attribute lines form a //**attribute block**//.
 
 On an attribute line, multiple optional attribute tokens may follow
 the attribute line leadng mark token, to set some attributes
@@ -441,17 +441,17 @@ in TapirMD for various purposes.
 @@@ #usual-blocks
 ###+++++ Usual blocks
 
-A syntaxable line is a %%**usual line**%%
-if it begins with a %%**usual block leadng mark token**%%, which
+A syntaxable line is a //**usual line**//
+if it begins with a //**usual block leadng mark token**//, which
 *  begins with three or more consecutive `;` characters
 *  and ends with an optional blank character sequence.
 
-A new %%**usual block**%% will always start at such a usual line.
+A new //**usual block**// will always start at such a usual line.
 If the usual block leading mark token is followed by a line-end blank token,
 then the line is rendered as a blank block in HTML output.
 
 If a syntaxable line doesn't begin with any identifiable block leading tokens,
-the line is also treated as a usual line, called a %%**plain usual line**%%.
+the line is also treated as a usual line, called a //**plain usual line**//.
 For a plain usual line,
 *  if it is the first line of a predefined container block,
    a new usual block starts at the plain usual line.
@@ -472,14 +472,14 @@ Usual blocks should be rendered as `<div>` elements in HTML output.
 @@@ #header-blocks
 ###+++++ Header blocks
 
-A syntaxable line beginning with three consecutive `#` characters is a %%**header line**%%.
+A syntaxable line beginning with three consecutive `#` characters is a //**header line**//.
 If the three `#` characters are followed by
 *  one or more consecutive `=` characters, a second-level header block starts at the header line, or
 *  one or more consecutive `+` characters, a three-level header block starts at the header line, or
 *  one or more consecutive `-` characters, a fourth-level header block starts at the header line, or
 *  zero or more consecutive `#` characters, a first-level header block starts at the header line.
 
-A %%**header block leading mark token**%%
+A //**header block leading mark token**//
 *  begins with such a leading character sequences containing `#=+-` characters,
 *  and ends with an optional blank character sequence.
 
@@ -487,7 +487,7 @@ Multiple optional plain usual lines can follow a header line and also belong to
 the same header block starting at the header line.
 
 A header block with only one non-blank token
-(its header block leading mark token) is called a %%**bare header block**%%.
+(its header block leading mark token) is called a //**bare header block**//.
 
 First-level non-bare header blocks are generally used for document titles.
 When there are more than one first-level non-bare headers in a TapirMD document
@@ -532,7 +532,7 @@ These tokens enable content creators to apply a wide range of effects, such as:
 *  (mark) character escaping
 
 There are two groups of style and control mark tokens:
-%%**line-leading mark tokens**%% and %%**non-line-leading mark tokens**%%.
+//**line-leading mark tokens**// and //**non-line-leading mark tokens**//.
 
 @@@ #line-leading-marks
 ###----- line-leading mark tokens
@@ -548,17 +548,17 @@ Here is the list of all line-leading mark tokens supported now.
    ### Leading Characters
    ### Explanation
    ----------------
-   ### %%mark-escaping token
+   ### //mark-escaping token
    ;;; ^`!!`
    {
-   Within the containig line (called an %%**mark-escaped line**%%),
+   Within the containig line (called an //**mark-escaped line**//),
    the text following the perceivable blank token is guaranteed to not contain other mark tokens.
    }
    ----------------
-   ### %%spoiler token
+   ### //spoiler token
    ;;; ^`??`
    {
-   Within the containig line (called a %%**spolier line**%%),
+   Within the containig line (called a //**spolier line**//),
    the text following the perceivable blank token is hidden in generated HTML.
    Note,
    -  the text is also mark-escaped.
@@ -567,10 +567,10 @@ Here is the list of all line-leading mark tokens supported now.
       and may become visible after specific user interactions, such as selection.
    }
    ----------------
-   ### %%media-embedding token
+   ### //media-embedding token
    ;;; ^`&&`
    {
-   Within the containig line (called a %%**media-embedding line**%%),
+   Within the containig line (called a //**media-embedding line**//),
    the text following the perceivable blank token is also mark-escaped.
    Currently, the text must be a valid image URI, whether relative or absolute.
    Note: If the media-embedding line is not the only content in the containing block,
@@ -591,16 +591,16 @@ Here is the list of all line-leading mark tokens supported now.
    Media-embedding tokens belong to content tokens.
    }
    ----------------
-   ### %%line-break token
+   ### //line-break token
    ;;; ^`\\`
    {
    A line-break token which is equivalent to `<br>` in HTML.
    }
    ----------------
-   ### %%line-comment token
-   ;;; ^`//`
+   ### //line-comment token
+   ;;; ^`%%`
    {
-   Within the containig line (called a %%**comment line**%%),
+   Within the containig line (called a //**comment line**//),
    the text following the perceivable blank token is mark-escaped
    unless it exhibits the characteristics of a link definition.
    Link definitions are specified in a following section.
@@ -613,7 +613,7 @@ Line-leading mark tokens take higher precedence over all non-line-leading mark t
 @@@ #even-backtick-marks
 ###----- even-backtick mark tokens
 
-%%**Even-backtick mark tokens**%%, just as the name implies, comprise
+//**Even-backtick mark tokens**//, just as the name implies, comprise
 even number of backtick (`^```) characters.
 
 Even-backtick mark tokens can operate in a secondary mode.
@@ -634,7 +634,7 @@ The next section will talk more about this rule.
 
 Even-backtick tokens are treated as content tokens.
 
-Below, we call other non-line-leading mark tokens as %%**style mark tokens**%%.
+Below, we call other non-line-leading mark tokens as //**style mark tokens**//.
 
 @@@ #content-tokens
 ###----- content tokens
@@ -648,7 +648,7 @@ Content tokens include
 ###----- style mark tokens
 
 Each style mark token type is asccociated with a specified ASCII punctuation character.
-The character is called the %%**mark character**%% of that style type.
+The character is called the //**mark character**// of that style type.
 
 Style mark tokens have opening and closing semantics.
 In a usual or header block, the odd-numbered occurrences of
@@ -668,51 +668,58 @@ All style types are listed in the following table.
    ### Primary Mode Semantic
    ### Secondary Mode Semantic
    ------------------
-   ### %% font-face
+   ### // font-face
    ;;; ^`^``
    ;;; code span
    ;;; mono font
    ------------------
-   ### %% font-weight
+   ### // font-weight
    ;;; ^`*
    ;;; bold
    ;;; dimmed
    ------------------
-   ### %% font-style
-   ;;; ^`%
+   ### // font-style
+   ;;; ^`/
    ;;; italic
    ;;; revert italic
    ------------------
-   ### %% font-size
+   ### // font-size
    ;;; ^`:
    ;;; smaller
    ;;; larger
    ------------------
-   ### %% text-deletion
+   ### // text-deletion
    ;;; ^`~
    ;;; strikethrough
    ;;; hide (but still occupy space)
    ------------------
-   ### %% text-marking
+   ### // text-marking
    ;;; ^`|
    ;;; hightlight
    ;;; hightlight (with mistake smell)
    ------------------
-   ### %% sub/sup
+   ### // sub/sup
    ;;; ^`$
    ;;; subscript
    ;;; superscript
    ------------------
-   ### %% link/underline
+   ### // link/underline
    ;;; ^`_
    ;;; link
    ;;; underline
 
 Mark tokens of the font-face style type are required to have exact one mark character (`^```),
 while mark tokens of other style types are required to be in the inclusive range ^`[2, 7]`.
+A closing style mark may begins with a blank character sequence.
+
+!  ### Exception
+   ;;; If a character sequence `://` is not followed by a `/` character,
+   then the `//` sequence within it is never treated as (or as part of) a font-style mark token.
+   ;;;
+   The reason is the sequence `://` commonly appears in web URLs,
+   which are frequently embedded in content texts.
 
 An opening style mark token may end with a non-line-end blank character sequence.
-A closing style mark may begins with a blank character sequence.
 
 Style mark tokens function as style toggle switches.
 Within a usual or header block,
@@ -723,7 +730,7 @@ Before deactivation, additional style mark tokens of the same type are ignored (
 if their character count does not match the opening mark token,
 ensuring they do not deactivate the style prematurely.
 All content tokens between when the style is activated and when it is deactivated
-form the %%**content span**%% of the style.
+form the //**content span**// of the style.
 
 The content span of style might be blank. If the first content span in a usual block
 is blank,  then it signals that the first letter in the normal block should be a drop cap.
@@ -736,7 +743,7 @@ mark tokens of other style types are temporarily ignored (escaped)
 until the code style is deactivated.
 
 The previous section mentioned that
-%% even backtick mark tokens take higher precedence over other non-line-leading mark tokens %%.
+// even backtick mark tokens take higher precedence over other non-line-leading mark tokens //.
 What does this rule mean? It means:
 *  A sequence of backticks with an even number of characters
    will be interpreted as an even-backtick mark token.
@@ -751,7 +758,7 @@ never need to be split apart.
 @@@ #links
 ###----- links and footnotes
 
-Below, we will refer to content spans with link style as %%**link spans**%% (or just links).
+Below, we will refer to content spans with link style as //**link spans**// (or just links).
 
 A not-empty link span will be rendered as a hyperlink in HTML output.
 *  If the link span contains only one content token,
@@ -798,20 +805,20 @@ Specially, a hyperlink span containing only a `#` token links to the footnote se
 ###+++++ Link (definition) blocks
 
 A syntaxable line beginning with three or more consecutive `=` characters
-is a %%**link (definition) line**%% (or simply %%**link line**%%).
-Each %%**link (definition) block**%% (or simply %%**link block**%%) always starts with such a line.
+is a //**link (definition) line**// (or simply //**link line**//).
+Each //**link (definition) block**// (or simply //**link block**//) always starts with such a line.
 
 Multiple optional plain usual lines can follow a link line and also belong to
 the same link block starting with the link line.
 
 The sequence of the leading consecutive `=` characters of a link block is called
-a **%%link block leading mark token%%**.
+a **//link block leading mark token//**.
 
 The lines within a link block never contain link spans. In other words,
 `_` character sequences in link blocks will be viewed as content characters.
 
 A link block with only one non-blank token
-(its link block leading mark token) is called a %%**bare link block**%%.
+(its link block leading mark token) is called a //**bare link block**//.
 
 Link blocks are used to specify URLs for non-self-defined link spans.
 Each link block can specify one URL for multiple link spans satisfying certain patterns.
@@ -864,11 +871,11 @@ cases happens:
 *  The line has an opening style mark token followed by a line-end blank token.
 *  The line has no content tokens.
 *  The last content token in the line ends with a blank or CJK character __#note-cjk-chars__.
-   \\ (%% Note: Even-backtick mark tokens in primary mode are interpreted as CJK characters. %%)
+   \\ (// Note: Even-backtick mark tokens in primary mode are interpreted as CJK characters. //)
 *  Within the block, after the line, no more content tokens are found.
 *  After the line and before the next content token, a media-embedding or line-break token is found.
 *  The next content token begins with a blank or CJK character.
-   \\ (%% Again, even-backtick mark tokens in primary mode are interpreted as CJK characters. %%)
+   \\ (// Again, even-backtick mark tokens in primary mode are interpreted as CJK characters. //)
 
 !  ### NOTE:
    ;;; The current line-end spacing rules are not perfect and may be adjusted later.
@@ -878,11 +885,11 @@ cases happens:
 @@@ #seperator-blocks
 ###+++++ Seperator blocks
 
-A syntaxable line is a %%**seperator line**%%
-if it begins with a %%**seperator leadng mark token**%%, which
+A syntaxable line is a //**seperator line**//
+if it begins with a //**seperator leadng mark token**//, which
 comprises three or more consecutive `-` characters followed by a line-end blank token.
 
-Each seperator line forms a %%**seperator block**%%.
+Each seperator line forms a //**seperator block**//.
 
 Generally, a seperator block should be rendered as horizontal rule (the `<hr>` element).
 However, please note that seperator blocks directly nested in table blocks have alternative semantics.
@@ -891,7 +898,7 @@ However, please note that seperator blocks directly nested in table blocks have 
 ###+++++ Code blocks
 
 During line-by-line parsing, a code block
-*  starts at a syntaxable line beginning with a %%**code-block-leading mark token**%%,
+*  starts at a syntaxable line beginning with a //**code-block-leading mark token**//,
    which is a character sequence containing one or more consecutive
    `'` (single quotation, not backtick) characters.
    The line is the start boundary line of the code block.
@@ -917,12 +924,12 @@ to set some attributes for the code block.
 The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
-//
+%%
 language
 '''
 
 Here,
-*  `//` means the code block is commented out and will not be rendered in HTML output.
+*  `%%` means the code block is commented out and will not be rendered in HTML output.
 *  `language` means a programming language name, such as `zig`, `c`, `go`, etc.
    HTML renderers may use the language name to add class names for the code block.
 
@@ -953,7 +960,7 @@ The explicit boundary lines of the block to be streamed will be excluded in stre
 ###+++++ Custom (data) blocks
 
 During line-by-line parsing, a custom block
-*  starts at a syntaxable line beginning with a %%**custom-block-leading mark token**%%,
+*  starts at a syntaxable line beginning with a //**custom-block-leading mark token**//,
    which is a character sequence containing one or more consecutive
    `"` (double quotation) characters.
    The line is the start boundary line of the custom block.
@@ -1112,7 +1119,7 @@ is treated as an ordered list in HTML output.
 If the mark of a list begins with `*`, `+`, `-` or `~`,
 and the first non-attribute child block of one item blocks
 in the list is a first-level header block, then the list
-is treated as a %%**tab panel**%% in HTML output.
+is treated as a //**tab panel**// in HTML output.
 
 ?  ### (a tab panel example)
    {
@@ -1479,7 +1486,7 @@ They should be escaped when they appear at usual line beginning.
 ...
 !!!
 ???
-///
+%%%
 \\\
 &&&
 [[[

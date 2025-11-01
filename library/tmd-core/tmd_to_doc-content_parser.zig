@@ -583,9 +583,20 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                         // if (codeSpanStatus.openMark) |_| break :create_mark_token;
                         if (inPrimaryCodeSpan) break :create_mark_token;
                         if (markLen < 2 or markLen >= tmd.MaxSpanMarkLength) break :create_mark_token;
-                        // .link blocks don't contain .link spans.
-                        const isLinkMark = spanMarkType == .link;
-                        if (isLinkMark and self.blockSession.atomBlock.blockType == .link) break :create_mark_token;
+
+                        const isLinkMark = switch (spanMarkType) {
+                            .link => blk: {
+                                // .link blocks don't contain .link spans.
+                                if (self.blockSession.atomBlock.blockType == .link) break :create_mark_token;
+                                break :blk true;
+                            },
+                            .fontStyle => blk: {
+                                // "://" is never a mark.
+                                if (markLen == 2 and markStart > lineStart and lineScanner.data[markStart - 1] == ':') break :create_mark_token;
+                                break :blk false;
+                            },
+                            else => false,
+                        };
 
                         const markStatus = self.span_status(spanMarkType);
 

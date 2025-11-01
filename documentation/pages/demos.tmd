@@ -27,7 +27,7 @@ For detailed explanations, please refer to __the specification__.
    {
    **bold text** and ^**dimmed text**.
 
-   %%italic text%% and ^%%revert italic text%%.
+   //italic text// and ^//revert italic text//.
 
    ::smaller font size:: and ^::larger font size::.
 
@@ -59,7 +59,7 @@ For detailed explanations, please refer to __the specification__.
    @@@ #demo-2
    {
    A comment line is between the following two words: foo
-   // comment text
+   %% comment text
    bar.
 
    This block
@@ -257,7 +257,7 @@ For detailed explanations, please refer to __the specification__.
    ''''' << #demo-6
    @@@ #demo-6
    {
-   ####### Header 1 %%::(for titles generally)
+   ####### Header 1 //::(for titles generally)
 
    ###====== Header 2
 
@@ -337,9 +337,9 @@ pub fn main() void {
    ''''' << #demo-8
    @@@ #demo-8
    {
-   *``* all marks %``% are escaped *``* ^````.
+   *``* all marks /``/ are escaped *``* ^````.
 
-   !! ** all marks %% are escaped ** ``.
+   !! ** all marks // are escaped ** ``.
 
    Backticks in code span: `^``code^```
 
@@ -349,12 +349,12 @@ pub fn main() void {
 
    `` ! This is not a **notice box**.
 
-   `` // This is not a %%comment line%%.
+   `` %% This is not a //comment line//.
    }
 
 ---
 
 { //
 @@@ #note-go101
-The **%% Go 101 %%** website is an up-to-date knowledge base for Go programming self learning.
+The **// Go 101 //** website is an up-to-date knowledge base for Go programming self learning.
 }

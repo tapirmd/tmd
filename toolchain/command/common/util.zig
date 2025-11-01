@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 
 const tmd = @import("tmd");
 
@@ -70,6 +71,7 @@ pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []con
     //var file_writer = file.writer(@constCast(fileContent));
     //file_writer.interface.end = fileContent.len;
     //try file_writer.interface.flush();
+
     // see: https://ziggit.dev/t/is-the-constcast-used-correctly-and-safely-with-the-0-15-new-io-design/12734
     var file_writer = file.writer(&.{});
     try file_writer.interface.writeAll(fileContent);
@@ -85,7 +87,7 @@ pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
 // dirPath should be already validated.
 // If dirPath is relative, then it is relative to cwd.
 // If pathToResolve is relative, then it is relative to dirPath.
-// This function errors if the resolved path doesn't exit.
+// This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
 pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
     var dir = try std.fs.cwd().openDir(dirPath, .{});
@@ -102,7 +104,7 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 }
 
 // If pathToResolve is relative, then it is relative to cwd.
-// This function errors if the resolved path doesn't exit.
+// This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
 pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
     if (needValidate) {
@@ -115,7 +117,7 @@ pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator:
 }
 
 // absFilePath should be already validated.
-// This function doesn't error if the resolved path doesn't exit.
+// This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
 pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
@@ -133,7 +135,7 @@ pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u
 }
 
 // absDirPath should be already validated.
-// This function doesn't error if the resolved path doesn't exit.
+// This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
 pub fn resolvePathFromAbsDirPath(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
@@ -179,6 +181,34 @@ fn _validatePathIntoBuffer(pathToValidate: []const u8, buffer: []u8, comptime se
     return pathToValidate;
 }
 
+test _validatePathIntoBuffer {
+    const testCases: []const []const u8 = &.{
+        "a/b/c/d",
+        "xxxx\\yyyy\\zzzz",
+        "foo/bar\\baz",
+        "",
+        "hello",
+    };
+
+    var path: [128]u8 = undefined;
+    var buffer: [128]u8 = undefined;
+
+    for (testCases) |tc| {
+        const p = path[0..tc.len];
+        @memcpy(p, tc);
+        {
+            std.mem.replaceScalar(u8, p, '/', '\\');
+            const r = try _validatePathIntoBuffer(p, &buffer, '\\');
+            try std.testing.expectEqualStrings(r, p);
+        }
+        {
+            std.mem.replaceScalar(u8, p, '\\', '/');
+            const r = try _validatePathIntoBuffer(p, &buffer, '/');
+            try std.testing.expectEqualStrings(r, p);
+        }
+    }
+}
+
 //pub fn validateURL(urlToValidate: []u8, allocator: std.mem.Allocator) !struct { []const u8, bool } {
 //    if (std.mem.containsAtLeastScalar(u8, urlToValidate, 1, '\\')) {
 //        const dup = try allocator.dupe(u8, urlToValidate);
@@ -209,8 +239,16 @@ pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []c
 
 // prefix has already used posix seperator.
 pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]u8 {
+    if (builtin.mode == .Debug and prefix.len > 0) {
+        const c = prefix[prefix.len-1];
+        std.debug.assert(c == '/');
+        
+        std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '/') == null);
+        std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '\\') == null);
+    }
+
     const hash = sha256Hash(fileContent);
-    const encoder = std.base64.standard_no_pad.Encoder;
+    const encoder = std.base64.url_safe_no_pad.Encoder;
     const encoded_len = encoder.calcSize(hash.len);
 
     const sep = "-";
@@ -240,6 +278,26 @@ pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []c
     return out;
 }
 
+test buildPosixPathWithContentHashBase64 {
+    const Case = struct {
+        prefix: []const u8,
+        basename: []const u8,
+        content: []const u8,
+        expected: []const u8,
+    };
+
+    const testCases: []const Case = &.{
+        .{.prefix = "images/", .basename = "foo.png", .content = "foo", .expected = "images/foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png"},
+        .{.prefix = "images/", .basename = "Foo.png", .content = "foo", .expected = "images/Foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png"},
+    };
+
+    for (testCases) |tc| {
+        const path = try buildPosixPathWithContentHashBase64(tc.prefix, tc.basename, tc.content, std.testing.allocator);
+        defer std.testing.allocator.free(path);
+        try std.testing.expectEqualStrings(tc.expected, path);
+    }
+}
+
 const HashHexString = struct {
     fn HashHexString() type {
         const hash: [std.crypto.hash.sha2.Sha256.digest_length]u8 = undefined;
@@ -260,39 +318,37 @@ fn hashHex(data: []const u8) HashHexString {
     return std.fmt.bytesToHex(&hash, .lower);
 }
 
-//pub fn isStringInList(str: []const u8, list: []const []const u8, comptime ignoreCases: bool) bool {
-//    if (ignoreCases) for (list) |s| {
-//        if (std.ascii.eqlIgnoreCase(str, s) return true;
-//    } else for (list) |s| {
-//        if (std.mem.eql(str, s) return true;
-//    }
-//    return false;
-//}
-
 pub fn buildHashString(fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
     const hashStr = try allocator.create(@TypeOf(sha256Hash("")));
     hashStr.* = sha256Hash(fileContent);
     return hashStr;
 }
 
-pub fn buildHashHexString(fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
-    const hashHexStr = try allocator.create(HashHexString);
-    hashHexStr.* = hashHex(fileContent);
-    return hashHexStr;
-}
+//pub fn buildHashHexString(fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+//    const hashHexStr = try allocator.create(HashHexString);
+//    hashHexStr.* = hashHex(fileContent);
+//    return hashHexStr;
+//}
 
 // folder and sep should be already lower-cased.
 // All other parts will be lowered case, so that the output is wholly lowered-case.
-pub fn buildAssetFilePath(folder: []const u8, sep: u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+pub fn buildAssetFilePath(folderEndingWithSep: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+    if (builtin.mode == .Debug and folderEndingWithSep.len > 0) {
+        const c = folderEndingWithSep[folderEndingWithSep.len-1];
+        std.debug.assert(c == '/' or c == '\\');
+        
+        std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '/') == null);
+        std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '\\') == null);
+    }
+
     const hashHexStr = hashHex(fileContent);
 
     const ext = std.fs.path.extension(fileBasename);
     const filename = fileBasename[0 .. fileBasename.len - ext.len];
 
-    const sepStr: [1]u8 = .{sep};
-    const out = try std.mem.concat(allocator, u8, &.{ folder, &sepStr, filename, "-", hashHexStr[0..], ext });
+    const out = try std.mem.concat(allocator, u8, &.{ folderEndingWithSep, filename, "-", hashHexStr[0..], ext });
     {
-        const n = folder.len + sepStr.len;
+        const n = folderEndingWithSep.len;
         const outFilename = out[n .. n + filename.len];
         _ = std.ascii.lowerString(outFilename, outFilename);
     }
@@ -302,6 +358,27 @@ pub fn buildAssetFilePath(folder: []const u8, sep: u8, fileBasename: []const u8,
         _ = std.ascii.lowerString(outExt, outExt);
     }
     return out;
+}
+
+test buildAssetFilePath {
+    const Case = struct {
+        folder: []const u8,
+        basename: []const u8,
+        content: []const u8,
+        expected: []const u8,
+    };
+
+    const testCases: []const Case = &.{
+        .{.folder = "assets/css/", .basename = "v1.css", .content="foo", .expected="assets/css/v1-2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae.css"},
+        .{.folder = "images\\", .basename = "bar.PNG", .content="bar", .expected="images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png"},
+        .{.folder = "images\\", .basename = "Bar.png", .content="bar", .expected="images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png"},
+    };
+
+    for (testCases) |tc| {
+        const path = try buildAssetFilePath(tc.folder, tc.basename, tc.content, std.testing.allocator);
+        defer std.testing.allocator.free(path);
+        try std.testing.expectEqualStrings(tc.expected, path);
+    }
 }
 
 // e.g.: data:image/jpeg;base64,<BASE64-string>
@@ -333,6 +410,26 @@ pub fn buildEmbeddedImageHref(extType: tmd.Extension, fileContent: []const u8, a
     return out;
 }
 
+test buildEmbeddedImageHref {
+    const Case = struct {
+        ext: tmd.Extension,
+        content: []const u8,
+        expected: []const u8,
+    };
+
+    const testCases: []const Case = &.{
+        .{.ext = .jpg, .content = "", .expected = "data:image/jpeg;base64,"},
+        .{.ext = .jpeg, .content = "", .expected = "data:image/jpeg;base64,"},
+        .{.ext = .gif, .content = "foo", .expected = "data:image/gif;base64,Zm9v"},
+    };
+
+    for (testCases) |tc| {
+        const r = try buildEmbeddedImageHref(tc.ext, tc.content, std.testing.allocator);
+        defer std.testing.allocator.free(r);
+        try std.testing.expectEqualStrings(tc.expected, r);
+    }
+}
+
 pub fn findCommonPaths(a: []const u8, b: []const u8, sep: u8) []const u8 {
     const pa, const pb = if (a.len < b.len) .{ a, b } else .{ b, a };
 
@@ -355,6 +452,27 @@ pub fn findCommonPaths(a: []const u8, b: []const u8, sep: u8) []const u8 {
     }
 }
 
+test findCommonPaths {
+    const testCases: []const [3][]const u8 = &.{
+		.{"aaa/bbb/ccc", "aaa/bbb/ddd", "aaa/bbb/"},
+		.{"aaa/bbb/ccc", "aaa/bbb/", "aaa/bbb/"},
+		.{"aaa/bbb/ccc", "aaa/bbb", "aaa/bbb/"},
+		.{"aaa/bbb/ccc", "aaabbb", ""},
+		.{"aaa/bbb/ccc", "aaa", "aaa/"},
+		.{"aaa", "aaa", "aaa"},
+    };
+    for (testCases) |tc| {
+        {
+            const path = findCommonPaths(tc[0], tc[1], '/');
+            try std.testing.expectEqualStrings(tc[2], path);
+        }
+        {
+            const path = findCommonPaths(tc[1], tc[2], '/');
+            try std.testing.expectEqualStrings(tc[2], path);
+        }
+    }
+}
+
 pub fn relativePath(relativeTo: []const u8, path: []const u8, sep: u8) struct { usize, []const u8 } {
     const c = findCommonPaths(relativeTo, path, sep);
     const d = if (c.len > relativeTo.len) blk: {
@@ -373,7 +491,36 @@ pub fn relativePath(relativeTo: []const u8, path: []const u8, sep: u8) struct { 
     return .{ n, path[c.len..] };
 }
 
+test relativePath {
+    const Case = struct {
+        x: []const u8,
+        y: []const u8,
+        z: []const u8,
+        n: usize,
+    };
 
-test "relativePath" {
-    try std.testing.expect(true);
+    const testCases: []const Case = &.{
+		.{.x = "aaa/bbb/ccc", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0},
+		.{.x = "aaa/bbb/", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0},
+		.{.x = "aaa/bbb/", .y = "aaa/bbb/", .z = "", .n = 0},
+		.{.x = "aaa/bbb/", .y = "aaa/ccc", .z = "ccc", .n = 1},
+		.{.x = "aaa/bbb/.html", .y = "aaa/ccc.html", .z = "ccc.html", .n = 1},
+		.{.x = "aaa/bbb/ccc", .y = "aaa/xxx/ddd", .z = "xxx/ddd", .n = 1},
+		.{.x = "aaa/bbb/ccc", .y = "aaa/xxx/", .z = "xxx/", .n = 1},
+		.{.x = "aaa/bbb/ccc", .y = "xxx/bbb/", .z = "xxx/bbb/", .n = 2},
+		.{.x = "aaa", .y = "xxx/bbb", .z = "xxx/bbb", .n = 0},
+		.{.x = "aaa", .y = "bbb", .z = "bbb", .n = 0},
+		.{.x = "aaa/bbb/ccc", .y = "aaa/", .z = "", .n = 1},
+		.{.x = "aaa/bbb/ccc", .y = "aaa", .z = "", .n = 1},
+		.{.x = "aaa", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0},
+		.{.x = "aaa/", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0},
+    };
+
+    for (testCases) |tc| {
+        const n, const relPath = relativePath(tc.x, tc.y, '/');
+        try std.testing.expectEqualStrings(tc.z, relPath);
+        try std.testing.expect(n == tc.n);
+    }
 }
+
+

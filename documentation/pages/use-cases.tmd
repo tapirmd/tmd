@@ -17,37 +17,37 @@ This page lists some use cases of __TapirMD__.
        === Go101.org:: https://go101.org
    +  __ Go 101 Blog
       ``https://go101.org/blog/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/blog
       __)
    +  __ Go (Fundamentals) 101
       ``https://go101.org/article/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/fundamentals
       __)
    +  __ Go Optimizations 101
       ``https://go101.org/optimizations/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/optimizations
       __)
    +  __ Go Details & Tips 101
       ``https://go101.org/details-and-tips/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/details-and-tips
       __)
    +  __ Go 101 Apps & Libs
       ``https://go101.org/apps-and-libs/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/apps-and-libs
       __)
    +  __ Go Bugs 101
       ``https://go101.org/bugs/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/bugs
       __)
    +  __ Go Q&A 101
       ``https://go101.org/q-and-a/101.html
-      __ %%::(__ source code
+      __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/q-and-a
       __)
 

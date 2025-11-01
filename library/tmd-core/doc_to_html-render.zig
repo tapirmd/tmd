@@ -1719,7 +1719,7 @@ test "footnotes" {
             \\
             \\This is a footnode __#foo__
             \\
-            \\{//
+            \\{%%
             \\
             \\@@@ #foo
             \\bla bla bla __#foo__.

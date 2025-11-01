@@ -281,7 +281,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         while (lineIt.next()) |lineItem| {
             const lineData = std.mem.trim(u8, lineItem, " \t\r");
             if (lineData.len == 0) continue;
-            if (std.mem.startsWith(u8, lineData, "//")) continue;
+            if (std.mem.startsWith(u8, lineData, "%%")) continue;
 
             var tokenIt = std.mem.tokenizeAny(u8, lineData, " \t");
             const customContentType = tokenIt.next() orelse continue;
