@@ -175,14 +175,14 @@ const FormatWriter = struct {
     fn writeBlock(fw: *FormatWriter, w: *std.Io.Writer, block: *const tmd.Block, firstLineIndentationWritten: bool, tryToIndentUsualLines: bool) anyerror!void {
         if (block.isAtom()) {
             defer fw.needExtraIndentUnit = false;
-            fw.needExtraIndentUnit = !firstLineIndentationWritten and block.blockType == .link;
+            fw.needExtraIndentUnit = !firstLineIndentationWritten and block.blockType == .linkdef;
 
             var line = block.startLine();
             try fw.writeLine(w, line, firstLineIndentationWritten);
 
             std.debug.assert(!fw.shouldIndentUsualLines);
             defer fw.shouldIndentUsualLines = false;
-            fw.shouldIndentUsualLines = block.blockType == .header or block.blockType == .link or
+            fw.shouldIndentUsualLines = block.blockType == .header or block.blockType == .linkdef or
                 tryToIndentUsualLines and block.blockType == .usual and line.lineTypeMarkToken() != null;
 
             const endLine = block.endLine();

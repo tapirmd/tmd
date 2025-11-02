@@ -63,7 +63,7 @@ pub const bytesKindTable = blk: {
     table[':'] = .{ .spanMark = .fontSize };
     table['~'] = .{ .spanMark = .deleted };
     table['|'] = .{ .spanMark = .marked };
-    table['_'] = .{ .spanMark = .link };
+    table['_'] = .{ .spanMark = .hyperlink };
     table['$'] = .{ .spanMark = .supsub };
     table['`'] = .{ .spanMark = .code };
 

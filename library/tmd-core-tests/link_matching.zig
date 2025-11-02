@@ -301,7 +301,7 @@ test "line end type" {
         \\__foo bar foo bar foo__
         \\__foo zzz foo bar foo__
         \\__foo zzz foo zzz foo__
-        \\Here is only one .link block.
+        \\Here is only one .linkdef block.
         \\
     , &.{}));
 

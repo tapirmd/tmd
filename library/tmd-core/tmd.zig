@@ -293,7 +293,7 @@ pub const Link = struct {
     const List = list.List(@This());
 
     pub const Owner = union(enum) {
-        block: *Block, // for link definition. (.blockType == .link)
+        block: *Block, // for link definition. (.blockType == .linkdef)
         hyper: *Token, // for hyperlink. Token.LinkInfo.
         media: *Token, // for media. Token.LinkInfo.
     };
@@ -764,7 +764,7 @@ pub const BlockType = union(enum) {
         const Atom = void;
     },
 
-    link: struct {
+    linkdef: struct {
         startLine: *Line = undefined,
         endLine: *Line = undefined,
 
@@ -933,7 +933,7 @@ pub const Line = struct {
         usual,
         header,
         seperator,
-        link,
+        linkdef,
         attributes,
 
         baseBlockOpen,
@@ -1326,7 +1326,7 @@ pub const Token = union(enum) {
             return @tagName(self.markType);
         }
     },
-    // A linkInfo token is always before an open .link SpanMarkType token.
+    // A linkInfo token is always before an open .hyperlink SpanMarkType token.
     // It is used to track the Link in rendering.
     linkInfo: struct {
         link: *Link,
@@ -1399,7 +1399,7 @@ pub const Token = union(enum) {
                 if (self.prev()) |prexToken| {
                     if (builtin.mode == .Debug) {
                         switch (prexToken.*) {
-                            .spanMark => |m| std.debug.assert(m.markType == .link and m.more.open == true),
+                            .spanMark => |m| std.debug.assert(m.markType == .hyperlink and m.more.open == true),
                             .leadingSpanMark => |m| std.debug.assert(m.more.markType == .media),
                             else => unreachable,
                         }
@@ -1512,7 +1512,7 @@ pub const Token = union(enum) {
 };
 
 pub const SpanMarkType = enum(u4) {
-    link,
+    hyperlink,
     fontWeight,
     fontStyle,
     fontSize,

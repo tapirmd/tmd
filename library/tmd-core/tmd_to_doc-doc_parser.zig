@@ -835,7 +835,7 @@ fn parse(parser: *DocParser) !void {
                         break :blk lineScanner.cursor;
                     };
 
-                    line.lineType = .usual;
+                    line.lineType = if (mark == ';') .usual else .linkdef;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
@@ -850,7 +850,7 @@ fn parse(parser: *DocParser) !void {
                             .startLine = line,
                         },
                     } else .{
-                        .link = .{
+                        .linkdef = .{
                             .startLine = line,
                         },
                     };
@@ -963,7 +963,7 @@ fn parse(parser: *DocParser) !void {
                 line.lineType = .usual;
 
                 if (hasContainerMark or
-                    currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header and currentAtomBlock.blockType != .link)
+                    currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header and currentAtomBlock.blockType != .linkdef)
                 {
                     const usualBlock = try parser.createAndPushBlockElement();
                     usualBlock.blockType = .{

@@ -532,7 +532,7 @@ pub const TmdRender = struct {
                 try fns.writeCloseTag(w, tag, true);
             },
             .attributes => {},
-            .link => {},
+            .linkdef => {},
             .seperator => {
                 const tag = "hr";
                 const classes = "tmd-seperator";
@@ -1054,7 +1054,7 @@ pub const TmdRender = struct {
             },
 
             // atom
-            .seperator, .header, .usual, .attributes, .link, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
+            .seperator, .header, .usual, .attributes, .linkdef, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
         }
     }
 
@@ -1195,7 +1195,7 @@ pub const TmdRender = struct {
                             std.debug.assert(markElement.value.mark == null);
 
                             markElement.value.mark = m;
-                            if (m.markType == .link and !m.more.secondary) {
+                            if (m.markType == .hyperlink and !m.more.secondary) {
                                 std.debug.assert(tracker.activeLinkInfo == null);
 
                                 const linkInfoElement = tokenElement.next.?;
@@ -1404,7 +1404,7 @@ pub const TmdRender = struct {
 
         done: {
             switch (m.markType) {
-                .link => blk: {
+                .hyperlink => blk: {
                     const linkInfo = tracker.activeLinkInfo orelse break :blk;
                     tracker.activeLinkInfo = null;
                     const link = linkInfo.link;
@@ -1486,7 +1486,7 @@ pub const TmdRender = struct {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
-            .link => {
+            .hyperlink => {
                 std.debug.assert(spanMark.more.secondary);
                 try w.writeAll(
                     \\<span class="tmd-underlined">
@@ -1573,7 +1573,7 @@ pub const TmdRender = struct {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
-            .link, .fontWeight, .fontStyle, .fontSize, .deleted => {
+            .hyperlink, .fontWeight, .fontStyle, .fontSize, .deleted => {
                 try w.writeAll("</span>");
             },
             .marked => {

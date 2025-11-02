@@ -71,7 +71,7 @@ fn span_status(self: *ContentParser, markType: tmd.SpanMarkType) *SpanStatus {
 
 pub fn initMore(self: *ContentParser) void {
     self.codeSpanStatus = self.span_status(.code);
-    self.linkSpanStatus = self.span_status(.link);
+    self.linkSpanStatus = self.span_status(.hyperlink);
 }
 
 pub fn deinit(_: *ContentParser) void {
@@ -95,7 +95,7 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
     };
     self.bolockSessionValid = true;
 
-    if (atomBlock.blockType == .link) {
+    if (atomBlock.blockType == .linkdef) {
         _ = try self.open_new_link(.{ .block = atomBlock }, true);
     }
 }
@@ -440,7 +440,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     break :parse_tokens textEnd;
                 },
                 .media => {
-                    const link = if (self.blockSession.atomBlock.blockType == .link) null else blk: {
+                    const link = if (self.blockSession.atomBlock.blockType == .linkdef) null else blk: {
                         const link = try self.open_new_link(.{ .media = undefined }, false); // will be modified below
 
                         // Media needs 2 tokens to store information.
@@ -585,9 +585,9 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                         if (markLen < 2 or markLen >= tmd.MaxSpanMarkLength) break :create_mark_token;
 
                         const isLinkMark = switch (spanMarkType) {
-                            .link => blk: {
-                                // .link blocks don't contain .link spans.
-                                if (self.blockSession.atomBlock.blockType == .link) break :create_mark_token;
+                            .hyperlink => blk: {
+                                // .linkdef blocks don't contain .hyperlink spans.
+                                if (self.blockSession.atomBlock.blockType == .linkdef) break :create_mark_token;
                                 break :blk true;
                             },
                             .fontStyle => blk: {

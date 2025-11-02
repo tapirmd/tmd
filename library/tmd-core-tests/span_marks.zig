@@ -83,5 +83,5 @@ test "span marks" {
         \\//ccc ::dddd ^|| eee
         \\:: fff || __ggg $$2$$ hhh
         \\`code`__
-    , &.{ .deleted, .fontWeight, .fontStyle, .fontSize, .marked, .fontSize, .marked, .link, .supsub, .supsub, .code, .code, .link }));
+    , &.{ .deleted, .fontWeight, .fontStyle, .fontSize, .marked, .fontSize, .marked, .hyperlink, .supsub, .supsub, .code, .code, .hyperlink }));
 }
