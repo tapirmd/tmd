@@ -223,11 +223,11 @@ fn generateHTML() ![]const u8 {
     try w.writeInt(u32, 0, .little);
 
     const CustomHandler = struct {
-        htmlGenCallback: *tmd.HtmlBlockGenerator,
+        htmlGenerator: *tmd.HtmlBlockGenerator,
 
-        fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
+        fn getCustomBlockGenerator(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
             const handler: *const @This() = @ptrCast(@alignCast(ctx));
-            const callback = handler.htmlGenCallback;
+            const callback = handler.htmlGenerator;
 
             const attrs = custom.attributes();
             if (std.ascii.eqlIgnoreCase(attrs.contentType, "html")) {
@@ -237,9 +237,9 @@ fn generateHTML() ![]const u8 {
             return null;
         }
     };
-    var htmlGenCallback: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
+    var htmlGenerator: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
     const handler = CustomHandler{
-        .htmlGenCallback = &htmlGenCallback,
+        .htmlGenerator = &htmlGenerator,
     };
 
     const genOptions = tmd.GenOptions{
@@ -247,8 +247,10 @@ fn generateHTML() ![]const u8 {
         .identSuffix = identSuffix,
         .autoIdentSuffix = autoIdentSuffix,
 
-        .callbackContext = &handler,
-        .getCustomBlockGenCallback = if (supportHTML) CustomHandler.getCustomBlockGenCallback else null,
+        .callbacks = . {
+            .context =  &handler,
+            .fnGetCustomBlockGenerator = if (supportHTML) CustomHandler.getCustomBlockGenerator else null,
+        },
     };
 
     try tmdDoc.writeHTML(&w, genOptions, std.heap.wasm_allocator);

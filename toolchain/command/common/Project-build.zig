@@ -170,7 +170,9 @@ const BuildSession = struct {
                 return error.BadNavigationFile;
             }
 
-            const absPath = try util.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            var pa: util.PathAllocator = .{};
+            const absPath = try util.resolveRealPath2Alloc(self.project.path, path, true, pa.allocator());
+            //defer self.appContext.allocator.free(absPath);
             if (!util.isFileInDir(absPath, self.project.path)) {
                 try self.appContext.stderr.print("Navigation file must be in project path ({s}): {s}.\n", .{ self.project.path, absPath });
                 return error.BadNavigationFile;
@@ -194,7 +196,9 @@ const BuildSession = struct {
             while (try fi.next()) |entry| {
                 if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
-                const path = try util.resolveRealPath2(entry.dirPath, entry.filePath, false, self.arenaAllocator);
+                var pa: util.PathAllocator = .{};
+                const path = try util.resolveRealPath2Alloc(entry.dirPath, entry.filePath, false, pa.allocator());
+                //defer self.appContext.allocator.free(path);
                 _ = try self.tryToRegisterFile(.{ .local = path }, .contentArticle);
             }
 
@@ -225,7 +229,9 @@ const BuildSession = struct {
 
     fn collectSomeImages(self: *@This()) !void {
         if (self.project.coverImagePath()) |path| {
-            const absPath = try util.resolveRealPath2(self.project.path, path, true, self.arenaAllocator);
+            var pa: util.PathAllocator = .{};
+            const absPath = try util.resolveRealPath2Alloc(self.project.path, path, true, pa.allocator());
+            //defer self.appContext.allocator.free(absPath);
 
             const index = self.imageFiles.items.len;
             _ = try self.tryToRegisterFile(.{ .local = absPath }, .images);
@@ -266,6 +272,7 @@ const BuildSession = struct {
         }
     }
 
+    // The string in filePath is not hold after tryToRegisterFile exits.
     pub fn tryToRegisterFile(self: *@This(), filePath: Config.FilePath, filePurpose: FilePurpose) ![]const u8 {
         const targetPath = switch (filePath) {
             .builtin => |name| blk: {
@@ -282,7 +289,7 @@ const BuildSession = struct {
                 }
 
                 const targetPath = try self.calTargetFilePath(self, filePath, filePurpose);
-                try self.fileMapping.put(filePath, targetPath);
+                try self.fileMapping.put(try filePath.dupe(self.arenaAllocator), targetPath);
 
                 switch (filePurpose) {
                     .images => try self.imageFiles.append(self.arenaAllocator, targetPath),
@@ -300,10 +307,13 @@ const BuildSession = struct {
                 if (self.fileMapping.get(filePath)) |targetPath| return targetPath;
 
                 const targetPath = try self.calTargetFilePath(self, filePath, filePurpose);
-                try self.fileMapping.put(filePath, targetPath);
+                try self.fileMapping.put(try filePath.dupe(self.arenaAllocator), targetPath);
 
                 switch (filePurpose) {
-                    .navigationArticle, .contentArticle => try self.articleFiles.append(self.arenaAllocator, absPath),
+                    .navigationArticle, .contentArticle => {
+                        const dupeAbsPath = try self.arenaAllocator.dupe(u8, absPath);
+                        try self.articleFiles.append(self.arenaAllocator, dupeAbsPath);
+                    },
                     else => {}, // handle below
                 }
 
@@ -400,6 +410,8 @@ const TmdGenCustomHandler = struct {
     tmdDocInfo: DocRenderer.TmdDocInfo,
     mutableData: *MutableData,
 
+    isNavInBody: bool = false,
+
     fn init(bs: *BuildSession, tmdDocInfo: DocRenderer.TmdDocInfo, mutableData: *MutableData) TmdGenCustomHandler {
         return .{
             .session = bs,
@@ -410,19 +422,23 @@ const TmdGenCustomHandler = struct {
 
     fn makeTmdGenOptions(handler: *const @This()) tmd.GenOptions {
         return .{
-            .callbackContext = handler,
-            .getCustomBlockGenCallback = getCustomBlockGenCallback,
-            .getMediaUrlGenCallback = getMediaUrlGenCallback,
-            .getLinkUrlGenCallback = getLinkUrlGenCallback,
+            .callbacks = . {
+                .context = handler,
+                .fnGetCustomBlockGenerator = getCustomBlockGenerator,
+                .fnGetMediaUrlGenerator = getMediaUrlGenerator,
+                .fnGetLinkUrlGenerator = getLinkUrlGenerator,
+            },
         };
     }
 
-    fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
+    fn getCustomBlockGenerator(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
-        return handler.mutableData.externalBlockGenerator.makeGenCallback(handler.session.project.configEx, handler.tmdDocInfo.doc, custom);
+        return handler.mutableData.externalBlockGenerator.makeGenerator(handler.session.project.configEx, handler.tmdDocInfo.doc, custom);
     }
 
-    fn getLinkUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
+    fn getLinkUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link, isCurrentItemInNav: *?bool) !?tmd.Generator {
+        std.debug.assert(isCurrentItemInNav.* == null);
+        
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
         const url = link.url.?;
@@ -432,15 +448,25 @@ const TmdGenCustomHandler = struct {
                     .tmd => {
                         std.debug.assert(v.isTmdFile());
 
-                        const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
-                        break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .contentArticle), url.fragment };
+                        var pa: util.PathAllocator = .{};
+                        const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
+                        //defer handler.session.appContext.allocator.free(absPath);
+                        const targetPath = try handler.session.tryToRegisterFile(.{ .local = absPath }, .contentArticle);
+
+                        if (handler.isNavInBody) {
+                            isCurrentItemInNav.* = std.mem.eql(u8, targetPath, handler.tmdDocInfo.targetFilePath);
+                        }
+                        
+                        break :blk .{targetPath, url.fragment };
                     },
                     .txt, .html, .htm, .xhtml, .css, .js => {
                         try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js fiels is not supported now: {s}\n", .{url.base});
                         return error.NotImplementedYet;
                     },
                     .png, .gif, .jpg, .jpeg => {
-                        const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
+                        var pa: util.PathAllocator = .{};
+                        const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
+                        //defer handler.session.appContext.allocator.free(absPath);
                         break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .images), "" };
                     },
                 };
@@ -461,13 +487,15 @@ const TmdGenCustomHandler = struct {
         );
     }
 
-    fn getMediaUrlGenCallback(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.GenCallback {
+    fn getMediaUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.Generator {
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
         const url = link.url.?;
         const targetPath = switch (url.manner) {
             .relative => blk: {
-                const absPath = try util.resolvePathFromFilePath(handler.tmdDocInfo.sourceFilePath, url.base, true, handler.session.arenaAllocator);
+                var pa: util.PathAllocator = .{};
+                const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
+                //defer handler.session.appContext.allocator.free(absPath);
                 break :blk try handler.session.tryToRegisterFile(.{ .local = absPath }, .images);
             },
             else => return null,
@@ -733,6 +761,7 @@ pub const StaticWebsiteBuilder = struct {
 
                         var mutableData: TmdGenCustomHandler.MutableData = undefined;
                         var tmdGenCustomHandler: TmdGenCustomHandler = .init(bs, navDocInfo, &mutableData);
+                        tmdGenCustomHandler.isNavInBody = true;
                         const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
 
                         try navTmdDoc.writeHTML(r.w, genOptions, bs.appContext.allocator);

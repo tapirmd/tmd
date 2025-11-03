@@ -22,7 +22,7 @@ pub const RelativePathWriter = struct {
         }
     }
 
-    pub fn asGenBacklback(self: *RelativePathWriter, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.GenCallback {
+    pub fn asGenBacklback(self: *RelativePathWriter, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
         self.* = .{
             .path = path,
             .pathSep = pathSep,
@@ -102,7 +102,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
         try writeShellCommandOutput(w, self.shellArgs, data);
     }
 
-    pub fn asGenBacklback(self: *ShellCommandCustomBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, shellArgs: [][]const u8) tmd.GenCallback {
+    pub fn asGenBacklback(self: *ShellCommandCustomBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, shellArgs: [][]const u8) tmd.Generator {
         self.* = .{ .doc = doc, .custom = custom, .shellArgs = shellArgs };
         return .init(self);
     }
@@ -159,7 +159,7 @@ pub const ExternalBlockGenerator = struct {
     pub fn asGenBacklback(self: *ExternalBlockGenerator, generator: union(enum) {
         builtinHtmlBlockGenerator: tmd.HtmlBlockGenerator,
         shellCustomBlockGenerator: ShellCommandCustomBlockGenerator,
-    }) tmd.GenCallback {
+    }) tmd.Generator {
         switch (generator) {
             .builtinHtmlBlockGenerator => |g| {
                 self.builtinHtmlBlockGenerator = g;
@@ -172,7 +172,7 @@ pub const ExternalBlockGenerator = struct {
         }
     }
 
-    pub fn makeGenCallback(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.GenCallback {
+    pub fn makeGenerator(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.Generator {
         const generators = (configEx.basic.@"custom-block-generators" orelse return null)._parsed;
         const attrs = custom.attributes();
         const generator = generators.getPtr(attrs.contentType) orelse return null;
@@ -213,14 +213,16 @@ pub const BlockGeneratorCallbackOwner = struct {
 
     pub fn makeTmdGenOptions(self: *const @This()) tmd.GenOptions {
         return .{
-            .callbackContext = self,
-            .getCustomBlockGenCallback = getCustomBlockGenCallback,
+            .callbacks = . {
+                .context = self,
+                .fnGetCustomBlockGenerator = getCustomBlockGenerator,
+            },
         };
     }
 
-    pub fn getCustomBlockGenCallback(callbackContext: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
+    pub fn getCustomBlockGenerator(callbackContext: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
-        return self.externalBlockGenerator.makeGenCallback(self.configEx, self.tmdDoc, custom);
+        return self.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom);
     }
 };
 

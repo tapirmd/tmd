@@ -6,9 +6,10 @@ const util = @import("util.zig");
 
 pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { invalid: void, registered: *Project, new: *Project } {
     const path = blk: {
-        const path = try util.resolvePathFromAbsDirPath(".", dirOrConfigPath, true, ctx.allocator);
-        defer ctx.allocator.free(path);
-        break :blk try util.resolveRealPath(path, false, ctx.arenaAllocator);
+        var pa: util.PathAllocator = .{};
+        const path = try util.resolvePathFromAbsDirPathAlloc(".", dirOrConfigPath, true, pa.allocator());
+        //defer ctx.allocator.free(path);
+        break :blk try util.resolveRealPathAlloc(path, false, ctx.arenaAllocator);
     };
 
     const stat = std.fs.cwd().statFile(path) catch |err| {
@@ -26,7 +27,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
             return .invalid;
         },
         .directory => {
-            const configPath = util.resolveRealPath2(path, "tmd.project", false, ctx.arenaAllocator) catch {
+            const configPath = util.resolveRealPath2Alloc(path, "tmd.project", false, ctx.arenaAllocator) catch {
                 break :blk .{ path, path };
             };
             break :blk .{ path, configPath };

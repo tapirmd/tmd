@@ -105,11 +105,11 @@ pub const RenderChecker = struct {
         defer wa.deinit();
 
         const CustomHandler = struct {
-            htmlGenCallback: *tmd.HtmlBlockGenerator = undefined,
+            htmlGenerator: *tmd.HtmlBlockGenerator = undefined,
 
-            fn getCustomBlockGenCallback(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.GenCallback {
+            fn getCustomBlockGenerator(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
-                const callback = handler.htmlGenCallback;
+                const callback = handler.htmlGenerator;
 
                 const attrs = custom.attributes();
                 if (std.ascii.eqlIgnoreCase(attrs.contentType, "html")) {
@@ -119,14 +119,16 @@ pub const RenderChecker = struct {
                 return null;
             }
         };
-        var htmlGenCallback: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
+        var htmlGenerator: tmd.HtmlBlockGenerator = .{ .doc = &tmdDoc, .custom = undefined };
         const handler = CustomHandler{
-            .htmlGenCallback = &htmlGenCallback,
+            .htmlGenerator = &htmlGenerator,
         };
 
         const options = tmd.GenOptions{
-            .callbackContext = &handler,
-            .getCustomBlockGenCallback = CustomHandler.getCustomBlockGenCallback,
+            .callbacks = . {
+                .context = &handler,
+                .fnGetCustomBlockGenerator = CustomHandler.getCustomBlockGenerator,
+            },
         };
 
         try tmdDoc.writeHTML(&wa.writer, options, std.testing.allocator);

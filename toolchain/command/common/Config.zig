@@ -84,6 +84,12 @@ pub const FilePath = union(FileType) {
         };
     }
 
+    pub fn dupe(self: @This(), a: std.mem.Allocator) !FilePath {
+        return switch (self) {
+            inline else => |v, tag| @unionInit(FilePath, @tagName(tag), try a.dupe(u8, v)),
+        };
+    }
+
     pub const HashMapContext = struct {
         pub fn hash(self: @This(), key: FilePath) u64 {
             _ = self;

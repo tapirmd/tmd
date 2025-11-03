@@ -18,27 +18,29 @@ pub const GenOptions = struct {
     // enabled_style_xxx: bool,
     // ignoreClasses: bool = false, // for forum posts etc.
 
-    // Must be valid if any of the following callbacks is not null.
-    // Will be passed as the first arguments of the callbacks.
-    // It should hold the tmd.Doc to be generated.
-    callbackContext: *const anyopaque = undefined,
+    callbacks: struct {
+        // Must be valid if any of the following callbacks is not null.
+        // Will be passed as the first arguments of the callbacks.
+        // Generally, it should hold the tmd.Doc to be generated.
+        context: *const anyopaque = undefined,
 
-    getCustomBlockGenCallback: ?*const fn (context: *const anyopaque, custom: *const tmd.BlockType.Custom) anyerror!?GenCallback = null,
-    // ToDo: codeBlockGenCallback, and for any kinds of blocks?
+        fnGetCustomBlockGenerator: ?*const fn (context: *const anyopaque, custom: *const tmd.BlockType.Custom) anyerror!?Generator = null,
+         // ToDo: fnCodeBlockGenerator, and for any kinds of blocks?
 
-    getMediaUrlGenCallback: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?GenCallback = null,
-    getLinkUrlGenCallback: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?GenCallback = null,
+        fnGetMediaUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?Generator = null,
+        fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentItemInNav: *?bool) anyerror!?Generator = null,
+    } = .{},
 };
 
-pub const GenCallback = struct {
+pub const Generator = struct {
     obj: *const anyopaque,
     genFn: *const fn (obj: *const anyopaque, w: *std.Io.Writer) anyerror!void,
 
-    fn gen(self: GenCallback, w: *std.Io.Writer) !void {
+    fn gen(self: Generator, w: *std.Io.Writer) !void {
         return self.genFn(self.obj, w);
     }
 
-    pub fn init(obj: anytype) GenCallback {
+    pub fn init(obj: anytype) Generator {
         const T = @TypeOf(obj);
         const typeInfo = @typeInfo(T);
         switch (typeInfo) {
@@ -53,7 +55,7 @@ pub const GenCallback = struct {
                 return .{ .obj = obj, .genFn = C.writeAll };
             },
             inline .@"struct", .@"union", .@"enum" => {
-                if (@sizeOf(T) != 0) @compileError("The sizes of non-pointer GenCallback types must be zero.");
+                if (@sizeOf(T) != 0) @compileError("The sizes of non-pointer Generator types must be zero.");
 
                 const C = struct {
                     pub fn writeAll(_: *const anyopaque, w: *std.Io.Writer) !void {
@@ -66,16 +68,14 @@ pub const GenCallback = struct {
         }
     }
 
-    pub fn dummy() GenCallback {
-        const GenCallback_Dummy = struct {
+    pub fn dummy() Generator {
+        const DummyGenerator = struct {
             pub fn gen(_: @This(), _: *std.Io.Writer) !void {}
         };
 
-        return .init(GenCallback_Dummy{});
+        return .init(DummyGenerator{});
     }
 };
-
-const dummyGenCallback: GenCallback = .dummy();
 
 pub const TmdRender = struct {
     doc: *const tmd.Doc,
@@ -141,24 +141,25 @@ pub const TmdRender = struct {
         self.footnoteNodes.destroy(T.destroyFootnoteNode, self.allocator);
     }
 
-    fn getCustomBlockGenCallback(self: *const TmdRender, custom: *const tmd.BlockType.Custom) !GenCallback {
-        if (self.options.getCustomBlockGenCallback) |get| {
-            if (try get(self.options.callbackContext, custom)) |callback| return callback;
+    fn getCustomBlockGenerator(self: *const TmdRender, custom: *const tmd.BlockType.Custom) !Generator {
+        if (self.options.callbacks.fnGetCustomBlockGenerator) |get| {
+            if (try get(self.options.callbacks.context, custom)) |callback| return callback;
         }
 
-        return dummyGenCallback;
+        return .dummy();
     }
 
-    fn getLinkUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
-        if (self.options.getLinkUrlGenCallback) |get| {
-            if (try get(self.options.callbackContext, link)) |callback| return callback;
+    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link) !?Generator {
+        if (self.options.callbacks.fnGetLinkUrlGenerator) |get| {
+            var isCurrentItemInNav: ?bool = null;
+            if (try get(self.options.callbacks.context, link, &isCurrentItemInNav)) |callback| return callback;
         }
         return null;
     }
 
-    fn getMediaUrlGenCallback(self: *const TmdRender, link: *const tmd.Link) !?GenCallback {
-        if (self.options.getMediaUrlGenCallback) |get| {
-            if (try get(self.options.callbackContext, link)) |callback| return callback;
+    fn getMediaUrlGenerator(self: *const TmdRender, link: *const tmd.Link) !?Generator {
+        if (self.options.callbacks.fnGetMediaUrlGenerator) |get| {
+            if (try get(self.options.callbacks.context, link)) |callback| return callback;
         }
         return null;
     }
@@ -966,7 +967,7 @@ pub const TmdRender = struct {
 
         //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
-        const callback = try self.getCustomBlockGenCallback(&block.blockType.custom);
+        const callback = try self.getCustomBlockGenerator(&block.blockType.custom);
         try callback.gen(w);
 
         //try fns.writeCloseTag(w, tag, true);
@@ -1241,7 +1242,7 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    if (try self.getLinkUrlGenCallback(link)) |callback| {
+                                    if (try self.getLinkUrlGenerator(link)) |callback| {
                                         try w.writeAll(
                                             \\<a href="
                                         );
@@ -1333,7 +1334,7 @@ pub const TmdRender = struct {
                                 const link = linkInfoToken.linkInfo.link;
                                 const url = link.url orelse unreachable;
                                 writeMedia: {
-                                    if (try self.getMediaUrlGenCallback(link)) |callback| {
+                                    if (try self.getMediaUrlGenerator(link)) |callback| {
                                         try w.writeAll("<img src=\"");
                                         try callback.gen(w);
                                     } else switch (url.manner) {

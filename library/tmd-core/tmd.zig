@@ -6,7 +6,7 @@ pub const version = @import("version.zig").version;
 pub const exampleCSS = @embedFile("example.css");
 
 pub const GenOptions = @import("doc_to_html.zig").GenOptions;
-pub const GenCallback = @import("doc_to_html.zig").GenCallback;
+pub const Generator = @import("doc_to_html.zig").Generator;
 pub const HtmlBlockGenerator = @import("doc_to_html.zig").HtmlBlockGenerator;
 
 pub const FilePathType = @import("tmd_to_doc-attribute_parser.zig").FilePathType;

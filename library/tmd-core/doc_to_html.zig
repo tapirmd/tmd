@@ -5,7 +5,7 @@ const render = @import("doc_to_html-render.zig");
 const fns = @import("doc_to_html-fns.zig");
 
 pub const GenOptions = render.GenOptions;
-pub const GenCallback = render.GenCallback;
+pub const Generator = render.Generator;
 
 pub fn doc_to_html(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc, options: GenOptions, allocator: std.mem.Allocator) !void {
     var r: render.TmdRender = .init(tmdDoc, allocator, options);
@@ -42,7 +42,7 @@ pub const HtmlBlockGenerator = struct {
         }
     }
 
-    pub fn asGenBacklback(self: *HtmlBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) tmd.GenCallback {
+    pub fn asGenBacklback(self: *HtmlBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) tmd.Generator {
         self.* = .{ .doc = doc, .custom = custom };
         return .init(self);
     }

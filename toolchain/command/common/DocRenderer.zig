@@ -20,6 +20,7 @@ w: *std.Io.Writer = undefined,
 tmdDocInfo: ?TmdDocInfo = null,
 
 pub fn init(ctx: *AppContext, configEx: *AppContext.ConfigEx, cc: Callbacks) DocRenderer {
+    std.debug.print("!!! {s}\n", .{configEx.path});
     const _template = configEx.basic.@"html-page-template".?._parsed;
     return .{
         .ctx = ctx,
@@ -256,7 +257,7 @@ fn getFilePath(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) 
             break :blk if (std.mem.startsWith(u8, assetPath, "@") and std.fs.path.extension(assetPath).len == 0)
                 .{ .builtin = assetPath }
             else
-                .{ .local = try util.resolvePathFromFilePath(relativeToPath, assetPath, true, r.ctx.arenaAllocator) };
+                .{ .local = try util.resolvePathFromFilePathAlloc(relativeToPath, assetPath, true, r.ctx.arenaAllocator) };
         },
         .invalid => return error.InvalidFilePath,
     };

@@ -89,7 +89,7 @@ pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
 // If pathToResolve is relative, then it is relative to dirPath.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPath2Alloc(dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
     var dir = try std.fs.cwd().openDir(dirPath, .{});
     defer dir.close();
 
@@ -106,7 +106,7 @@ pub fn resolveRealPath2(dirPath: []const u8, pathToResolve: []const u8, needVali
 // If pathToResolve is relative, then it is relative to cwd.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPathAlloc(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
     if (needValidate) {
         var buffer: [std.fs.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);
@@ -119,7 +119,7 @@ pub fn resolveRealPath(pathToResolve: []const u8, needValidate: bool, allocator:
 // absFilePath should be already validated.
 // This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
-pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
+pub fn resolvePathFromFilePathAlloc(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     //const validFilePath = try validatePathIntoBuffer(absFilePath, buffer1[0..]);
     //const absDirPath = std.fs.path.dirname(validFilePath) orelse return error.NotFilePath;
@@ -137,7 +137,7 @@ pub fn resolvePathFromFilePath(absFilePath: []const u8, pathToResolve: []const u
 // absDirPath should be already validated.
 // This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
-pub fn resolvePathFromAbsDirPath(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
+pub fn resolvePathFromAbsDirPathAlloc(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
     //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
     //const validDirPath = try validatePathIntoBuffer(absDirPath, buffer1[0..]);
 
@@ -523,4 +523,21 @@ test relativePath {
     }
 }
 
+pub const PathAllocator = struct {
+    fba: ?std.heap.FixedBufferAllocator = null,
+    buffer: [std.fs.max_path_bytes]u8 = undefined,
+
+    pub fn allocator(self: *PathAllocator) std.mem.Allocator {
+        if (self.fba) |*fba| return fba.allocator()
+        else {
+            self.fba = .init(&self.buffer);
+            return self.fba.?.allocator();
+        }
+    }
+
+    //pub fn path(self: *const PathAllocator) []const u8 {
+    //    if (self.fba) |fba| return fba.buffer[0..fba.end_index];
+    //    unreachable;
+    //}
+};
 
