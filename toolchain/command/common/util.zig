@@ -240,9 +240,9 @@ pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []c
 // prefix has already used posix seperator.
 pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]u8 {
     if (builtin.mode == .Debug and prefix.len > 0) {
-        const c = prefix[prefix.len-1];
+        const c = prefix[prefix.len - 1];
         std.debug.assert(c == '/');
-        
+
         std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '/') == null);
         std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '\\') == null);
     }
@@ -287,8 +287,8 @@ test buildPosixPathWithContentHashBase64 {
     };
 
     const testCases: []const Case = &.{
-        .{.prefix = "images/", .basename = "foo.png", .content = "foo", .expected = "images/foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png"},
-        .{.prefix = "images/", .basename = "Foo.png", .content = "foo", .expected = "images/Foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png"},
+        .{ .prefix = "images/", .basename = "foo.png", .content = "foo", .expected = "images/foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png" },
+        .{ .prefix = "images/", .basename = "Foo.png", .content = "foo", .expected = "images/Foo-LCa0a2j_xo_5m0U8HTBBNBNCLXBkg7-g-YpeiGJm564.png" },
     };
 
     for (testCases) |tc| {
@@ -334,9 +334,9 @@ pub fn buildHashString(fileContent: []const u8, allocator: std.mem.Allocator) ![
 // All other parts will be lowered case, so that the output is wholly lowered-case.
 pub fn buildAssetFilePath(folderEndingWithSep: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
     if (builtin.mode == .Debug and folderEndingWithSep.len > 0) {
-        const c = folderEndingWithSep[folderEndingWithSep.len-1];
+        const c = folderEndingWithSep[folderEndingWithSep.len - 1];
         std.debug.assert(c == '/' or c == '\\');
-        
+
         std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '/') == null);
         std.debug.assert(std.mem.indexOfScalar(u8, fileBasename, '\\') == null);
     }
@@ -369,9 +369,9 @@ test buildAssetFilePath {
     };
 
     const testCases: []const Case = &.{
-        .{.folder = "assets/css/", .basename = "v1.css", .content="foo", .expected="assets/css/v1-2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae.css"},
-        .{.folder = "images\\", .basename = "bar.PNG", .content="bar", .expected="images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png"},
-        .{.folder = "images\\", .basename = "Bar.png", .content="bar", .expected="images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png"},
+        .{ .folder = "assets/css/", .basename = "v1.css", .content = "foo", .expected = "assets/css/v1-2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae.css" },
+        .{ .folder = "images\\", .basename = "bar.PNG", .content = "bar", .expected = "images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png" },
+        .{ .folder = "images\\", .basename = "Bar.png", .content = "bar", .expected = "images\\bar-fcde2b2edba56bf408601fb721fe9b5c338d10ee429ea04fae5511b68fbf8fb9.png" },
     };
 
     for (testCases) |tc| {
@@ -418,9 +418,9 @@ test buildEmbeddedImageHref {
     };
 
     const testCases: []const Case = &.{
-        .{.ext = .jpg, .content = "", .expected = "data:image/jpeg;base64,"},
-        .{.ext = .jpeg, .content = "", .expected = "data:image/jpeg;base64,"},
-        .{.ext = .gif, .content = "foo", .expected = "data:image/gif;base64,Zm9v"},
+        .{ .ext = .jpg, .content = "", .expected = "data:image/jpeg;base64," },
+        .{ .ext = .jpeg, .content = "", .expected = "data:image/jpeg;base64," },
+        .{ .ext = .gif, .content = "foo", .expected = "data:image/gif;base64,Zm9v" },
     };
 
     for (testCases) |tc| {
@@ -454,12 +454,12 @@ pub fn findCommonPaths(a: []const u8, b: []const u8, sep: u8) []const u8 {
 
 test findCommonPaths {
     const testCases: []const [3][]const u8 = &.{
-		.{"aaa/bbb/ccc", "aaa/bbb/ddd", "aaa/bbb/"},
-		.{"aaa/bbb/ccc", "aaa/bbb/", "aaa/bbb/"},
-		.{"aaa/bbb/ccc", "aaa/bbb", "aaa/bbb/"},
-		.{"aaa/bbb/ccc", "aaabbb", ""},
-		.{"aaa/bbb/ccc", "aaa", "aaa/"},
-		.{"aaa", "aaa", "aaa"},
+        .{ "aaa/bbb/ccc", "aaa/bbb/ddd", "aaa/bbb/" },
+        .{ "aaa/bbb/ccc", "aaa/bbb/", "aaa/bbb/" },
+        .{ "aaa/bbb/ccc", "aaa/bbb", "aaa/bbb/" },
+        .{ "aaa/bbb/ccc", "aaabbb", "" },
+        .{ "aaa/bbb/ccc", "aaa", "aaa/" },
+        .{ "aaa", "aaa", "aaa" },
     };
     for (testCases) |tc| {
         {
@@ -500,20 +500,20 @@ test relativePath {
     };
 
     const testCases: []const Case = &.{
-		.{.x = "aaa/bbb/ccc", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0},
-		.{.x = "aaa/bbb/", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0},
-		.{.x = "aaa/bbb/", .y = "aaa/bbb/", .z = "", .n = 0},
-		.{.x = "aaa/bbb/", .y = "aaa/ccc", .z = "ccc", .n = 1},
-		.{.x = "aaa/bbb/.html", .y = "aaa/ccc.html", .z = "ccc.html", .n = 1},
-		.{.x = "aaa/bbb/ccc", .y = "aaa/xxx/ddd", .z = "xxx/ddd", .n = 1},
-		.{.x = "aaa/bbb/ccc", .y = "aaa/xxx/", .z = "xxx/", .n = 1},
-		.{.x = "aaa/bbb/ccc", .y = "xxx/bbb/", .z = "xxx/bbb/", .n = 2},
-		.{.x = "aaa", .y = "xxx/bbb", .z = "xxx/bbb", .n = 0},
-		.{.x = "aaa", .y = "bbb", .z = "bbb", .n = 0},
-		.{.x = "aaa/bbb/ccc", .y = "aaa/", .z = "", .n = 1},
-		.{.x = "aaa/bbb/ccc", .y = "aaa", .z = "", .n = 1},
-		.{.x = "aaa", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0},
-		.{.x = "aaa/", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0},
+        .{ .x = "aaa/bbb/ccc", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0 },
+        .{ .x = "aaa/bbb/", .y = "aaa/bbb/ddd", .z = "ddd", .n = 0 },
+        .{ .x = "aaa/bbb/", .y = "aaa/bbb/", .z = "", .n = 0 },
+        .{ .x = "aaa/bbb/", .y = "aaa/ccc", .z = "ccc", .n = 1 },
+        .{ .x = "aaa/bbb/.html", .y = "aaa/ccc.html", .z = "ccc.html", .n = 1 },
+        .{ .x = "aaa/bbb/ccc", .y = "aaa/xxx/ddd", .z = "xxx/ddd", .n = 1 },
+        .{ .x = "aaa/bbb/ccc", .y = "aaa/xxx/", .z = "xxx/", .n = 1 },
+        .{ .x = "aaa/bbb/ccc", .y = "xxx/bbb/", .z = "xxx/bbb/", .n = 2 },
+        .{ .x = "aaa", .y = "xxx/bbb", .z = "xxx/bbb", .n = 0 },
+        .{ .x = "aaa", .y = "bbb", .z = "bbb", .n = 0 },
+        .{ .x = "aaa/bbb/ccc", .y = "aaa/", .z = "", .n = 1 },
+        .{ .x = "aaa/bbb/ccc", .y = "aaa", .z = "", .n = 1 },
+        .{ .x = "aaa", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0 },
+        .{ .x = "aaa/", .y = "aaa/bbb/ccc", .z = "bbb/ccc", .n = 0 },
     };
 
     for (testCases) |tc| {
@@ -528,8 +528,7 @@ pub const PathAllocator = struct {
     buffer: [std.fs.max_path_bytes]u8 = undefined,
 
     pub fn allocator(self: *PathAllocator) std.mem.Allocator {
-        if (self.fba) |*fba| return fba.allocator()
-        else {
+        if (self.fba) |*fba| return fba.allocator() else {
             self.fba = .init(&self.buffer);
             return self.fba.?.allocator();
         }
@@ -540,4 +539,3 @@ pub const PathAllocator = struct {
     //    unreachable;
     //}
 };
-

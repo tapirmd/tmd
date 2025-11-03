@@ -25,7 +25,7 @@ pub const GenOptions = struct {
         context: *const anyopaque = undefined,
 
         fnGetCustomBlockGenerator: ?*const fn (context: *const anyopaque, custom: *const tmd.BlockType.Custom) anyerror!?Generator = null,
-         // ToDo: fnCodeBlockGenerator, and for any kinds of blocks?
+        // ToDo: fnCodeBlockGenerator, and for any kinds of blocks?
 
         fnGetMediaUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?Generator = null,
         fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentItemInNav: *?bool) anyerror!?Generator = null,

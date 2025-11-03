@@ -20,7 +20,6 @@ w: *std.Io.Writer = undefined,
 tmdDocInfo: ?TmdDocInfo = null,
 
 pub fn init(ctx: *AppContext, configEx: *AppContext.ConfigEx, cc: Callbacks) DocRenderer {
-    std.debug.print("!!! {s}\n", .{configEx.path});
     const _template = configEx.basic.@"html-page-template".?._parsed;
     return .{
         .ctx = ctx,

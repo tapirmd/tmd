@@ -125,7 +125,7 @@ pub const RenderChecker = struct {
         };
 
         const options = tmd.GenOptions{
-            .callbacks = . {
+            .callbacks = .{
                 .context = &handler,
                 .fnGetCustomBlockGenerator = CustomHandler.getCustomBlockGenerator,
             },

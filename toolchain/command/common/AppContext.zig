@@ -1,6 +1,7 @@
 const std = @import("std");
 
 const tmd = @import("tmd");
+const list = @import("list");
 
 const Project = @import("Project.zig");
 
@@ -15,7 +16,8 @@ arenaAllocator: std.mem.Allocator = undefined,
 
 _defaultConfigEx: ConfigEx = .{},
 _configPathToProjectMap: std.StringHashMap(*Project) = undefined,
-_configPathToExMap: std.StringHashMap(ConfigEx) = undefined,
+_configExList: list.List(ConfigEx) = .{}, // use this list to make sure the addresses of ConfigEx will never change.
+_configPathToExMap: std.StringHashMap(*ConfigEx) = undefined,
 _dirPathToConfigAndRootMap: std.StringHashMap(struct { configEx: *ConfigEx, rootConfigEx: *ConfigEx, rootPath: []const u8 }) = undefined,
 _templateFunctions: std.StringHashMap(*const anyopaque) = undefined,
 _cachedContents: std.HashMap(ContentCacheKey, []const u8, ContentCacheKey.HashMapContext, 33) = undefined,

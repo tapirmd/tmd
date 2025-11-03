@@ -247,8 +247,8 @@ fn generateHTML() ![]const u8 {
         .identSuffix = identSuffix,
         .autoIdentSuffix = autoIdentSuffix,
 
-        .callbacks = . {
-            .context =  &handler,
+        .callbacks = .{
+            .context = &handler,
             .fnGetCustomBlockGenerator = if (supportHTML) CustomHandler.getCustomBlockGenerator else null,
         },
     };

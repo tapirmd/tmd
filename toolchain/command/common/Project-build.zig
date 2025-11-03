@@ -422,7 +422,7 @@ const TmdGenCustomHandler = struct {
 
     fn makeTmdGenOptions(handler: *const @This()) tmd.GenOptions {
         return .{
-            .callbacks = . {
+            .callbacks = .{
                 .context = handler,
                 .fnGetCustomBlockGenerator = getCustomBlockGenerator,
                 .fnGetMediaUrlGenerator = getMediaUrlGenerator,
@@ -438,7 +438,7 @@ const TmdGenCustomHandler = struct {
 
     fn getLinkUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link, isCurrentItemInNav: *?bool) !?tmd.Generator {
         std.debug.assert(isCurrentItemInNav.* == null);
-        
+
         const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
         const url = link.url.?;
@@ -456,8 +456,8 @@ const TmdGenCustomHandler = struct {
                         if (handler.isNavInBody) {
                             isCurrentItemInNav.* = std.mem.eql(u8, targetPath, handler.tmdDocInfo.targetFilePath);
                         }
-                        
-                        break :blk .{targetPath, url.fragment };
+
+                        break :blk .{ targetPath, url.fragment };
                     },
                     .txt, .html, .htm, .xhtml, .css, .js => {
                         try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js fiels is not supported now: {s}\n", .{url.base});
@@ -1000,7 +1000,7 @@ pub const StandaloneHtmlBuilder = struct {
                     },
                     .local => |sourceAbsPath| {
                         const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
-                        defer session.appContext.allocator.free(content);
+                        //defer session.appContext.allocator.free(content);
 
                         // ToDo: why buildHashString?
                         const targetPath = try util.buildHashString(content, session.arenaAllocator);

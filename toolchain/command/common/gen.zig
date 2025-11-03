@@ -213,7 +213,7 @@ pub const BlockGeneratorCallbackOwner = struct {
 
     pub fn makeTmdGenOptions(self: *const @This()) tmd.GenOptions {
         return .{
-            .callbacks = . {
+            .callbacks = .{
                 .context = self,
                 .fnGetCustomBlockGenerator = getCustomBlockGenerator,
             },
