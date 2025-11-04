@@ -370,6 +370,11 @@ header.tmd-with-subtitle h1 {
   word-wrap: break-word;
 }
 
+.tmd-nav-current {
+  font-weight: bold;
+  font-style: italic;
+}
+
 :target {
 	background: #e5b05b;
 }

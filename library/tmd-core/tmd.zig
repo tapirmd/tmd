@@ -32,6 +32,7 @@ pub const Doc = struct {
     allocator: std.mem.Allocator = undefined,
 
     data: []const u8,
+    hasBOM: bool = false,
     blocks: list.List(Block) = .{},
     lines: list.List(Line) = .{},
     blockCount: u32 = 0,

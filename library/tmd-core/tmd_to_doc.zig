@@ -14,7 +14,10 @@ const DocParser = @import("tmd_to_doc-doc_parser.zig");
 pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator) !tmd.Doc {
     if (tmdData.len > tmd.MaxDocSize) return error.DocSizeTooLarge;
 
-    var tmdDoc = tmd.Doc{ .allocator = allocator, .data = tmdData };
+    const hasBOM = tmdData.len >= 3 and tmdData[0] == 0xef and tmdData[1] == 0xbb and tmdData[2] == 0xbf;
+    const data = if (hasBOM) tmdData[3..] else tmdData;
+
+    var tmdDoc = tmd.Doc{ .allocator = allocator, .hasBOM = hasBOM, .data = data };
     errdefer tmdDoc.destroy();
 
     const BlockRedBlack = tree.RedBlack(*tmd.Block, tmd.Block);

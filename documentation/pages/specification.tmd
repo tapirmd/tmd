@@ -6,12 +6,10 @@
    }
        === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/specification.tmd
 
-__TapirMD__ is a powerful, next-generation markup language that
+TapirMD is a powerful, next-generation markup language that
 simplifies content creation.
 Inspired by Markdown's straightforward syntax, it offers
 enhanced specificity and greater control over formatting __#note-markdown__.
-
-    === TapirMD:: index.tmd
 
 While inspired by Markdown, TapirMD is not directly compatible.
 It's designed to generate rich HTML content,
@@ -587,7 +585,7 @@ Here is the list of all line-leading mark tokens supported now.
 
    !  ### NOTE:
       ;;; The image URI validation rules might be adjuested with more details later.
-   
+
    Media-embedding tokens belong to content tokens.
    }
    ----------------
@@ -640,9 +638,9 @@ Below, we call other non-line-leading mark tokens as //**style mark tokens**//.
 ###----- content tokens
 
 Content tokens include
-* Plain-text tokens.
-* Media-embedding tokens.
-* Even-backtick tokens.
+*  Plain-text tokens.
+*  Media-embedding tokens.
+*  Even-backtick tokens.
 
 @@@ #style-marks
 ###----- style mark tokens
@@ -846,7 +844,7 @@ How matching texts are generated:
    Successive middle whitespace characters are collapsed into one ASCII Space character (Unicode: U+0020).
 *  The final processed texts are used as matching texts.
 
-   === line-end space:: #line-end-spacing
+    === line-end space:: #line-end-spacing
 
 How matching works depends on the structure of matching texts of link-definition blocks:
 *  If the matching text of a link-definition block consists solely of three dots (`...`),
@@ -1512,7 +1510,7 @@ They should be escaped in header and usual blocks.
 @@@ #footnotes
 ###===== Footnotes
 
-{ //
+{ %%
 
 @@@ #note-markdown
 Markdown is known for its limited capabilities and lack of strict specification.

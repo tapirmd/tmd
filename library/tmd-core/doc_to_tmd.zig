@@ -23,6 +23,8 @@ const UnchangeWriter = struct {
     }
 
     fn writeAll(uw: *const UnchangeWriter, writer: *std.Io.Writer) !void {
+        if (uw.tmdDoc.hasBOM) try writer.writeAll(&.{ 0xef, 0xbb, 0xbf });
+
         var line: *const tmd.Line = &(uw.tmdDoc.lines.head orelse return).value;
         var lineStartAt: tmd.DocSize = 0;
         while (true) {
@@ -126,6 +128,8 @@ const FormatWriter = struct {
     }
 
     fn writeAll(fw: *FormatWriter, w: *std.Io.Writer) !void {
+        if (fw.tmdDoc.hasBOM) try w.writeAll(&.{ 0xef, 0xbb, 0xbf });
+
         try fw.writeBlockChildren(w, fw.tmdDoc.rootBlock());
     }
 

@@ -1,0 +1,28 @@
+
+__
+&& ./static/image/tmd.png
+
+    === ./static/image/tmd.png :: index.tmd
+
+{
+{
+
+__Home`` index.tmd __
+
+Docs and references
++  __The specification`` specification.tmd __
++  __Demos`` demos.tmd __
++  __Use cases`` use-cases.tmd __
+
+Tools and libraries
++  __The official toolset`` installation.tmd __
++  __An online playground`` play.tmd __
++  __Official libraries`` libraries.tmd__ (// Zig, WASM, JavaScript, Go //)
+
+Social
++  __Source code`` https://github.com/tapirmd __
++  __@zigo_101`` https://x.com/zigo_101 __
+
+}
+@@@
+}

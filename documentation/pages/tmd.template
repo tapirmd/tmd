@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{{ page-title-in-head }}}</title>
+<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @tmd-favicon }}">
+<style>
+{{ embed-file-content @tmd-css-default }}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    min-height: 100vh;
+    display: flex;
+}
+
+nav {
+    width: 216px;
+    padding: 16px;
+    height: 100vh;
+    position: fixed;
+    overflow-y: auto;
+}
+
+ul,ol,dd { margin-left:1.5em; }
+
+p {
+    margin: 1em;
+}
+
+main {
+    margin-left: 216px;
+    padding: 16px 40px;
+    flex: 1;
+}
+
+@media (max-width: 768px) {
+    nav {
+        width: 216px;
+    }
+    main {
+        margin-left: 216px;
+        padding: 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    body {
+        flex-direction: column;
+    }
+    nav {
+        width: 100%;
+        height: auto;
+        position: relative;
+        padding: 15px;
+    }
+    main {
+        margin-left: 0;
+        padding: 20px;
+    }
+}
+</style>
+
+<script>
+
+document.addEventListener('DOMContentLoaded', () => {
+    const sidebar = document.querySelector('body > nav');
+    
+    // Restore scroll position from sessionStorage
+    const savedScroll = sessionStorage.getItem('sidebarScroll');
+    if (savedScroll !== null) {
+        sidebar.scrollTop = parseInt(savedScroll, 10);
+    }
+
+    // Save scroll position before page unload
+    window.addEventListener('beforeunload', () => {
+        sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
+    });
+});
+
+</script>
+
+</head>
+<body>
+
+<nav>
+{{ nav-content-in-body }}
+</nav>
+
+<main>
+{{{ page-content-in-body }}}
+</main>
+
+</body>
+</html>

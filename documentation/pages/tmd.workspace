@@ -1,7 +1,5 @@
 
 
-@@@ #project-navigation-article
-index.tmd
 
 @@@ #custom-block-generators
 '''
@@ -10,3 +8,9 @@ html @html
 
 @@@ #favicon
 @tmd-favicon
+
+@@@ #project-navigation-article
+nav.tmd
+
+@@@ #html-page-template .path
+tmd.template

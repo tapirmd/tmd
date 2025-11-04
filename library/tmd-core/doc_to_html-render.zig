@@ -149,10 +149,9 @@ pub const TmdRender = struct {
         return .dummy();
     }
 
-    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link) !?Generator {
+    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link, isCurrentItemInNav: *?bool) !?Generator {
         if (self.options.callbacks.fnGetLinkUrlGenerator) |get| {
-            var isCurrentItemInNav: ?bool = null;
-            if (try get(self.options.callbacks.context, link, &isCurrentItemInNav)) |callback| return callback;
+            if (try get(self.options.callbacks.context, link, isCurrentItemInNav)) |callback| return callback;
         }
         return null;
     }
@@ -1242,10 +1241,18 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    if (try self.getLinkUrlGenerator(link)) |callback| {
-                                        try w.writeAll(
+                                    var isCurrentItemInNav: ?bool = null;
+                                    if (try self.getLinkUrlGenerator(link, &isCurrentItemInNav)) |callback| {
+                                        if (isCurrentItemInNav) |b| {
+                                            if (b) try w.writeAll(
+                                                \\<a class="tmd-nav-current" href="
+                                            ) else try w.writeAll(
+                                                \\<a class="tmd-nav-others" href="
+                                            );
+                                        } else try w.writeAll(
                                             \\<a href="
                                         );
+
                                         try callback.gen(w);
                                         try w.writeAll(
                                             \\">

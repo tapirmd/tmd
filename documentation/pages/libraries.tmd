@@ -5,12 +5,10 @@
    }
        === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
 
-__TapirMD__ official maintains libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
+TapirMD official maintains libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
 
 The Zig library is fully featured, while the others currently support only
 HTML generation (from TapirMD documents) and TapirMD document formatting.
-
-    === TapirMD:: index.tmd
 
 ###---
 
