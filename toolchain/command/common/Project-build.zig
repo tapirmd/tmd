@@ -461,7 +461,7 @@ const TmdGenCustomHandler = struct {
                     },
                     .txt, .html, .htm, .xhtml, .css, .js => {
                         try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js fiels is not supported now: {s}\n", .{url.base});
-                        return error.NotImplementedYet;
+                        return error.DocOtherThanTmdNotSupportedNow;
                     },
                     .png, .gif, .jpg, .jpeg => {
                         var pa: util.PathAllocator = .{};

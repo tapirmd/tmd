@@ -3,6 +3,8 @@
 ;;; A powerful, next-generation markup language that simplifies content creation.
 
 
+Features:
+
 *  Intuitive Concepts:
    +  Character and character sequences.
    +  Blocks, lines, and tokens.
@@ -67,5 +69,5 @@
 The page is written in TapirMD (source is available __here__).
 @@@
 }
-    === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/index.tmd
+    === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/index.tmd
 

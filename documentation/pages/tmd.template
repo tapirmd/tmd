@@ -26,6 +26,8 @@ nav {
     height: 100vh;
     position: fixed;
     overflow-y: auto;
+    background: #fdd091;
+    left: 0;
 }
 
 ul,ol,dd { margin-left:1.5em; }
@@ -35,17 +37,17 @@ p {
 }
 
 main {
-    margin-left: 216px;
+    margin-left: 196px;
     padding: 16px 40px;
     flex: 1;
 }
 
 @media (max-width: 768px) {
     nav {
-        width: 216px;
+        width: 196px;
     }
     main {
-        margin-left: 216px;
+        margin-left: 196px;
         padding: 20px;
     }
 }

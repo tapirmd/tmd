@@ -162,6 +162,10 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     try parseConfigOptions(ctx, configEx);
 
+    if (builtin.mode == .Debug and false) {
+        printConfigEx(configEx);
+    }
+
     configEx.parsedCommandArgs = .init(ctx.arenaAllocator);
 
     return configEx;
@@ -216,7 +220,12 @@ fn fillTmdConfig(ctx: *AppContext, tmdDoc: *const tmd.Doc, config: *Config) !voi
     // ToDo: tmdConfig.traverseBlockIDs(), to find unrecognized option names.
 }
 
-pub fn printTmdConfig(config: *Config) void {
+fn printConfigEx(ex: *const ConfigEx) void {
+    std.debug.print("===== {s} =====\n", .{ex.path});
+    printTmdConfig(&ex.basic);
+}
+
+pub fn printTmdConfig(config: *const Config) void {
     const structTypeInfo = @typeInfo(Config).@"struct";
     std.debug.print("{{\n", .{});
     defer std.debug.print("}}\n", .{});

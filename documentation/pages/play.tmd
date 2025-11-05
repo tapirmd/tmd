@@ -1,7 +1,7 @@
 
 ### TapirMD Playground
 
-This is a playground for the __TapirMD``index.tmd__ markup format.
+This is a playground for the TapirMD doc format.
 For learning and reference, please visit
 __demos``demos.tmd__,
 __use cases``use-cases.tmd__, and
@@ -22,7 +22,7 @@ __the specification``specification.tmd__.
    }
 
 *  @@@ #html-tab
-   ### Result HTML
+   ### Generated HTML
    @@@ #result-html .tmd-auto-wrap
    '''
    '''

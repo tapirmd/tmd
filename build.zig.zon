@@ -1,7 +1,7 @@
 .{
     .name = .tmd,
     .fingerprint = 0x3635a9355d440cbe,
-    .version = "0.0.9",
+    .version = "0.1.0-preview",
     .dependencies = .{},
     .minimum_zig_version = "0.15.2",
 

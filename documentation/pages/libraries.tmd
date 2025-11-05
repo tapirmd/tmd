@@ -3,7 +3,7 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/libraries.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/libraries.tmd
 
 TapirMD official maintains libraries for Zig, WebAssembly (WASM), JavaScript, and Go.
 

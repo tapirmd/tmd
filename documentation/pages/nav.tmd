@@ -1,8 +1,9 @@
 
 __
 && ./static/image/tmd.png
+&& any text
 
-    === ./static/image/tmd.png :: index.tmd
+    === ./static/image/tmd.png ... :: index.tmd
 
 {
 {
@@ -15,7 +16,7 @@ Docs and references
 +  __Use cases`` use-cases.tmd __
 
 Tools and libraries
-+  __The official toolset`` installation.tmd __
++  __The official toolchain`` installation.tmd __
 +  __An online playground`` play.tmd __
 +  __Official libraries`` libraries.tmd__ (// Zig, WASM, JavaScript, Go //)
 

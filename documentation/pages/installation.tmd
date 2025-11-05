@@ -4,10 +4,12 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/installation.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/installation.tmd
 
-This page shows the steps of installing and using the official TapirMD toolset locally.
-You can also experience the toolset __online__.
+This page outlines the steps to install the official TapirMD toolchain
+and introduces some basic commands it provides.
+
+You can also try TapirMD formatting syntax __online__.
 
     === online:: play.tmd
 
@@ -24,7 +26,7 @@ TapirMD hasn't yet reached version 1.0.0 (or even 0.1.0).
 At this stage, building from source is the only way to run
 the offcial TapirMD commands locally.
 
-*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+*. Install __Zig__, if haven't. The latest minor version is recommended.
 
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.
@@ -42,13 +44,21 @@ the offcial TapirMD commands locally.
    '''
    zig build -Doptimize=ReleaseFast
    '''
+   ;;;
+   Or you can just build a debug version:
+   '''
+   zig build
+   '''
+   The debug version will print more readable information when problems are encountered.
+   As the toolchain is still in its early development phase, bugs are inevitable.
+   Bug reports are seriously welcome __ here`` https://github.com/tapirmd/tmd/issues __.
 
 *. (Optional), copy the `tmd` binary file to a directory configured
    in the `PATH` enviroment variable, or add the path of
    the `bin` folder to the `PATH` enviroment variable,
    so that you can run the `tmd` command anywhere.
 
-###+++++ Use the toolset
+###+++++ Use the toolchain
 
 *  Run `tmd` without arguments to show the help information.
 
@@ -57,32 +67,32 @@ the offcial TapirMD commands locally.
     tmd fmt foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run `tmd fmt` without any arguments to format all `.tmd` files within the current directory:
+   Run `tmd fmt` with no arguments to format all `.tmd` files within the current directory:
 
-*  Run the following command to geneate HTML snippet files for embedding purpose
+*  Run the following command to generate HTML snippet files for embedding purpose
    in the same directories of corresponding `.tmd` files.
    '''
     tmd gen foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run `tmd gen` without any arguments to geneate HTML snippet files for all `.tmd` files
+   Run `tmd gen` with no arguments to generate HTML snippet files for all `.tmd` files
    within the current directory:
 
-*  Run the following command to geneate full HTML page files in the same directories
+*  Run the following command to generate full HTML page files in the same directories
    of corresponding `.tmd` files.
    '''
     tmd gen-full-page foo.tmd path-to-a-tmd-folder
    '''
    ;;;
-   Run `tmd gen-full-page` without any arguments to geneate full HTML page files for all `.tmd` files
+   Run `tmd gen-full-page` with no arguments to generate full HTML page files for all `.tmd` files
    within the current directory:
 
 *  Run the following commands to build a TapirMD project located at the specified directory
    and output target files in `@tmd-build` folder in the workspace directory of the project.
    '''
-    tmd build foo.tmd project-dir
-    tmd build foo.tmd project-config-file
+    tmd build project-dir
+    tmd build project-config-file
    '''
    ;;;
-   Run `tmd build` without any arguments to build a TapirMD project located at the current directory.
+   Run `tmd build` with no arguments to build the TapirMD project located at the current directory.
 

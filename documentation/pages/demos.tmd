@@ -4,7 +4,7 @@
 !  { ><
    :: The page is written in TapirMD (source is available __here__).
    }
-       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/doc/pages/demos.tmd
+       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/demos.tmd
 
 This page presents a few simple demos using TapirMD.
 For detailed explanations, please refer to __the specification__.

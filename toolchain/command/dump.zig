@@ -10,7 +10,7 @@ const bufferSize = maxTmdFileSize * 4;
 
 pub const AstDumper = struct {
     pub fn argsDesc() []const u8 {
-        return "a .tmd file";
+        return "a-tmd-file";
     }
 
     pub fn briefDesc() []const u8 {

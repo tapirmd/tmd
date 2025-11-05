@@ -373,6 +373,7 @@ header.tmd-with-subtitle h1 {
 .tmd-nav-current {
   font-weight: bold;
   font-style: italic;
+  text-decoration: none;
 }
 
 :target {
