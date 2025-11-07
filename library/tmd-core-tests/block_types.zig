@@ -81,5 +81,5 @@ test "block types" {
         \\   ;;; cell (2,1)
         \\   ;;; cell (2,2)
         \\
-    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .blank, .item, .usual, .unstyled, .usual, .list, .item, .usual, .blank, .quotation, .usual, .reveal, .header, .usual, .notice, .usual, .base, .usual, .table, .usual, .usual, .seperator, .usual, .usual }));
+    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .blank, .item, .usual, .raw, .usual, .list, .item, .usual, .blank, .quotation, .usual, .reveal, .header, .usual, .callout, .usual, .base, .usual, .table, .usual, .usual, .seperator, .usual, .usual }));
 }

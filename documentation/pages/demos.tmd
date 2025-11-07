@@ -162,11 +162,11 @@ For detailed explanations, please refer to __the specification__.
       }
       @@@
 
-   !  This is a notice box without header.
+   !  This is a callout box without header.
 
    !  ### WARNING!
       {
-      This is a notice box with header.
+      This is a callout box with header.
       }
 
    ?  This is a reveal box without summary.
@@ -348,7 +348,7 @@ pub fn main() void {
    !! `code`
    `
 
-   `` ! This is not a **notice box**.
+   `` ! This is not a **callout box**.
 
    `` %% This is not a //comment line//.
    }

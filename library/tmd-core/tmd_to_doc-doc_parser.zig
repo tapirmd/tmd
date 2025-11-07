@@ -466,7 +466,7 @@ fn parse(parser: *DocParser) !void {
                         },
                         '!' => {
                             containerBlock.blockType = .{
-                                .notice = .{},
+                                .callout = .{},
                             };
                         },
                         '?' => {
@@ -476,7 +476,7 @@ fn parse(parser: *DocParser) !void {
                         },
                         '.' => {
                             containerBlock.blockType = .{
-                                .unstyled = .{},
+                                .raw = .{},
                             };
                         },
                         else => unreachable,

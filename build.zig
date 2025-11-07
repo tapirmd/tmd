@@ -143,6 +143,15 @@ pub fn build(b: *std.Build) !void {
 
     b.installArtifact(toolchainCommand);
 
+    // toolchain dependencies
+
+    toolchainCommand.root_module.addIncludePath(b.path("dependencies/miniz"));
+    toolchainCommand.root_module.addCSourceFiles(.{
+        .root = b.path("dependencies/miniz"),
+        .files = &.{"miniz.c"},
+    });
+    toolchainCommand.linkLibC();
+
     // run toolchain cmd
 
     const runTmdCommand = b.addRunArtifact(toolchainCommand);

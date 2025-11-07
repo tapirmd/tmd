@@ -129,9 +129,9 @@ TapirMD supports a variety of block types, categorized into three groups:
    -  (list) item blocks
    -  table blocks
    -  quotation blocks
-   -  notice blocks
+   -  callout blocks
    -  reveal blocks
-   -  unstyled blocks
+   -  raw blocks
    }
    ;;;
    Except item blocks, predefined container blocks can only directly nest
@@ -216,9 +216,9 @@ which begins with
 The character in the leading mark token is
 -  `#` for table blocks,
 -  `>` for quotation blocks,
--  `!` for notice blocks,
+-  `!` for callout blocks,
 -  `?` for reveal blocks,
--  `.` for unstyled blocks.
+-  `.` for raw blocks.
 
 During line-by-line parsing, a non-item predefined container block will end
 *  before a blank block, or
@@ -1321,33 +1321,33 @@ These appearances are determined by the TapirMD renderer implementation.
       ''' << #quotation-examples-2
    }
 
-@@@ #notice-semantics
-###+++++ Notice block semantics
+@@@ #callout-semantics
+###+++++ Callout block semantics
 
-A notice block should be rendered prominently.
+A callout block should be rendered prominently.
 
 If the first non-attribute child block
-of a notice block is a first-level header block,
+of a callout block is a first-level header block,
 then the header block should be rendered as
-the header of the notice block.
+the header of the callout block.
 
-?  ### (a notice block example)
+?  ### (a callout block example)
    {
    *  ### Render Result
-      @@@ #notice-examples
+      @@@ #callout-examples
       {
       !  WARNING: The specification is not yet stable.
       }
 
    *  ### TapirMD Source
       '''
-      ''' << #notice-examples
+      ''' << #callout-examples
    }
 
-?  ### (another notice block example, with header)
+?  ### (another callout block example, with header)
    {
    *  ### Render Result
-      @@@ #notice-examples-2
+      @@@ #callout-examples-2
       {
       !  ### WARNING!
          ;;; The specification is not yet stable.
@@ -1355,7 +1355,7 @@ the header of the notice block.
 
    *  ### TapirMD Source
       '''
-      ''' << #notice-examples-2
+      ''' << #callout-examples-2
    }
 
 @@@ #reveal-semantics
@@ -1405,17 +1405,17 @@ the first-level header block is rendered as the always-visible title of the reve
       ''' << #reveal-examples-2
    }
 
-@@@ #unstyled-semantics
-###+++++ Unstyled block semantics
+@@@ #raw-semantics
+###+++++ Raw block semantics
 
-A unstyled block is a simple container without specific styling.
+A raw block is a simple container without specific styling.
 However, if its first non-attribute child block is a first-level header block,
 then the first-level header block is rendered with a specific header style.
 
-?  ### (a unstyled block example)
+?  ### (a raw block example)
    {
    *  ### Render Result
-      @@@ #unstyled-examples
+      @@@ #raw-examples
       {
       .  ### main.zig
          ''' zig
@@ -1429,15 +1429,15 @@ then the first-level header block is rendered with a specific header style.
 
    *  ### TapirMD Source
       '''
-      ''' << #unstyled-examples
+      ''' << #raw-examples
    }
 
-?  ### (another unstyled block example)
+?  ### (another raw block example)
    {
    *  ### Render Result
-      @@@ #unstyled-examples-2
+      @@@ #raw-examples-2
       {
-      A bare unstyled block is placed between the two lists to
+      A bare raw block is placed between the two lists to
       avoid them being interpreted as a single, continuous list.
 
       *. foo
@@ -1453,7 +1453,7 @@ then the first-level header block is rendered with a specific header style.
 
    *  ### TapirMD Source
       '''
-      ''' << #unstyled-examples-2
+      ''' << #raw-examples-2
    }
 
 @@@ #reserved-marks

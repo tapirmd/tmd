@@ -131,18 +131,18 @@ body {
   position: absolute;
 }
 
-.tmd-notice {
+.tmd-callout {
   border: solid 1px #c7923c;
   margin: 3px 32px;
   padding: 0px;
 }
 
-.tmd-notice-header {
+.tmd-callout-header {
   background: #e5b05b;
   padding: 0 5px;
 }
 
-.tmd-notice-content {
+.tmd-callout-content {
   padding: 5px;
 }
 
@@ -157,10 +157,10 @@ body {
 .tmd-reveal-header {
 }
 
-.tmd-unstyled {
+.tmd-raw {
 }
 
-.tmd-unstyled-header {
+.tmd-raw-header {
   font-style: italic;
   background: #e5b05b;
   padding: 0px 6px 6px;

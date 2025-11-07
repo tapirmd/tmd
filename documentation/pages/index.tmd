@@ -1,9 +1,11 @@
 
-##### The Homepage of TapirMD (Tapir's Markup Doc)
+##### The Homepage of Tapir's Markup Doc
 ;;; A powerful, next-generation markup language that simplifies content creation.
 
 
-Features:
+**//Tapir's markup doc//** is also called **//TapirMD//** (or **//TMD//** for even shorter).
+
+An (incomplete) feature list of it:
 
 *  Intuitive Concepts:
    +  Character and character sequences.
@@ -36,7 +38,7 @@ Features:
       ~  Support for spans of cell rows and cell columns.
       ~  Cell text alignment control.
       ~  Support for both row-major and **column-major table** layouts.
-   +  Notice blocks for highlighting notes, warnings, etc.
+   +  Callout blocks for highlighting notes, warnings, tips, etc.
    +  Quotation blocks with footer support for citations or references.
    +  **Reveal blocks** for creating accordion-style panels (without JavaScript).
 *  Rich Inline Styles:

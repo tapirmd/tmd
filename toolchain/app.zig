@@ -15,8 +15,8 @@ const Command = union(enum) {
     fmt: fmt.Formatter,
     @"fmt-test": fmt.FormatTester,
 
-    vet: vet.Vetter,
-    @"vet-project": vet.ProjectVetter,
+    //vet: vet.Vetter,
+    //@"vet-project": vet.ProjectVetter,
 
     // Generators ignore project-xxx settings.
     gen: gen.Generator, // gen partial html
