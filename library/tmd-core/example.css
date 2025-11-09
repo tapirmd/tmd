@@ -4,11 +4,11 @@ body {
   font-size: 18px;
   background: #fddaa1;
   color: #392503;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.6;
 }
 
 .tmd-doc {
-  font-family: Arial, Helvetica, sans-serif;
-  line-height: 1.5;
 }
 
 .tmd-doc, .tmd-base {
@@ -372,7 +372,6 @@ header.tmd-with-subtitle h1 {
 
 .tmd-nav-current {
   font-weight: bold;
-  font-style: italic;
   text-decoration: none;
 }
 

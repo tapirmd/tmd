@@ -49,6 +49,14 @@ test "span marks" {
     , &.{.fontWeight}));
 
     try std.testing.expect(try SpanMarksChecker.check(
+        \\:://aaa **bbb
+    , &.{.fontSize, .fontWeight}));
+
+    try std.testing.expect(try SpanMarksChecker.check(
+        \\://aaa **bbb
+    , &.{.fontWeight}));
+
+    try std.testing.expect(try SpanMarksChecker.check(
         \\aaa **bbb// cc **dd//
     , &.{ .fontWeight, .fontStyle, .fontWeight, .fontStyle }));
 

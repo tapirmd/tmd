@@ -173,7 +173,7 @@ Within a parent base block,
    another item built-in block at a lower level.
 
 @@@ #line-kinds
-###+++++ Data lines and syntaxable lines
+###+++++ Data lines and tokenized lines
 
 Code and custom data blocks are explicitly defined by start and end boundary lines.
 The lines between the boundary lines of a custom data block are referred to as //**data lines**//.
@@ -182,19 +182,19 @@ In essence, code blocks can be viewed as a type of data block, making code lines
 
 Data lines are guaranteed to contain no TapirMD marks.
 Non-data lines, which may or may not contain TapirMD marks,
-are referred to as //**syntaxable lines**//.
+are referred to as //**tokenized lines**//.
 
 Line ends of data lines are always viewed as a single ASCII Line Feed character,
 even if they are not.
 
-The line-end blank token and the optional start blank token of syntaxable lines
+The line-end blank token and the optional start blank token of tokenized lines
 are both ignored in the HTML output,
 meaning that indentations in TapirMD have no semantic meaning.
 
 @@@ #blank-blocks
 ###+++++ Blank blocks
 
-A syntaxable line that consists of only one token
+A tokenized line that consists of only one token
 (the line-end blank token) is called a blank line.
 
 A sequence of consecutive blank lines forms a blank block.
@@ -205,7 +205,7 @@ Blank blocks should be rendered as bare `<p>` elements in the HTML output.
 ###+++++ Start and end of non-item predefined container blocks
 
 During the line-by-line parsing process,
-a non-item predefined container block starts at a syntaxable line that begins with:
+a non-item predefined container block starts at a tokenized line that begins with:
 which begins with
 *  an opitional blank token followed by
 *  a //**predefined-container-leading mark token**// which
@@ -237,7 +237,7 @@ Item blocks share some common rules with other predefined container blocks.
 However, since TapirMD supports list nesting in a parent base block,
 the rules for item blocks are somewhat more complex.
 
-During line-by-line parsing, an item block starts at a syntaxable line
+During line-by-line parsing, an item block starts at a tokenized line
 which begins with
 *  an opitional blank token followed by
 *  a one-character or two-character //**item predefined-container-leading mark token**// which
@@ -338,10 +338,10 @@ starting atom blocks all ignore leading mark tokens of predefined container bloc
 ###+++++ Start and end of explciit base blocks
 
 During line-by-line parsing, an explciit base block
-*  opens at a syntaxable line beginning with a //**base-open-leading mark token**//,
+*  opens at a tokenized line beginning with a //**base-open-leading mark token**//,
    which is a character sequence containing one or more consecutive `{` characters.
 *  closes at
-   -  a syntaxable line beginning with one or more consecutive `}` characters
+   -  a tokenized line beginning with one or more consecutive `}` characters
       (a //**base-close-leading mark token**//), or
    -  at the end of the containing document.
 
@@ -393,7 +393,7 @@ Base blocks should be rendered as `<div>` elements in HTML output.
 @@@ #attribute-blocks
 ###+++++ Attribute blocks
 
-A syntaxable line is a //**attribute line**//
+A tokenized line is a //**attribute line**//
 if it begins with an //**attribute line leadng mark token**//, which
 *  begins with three or more consecutive `@` characters
 *  and ends with an optional blank character sequence.
@@ -439,7 +439,7 @@ in TapirMD for various purposes.
 @@@ #usual-blocks
 ###+++++ Usual blocks
 
-A syntaxable line is a //**usual line**//
+A tokenized line is a //**usual line**//
 if it begins with a //**usual block leadng mark token**//, which
 *  begins with three or more consecutive `;` characters
 *  and ends with an optional blank character sequence.
@@ -448,7 +448,7 @@ A new //**usual block**// will always start at such a usual line.
 If the usual block leading mark token is followed by a line-end blank token,
 then the line is rendered as a blank block in HTML output.
 
-If a syntaxable line doesn't begin with any identifiable block leading tokens,
+If a tokenized line doesn't begin with any identifiable block leading tokens,
 the line is also treated as a usual line, called a //**plain usual line**//.
 For a plain usual line,
 *  if it is the first line of a predefined container block,
@@ -470,7 +470,7 @@ Usual blocks should be rendered as `<div>` elements in HTML output.
 @@@ #header-blocks
 ###+++++ Header blocks
 
-A syntaxable line beginning with three consecutive `#` characters is a //**header line**//.
+A tokenized line beginning with three consecutive `#` characters is a //**header line**//.
 If the three `#` characters are followed by
 *  one or more consecutive `=` characters, a second-level header block starts at the header line, or
 *  one or more consecutive `+` characters, a three-level header block starts at the header line, or
@@ -802,7 +802,7 @@ Specially, a hyperlink span containing only a `#` token links to the footnote se
 @@@ #link-def-blocks
 ###+++++ Link-definition blocks
 
-A syntaxable line beginning with three or more consecutive `=` characters is a //**link definition line**//.
+A tokenized line beginning with three or more consecutive `=` characters is a //**link definition line**//.
 Each //**link-definition block**// always starts with such a line.
 
 Multiple optional plain usual lines can follow a link line and also belong to
@@ -882,7 +882,7 @@ cases happens:
 @@@ #seperator-blocks
 ###+++++ Seperator blocks
 
-A syntaxable line is a //**seperator line**//
+A tokenized line is a //**seperator line**//
 if it begins with a //**seperator leadng mark token**//, which
 comprises three or more consecutive `-` characters followed by a line-end blank token.
 
@@ -895,12 +895,12 @@ However, please note that seperator blocks directly nested in table blocks have 
 ###+++++ Code blocks
 
 During line-by-line parsing, a code block
-*  starts at a syntaxable line beginning with a //**code-block-leading mark token**//,
+*  starts at a tokenized line beginning with a //**code-block-leading mark token**//,
    which is a character sequence containing one or more consecutive
    `'` (single quotation, not backtick) characters.
    The line is the start boundary line of the code block.
 *  ends at
-   -  a later syntaxable line (the end boundary line)
+   -  a later tokenized line (the end boundary line)
       beginning with a code-block-leading mark token,
       which contains the same number of `'` characters
       as the corresponding code-block-leading mark token
@@ -957,12 +957,12 @@ The explicit boundary lines of the block to be streamed will be excluded in stre
 ###+++++ Custom (data) blocks
 
 During line-by-line parsing, a custom block
-*  starts at a syntaxable line beginning with a //**custom-block-leading mark token**//,
+*  starts at a tokenized line beginning with a //**custom-block-leading mark token**//,
    which is a character sequence containing one or more consecutive
    `"` (double quotation) characters.
    The line is the start boundary line of the custom block.
 *  ends at
-   -  a later syntaxable line (the end boundary line)
+   -  a later tokenized line (the end boundary line)
       beginning with a custom-block-leading mark token**,
       which contains the same number of `"` characters
       as the custom-block-leading mark token in the start boundary line, or

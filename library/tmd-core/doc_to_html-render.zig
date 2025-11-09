@@ -1429,13 +1429,12 @@ pub const TmdRender = struct {
                         //    try w.writeAll("</span>");
                         //}
 
-                        if (tracker.brokenLinkConfirmed) {
+                        if (link.url.?.manner == .footnote) {
+                            try w.writeAll("</a></sup>");
+                        } else if (tracker.brokenLinkConfirmed) {
                             try w.writeAll("</span>");
                         } else {
                             try w.writeAll("</a>");
-                            if (link.url.?.manner == .footnote) {
-                                try w.writeAll("</sup>");
-                            }
                         }
                     }
 

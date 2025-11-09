@@ -592,7 +592,10 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             },
                             .fontStyle => blk: {
                                 // "://" is never a mark.
-                                if (markLen == 2 and markStart > lineStart and lineScanner.data[markStart - 1] == ':') break :create_mark_token;
+                                if (markLen == 2) {
+                                    if (markStart > lineStart and lineScanner.data[markStart - 1] == ':') break :create_mark_token;
+                                    if (markStart > lineStart + 1 and lineScanner.data[markStart - 1] == ':' and lineScanner.data[markStart - 2] != ':') break :create_mark_token;
+                                }
                                 break :blk false;
                             },
                             else => false,
