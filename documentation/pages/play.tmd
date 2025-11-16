@@ -2,7 +2,7 @@
 ### TapirMD Playground
 
 This is a playground for the TapirMD doc format.
-For learning and reference, please visit
+For learning and reference, please read
 __demos``demos.tmd__,
 __use cases``use-cases.tmd__, and
 __the specification``specification.tmd__.
@@ -10,28 +10,70 @@ __the specification``specification.tmd__.
 @@@ #note-enable-js
 //(Note: This page needs JavaScript to function.)
 
-*  ### Edit
-   """ html
-<textarea id="tmd-source" rows="22" style="width: 100%; border: 1px solid #c7923c; background: #fddaa1;"></textarea>
-   """
+
 
 *  @@@ #effect-tab
-   ### Render Effect
+   ### Render effect
    @@@ #render-effect
    {
    }
 
 *  @@@ #html-tab
-   ### Generated HTML
+   ### HTML source
    @@@ #result-html .tmd-auto-wrap
    '''
    '''
 
 
+
 """ html
+<div id="edit-source-label-row">
+  <label>TapirMD source:</label>
+  <button id="format-tmd-source">Format it</button>
+</div>
+<textarea id="tmd-source" rows="22" style=""></textarea>
+"""
+
+
+""" html
+<style>
+textarea {
+  width: 100%;
+  border: 1px solid #c7923c;
+  background: #fddaa1;
+  padding: 3px;
+}
+
+textarea:focus {
+  outline: 3px solid #c7923c;
+}
+
+#edit-source-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+#format-tmd-source {
+  padding: 6px 16px;
+  background: #c7923c;
+  color: #fddaa1;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+#format-tmd-source:hover {
+  color: white;
+}
+</style>
+
 <script>
 let tmdLibInstance = undefined;
-let lastTmdText = "";
 
 document.addEventListener("DOMContentLoaded", function() {
 	initTmdLib().then(instance => {
@@ -40,20 +82,14 @@ document.addEventListener("DOMContentLoaded", function() {
 
 		document.getElementById("note-enable-js").style.display = 'none';
 
-		const effectLabel = document.getElementById("effect-tab");
-		const effectRatio = effectLabel.previousElementSibling;
-		effectRatio.addEventListener('change', (event) => {
-			if (event.target.checked) {
-				tmdToHTML();
-			}
+		const inputTextArea = document.getElementById('tmd-source');
+		inputTextArea.addEventListener('input', function(event) {
+			tmdToHTML();
 		});
 
-		const htmlLabel = document.getElementById("html-tab");
-		const htmlRatio = htmlLabel.previousElementSibling;
-		htmlRatio.addEventListener('change', (event) => {
-			if (event.target.checked) {
-				tmdToHTML();
-			}
+		const formatButton = document.getElementById('format-tmd-source');
+		formatButton.addEventListener('click', function(event) {
+			formatTmd();
 		});
 	}).catch(err => {
 		console.log("TMD lib init error:", err);
@@ -82,13 +118,11 @@ function tmdToHTML() {
 	}
 
 	try {
+		//const start = Date.now();
+
 		// set input TMD
 		const inputTextArea = document.getElementById('tmd-source');
 		const tmdText = inputTextArea.value;
-		if (tmdText == lastTmdText) {
-			//console.log("no change");
-			return;
-		}
 		tmdLibInstance.setInputTmd(tmdText);
 
 		// get title
@@ -99,20 +133,38 @@ function tmdToHTML() {
 		//	console.log("title: ", pageTitle);
 		//}
 
+		// generate HTML
+		const html = tmdLibInstance.generateHtml({autoIdentSuffix: "__---demo"});
+		setRenderEffect(html, true);
+	
+		//const end = Date.now();
+		//console.log(`Elapsed time:`, end - start, `ms`);
+	} catch (err) {
+		console.log("TMD lib gen error:", err);
+		setRenderEffect("(TMD lib gen error.)", false);
+	}
+}
+
+function formatTmd() {
+	if (!tmdLibInstance) {
+		//console.log("wasm is not initialized yet");
+		setRenderEffect("TmdLib is not initialized yet", false);
+		return;
+	}
+
+	try {
+		// set input TMD
+		const inputTextArea = document.getElementById('tmd-source');
+		const tmdText = inputTextArea.value;
+		tmdLibInstance.setInputTmd(tmdText);
+
 		// format TMD
 		const formattedText = tmdLibInstance.format();
 		if (formattedText != null) {
 			inputTextArea.value = formattedText;
 		}
-
-		// generate HTML
-		const html = tmdLibInstance.generateHtml({autoIdentSuffix: "__---demo"});
-		setRenderEffect(html, true);
-	
-		lastTmdText = tmdText;
 	} catch (err) {
-		console.log("TMD lib gen error:", err);
-		setRenderEffect("(TMD lib gen error.)", false);
+		console.log("TMD lib format source error:", err);
 	}
 }
 

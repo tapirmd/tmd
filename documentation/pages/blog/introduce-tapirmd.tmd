@@ -1,0 +1,25 @@
+
+
+###### TapirMD: A Markup Language with Simpler Syntax and Richer Semantics
+
+
+
+
+
+'''
+
+// blog: Introduce TapirMD, a new powerful mark up doc formatting
+//   * full featured. zig lib and wasm lib. Lib is fast.
+//   * consistency (marks are at line start, 2+ chars for style marks, 3+ for atomo blocks, 1 for container blocks)
+//   * try to use as few as possible non-content texts, to avoid reducing readability 
+//   * base blocks, to avoid complexity of block hierarchy. New leaners might be some confused here.
+//     But after understanding the rules, then ...
+//   * custom. block, url
+//   * prefer line-leading marks over line-ending marks
+//   * line leading spaces have no semantic meaning. Identions and whitespace counts are bad pattern/characteristic.
+//   * close style marks can be absent, style marks can be viewed a style toggle switches.
+//   * char escaping
+//   * line-end spacing
+//   * steaming to code blocks
+
+'''
