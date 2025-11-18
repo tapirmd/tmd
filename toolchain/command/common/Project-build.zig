@@ -39,8 +39,6 @@ const BuildSession = struct {
     calTargetFilePath: *const fn (*BuildSession, Config.FilePath, FilePurpose) anyerror![]const u8 = undefined,
     generateArticleContent: *const fn (*BuildSession, []const u8, []const u8, *DocRenderer) anyerror![]const u8 = undefined,
 
-    //builderContext: *anyopaque = undefined,
-
     // source file-path to target relative-file-path
     fileMapping: std.HashMap(Config.FilePath, []const u8, Config.FilePath.HashMapContext, 33) = undefined,
 
@@ -521,13 +519,19 @@ const FilePurpose = enum {
 };
 
 pub const StaticWebsiteBuilder = struct {
-    //const Context = struct {
-    //    //outputDir: std.fs.Dir,
-    //    //outputArticlesDir: std.fs.Dir,
-    //    //outputImagesDir: std.fs.Dir,
-    //    //outputCssDir: std.fs.Dir,
-    //};
-    //
+    const Context = struct {
+        //outputDir: std.fs.Dir,
+        //outputArticlesDir: std.fs.Dir,
+        //outputImagesDir: std.fs.Dir,
+        //outputCssDir: std.fs.Dir,
+
+        pub fn init() void {
+        }
+
+        pub fn build() void {
+        }
+    };
+    
     //fn initContextFor(session: *const BuildSession) !void {
     //    const ctx = try session.arenaAllocator.create(Context);
     //    //const outputDir = try std.fs.openDirAbsolute(session.buildOutputPath, .{});
@@ -915,7 +919,7 @@ pub const EpubBuilder = struct {
         const htmlContent = w.buffered();
 
         _ = htmlContent;
-        
+
         return ""; // no need to cache it, because it has been written.
 
     }

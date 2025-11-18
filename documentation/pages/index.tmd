@@ -1,51 +1,31 @@
 
 ##### The Homepage of TapirMD
 
-TapirMD is a powerful markup language designed for rich web content creation.
-It is also known as //Tapir's Markup Doc//, or //TMD// for short.
+
+TapirMD is a powerful markup language which supports rich inline styling 
+nd a wide range of common block types.
+It also addresses many other frequently requested features
+and details that content creators often need.
+
+TapirMD is also known as //Tapir's Markup Doc//, or //TMD// for short.
 
 In addition to its primary goal of being powerful,
 TapirMD pursues several other key objectives:
-* Readability.
+* Good readability.
   +  All marks consist of ASCII punctuation characters.
   +  Minimizes non-content text to enhance readibilty in source mode.
   +  Line indentations have no semantic meaning.
-* Extensibility.
-  +  Custom blocks.
-  +  Custom URL generation.
-  +  Block HTML attributes (ID and classes).
-* Fast parsing.
-  +  Each TapirMD document can be parsed in a single pass.
+* Good extensibility. TapirMD supports custom block kind and custom URL generation.
+* Fast parsing. Each TapirMD document can be parsed and generated (to HTML) both in a single pass.
 * All functionalities can be implemented without using JavaScript.
 
-TapirMD supports rich inline styles:
-+  Font weight (*``*`` **bold** ``*``* and ^*``*`` ^**dimmed** ``*``*).
-+  Font style (/``/`` //italic// ``/``/ and ^/``/`` ^//revert-italic// ``/``/).
-+  Font size (:``:`` ::smaller:: ``:``: and ^:``:`` ^::larger:: ``:``:).
-+  $``$`` $$Subscript$$ ``$``$ and ^$``$`` ^$$superscript$$ ``$``$.
-+  ` `First-letter drop cap.
-+  ~``~`` ~~Text strikethrough~~ ``~``~, |``|`` ||text marking|| ``|``| and more.
+For TapirMD features and examples, please check
+__some TapirMD demos`` demos.tmd__,
+__TapirMD specification`` specification.tmd__,
+and __some TapirMD use cases`` use-cases.tmd__.
 
-TapirMD supports several built-in block kinds:
-*  Ordered/unordered/definition/tab lists with nesting support.
-*  Tables (either row-major or column-major) with support for spans of cell rows and cell columns.
-*  Callout blocks for highlighting notes, warnings, tips, etc.
-*  Quotation blocks with footer support.
-*  Reveal blocks for creating accordion-style panels (without JavaScript).
-
-TapirMD also supports:
-*  Hyperlinks, which can be
-   ~ either self defined,
-   ~ or defined in link-definition blocks with exact, prefix, or suffix matching.
-*  Footnotes __#example__.
-*  Headers and automatic TOC (table of contents) generation 
-*  Image embedding ``
-   && ./static/image/tmd.png
-   .
-*  Mark character escaping with unique mechanisms  
-*  Subtitles.
-*  Line-end spacing control.
-*  Source streaming (to code blocks).
+You can also experiment TapirMD either __online`` play.tmd__
+or offline by using __TapirMD official toolchain`` installation.tmd__.
 
 ---
 

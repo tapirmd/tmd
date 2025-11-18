@@ -1,6 +1,9 @@
 
 
-###### TapirMD: A Markup Language with Simpler Syntax and Richer Semantics
+###### TapirMD: A Markup Language with Simple Syntax and Rich Semantics
+
+
+As a tech article writer, 
 
 
 
@@ -21,5 +24,33 @@
 //   * char escaping
 //   * line-end spacing
 //   * steaming to code blocks
+
+
+Thank you very much for your feedback. I truly appreciate it.
+
+TapirMD is not a superset of Markdown or CommonMark. 
+It simply inherits some of its DNA from Markdown. 
+While Markdown is very simple, it is also highly underspecified and syntactic inconsistent. 
+CommonMark improves on it slightly, but not fundamentally. 
+Moreover, basic Markdown lacks many essential features that web content writers need.
+
+Yes, none of these factors prevent it from being adopted widely. 
+But for me, the limited feature set is the real blocker. 
+I don’t want to rely on a patchwork of extensions and third-party tools.
+
+TapirMD (where MD stands for `markup doc`) aims to address these shortcomings. 
+It is a new language, deliberately not compatible with Markdown, and never intended to fit within the Markdown ecosystem. 
+Its official toolchain is designed to empower web content writers to create rich, 
+feature-complete articles without relying on any third-party tools.
+
+The spec is too long to serve as a landing page. 
+Maybe a concise demo showcasing sample code on the leading page would be great. 
+Thank you again for the constructive criticism.
+
+TapirMD was primarily developed for my own needs as a technical writer, 
+to produce content for my websites (see the .tmd soruce of my articles: 
+https://tmd.tapirgames.com/use-cases.html). Markdown simply felt too limiting. 
+I've been using TapirMD for over a year now and am quite satisfied with it. 
+I'd be delighted if it proves helpful to other writers as well.
 
 '''
