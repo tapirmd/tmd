@@ -28,7 +28,6 @@ pub fn writeBareTag(w: *std.Io.Writer, tag: []const u8, classesSeperatedBySpace:
 
     try w.writeAll("<");
     try w.writeAll(tag);
-    try w.writeAll(" ");
     try writeBlockAttributes(w, classesSeperatedBySpace, attributes, identSuffix);
     try w.writeAll("/>");
     if (writeNewLine) try w.writeAll("\n");

@@ -40,7 +40,7 @@ pub const Callbacks = struct {
     // must be valid value if any of the following callback is not null.
     owner: *anyopaque = undefined,
 
-    relativeUrlInAttributeCallback: ?*const fn (*anyopaque, *const DocRenderer, config.FilePath) anyerror!void = null,
+    filepathInAttributeCallback: ?*const fn (*anyopaque, *const DocRenderer, config.FilePath) anyerror!void = null,
     assetElementsInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageTitleInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
@@ -74,19 +74,19 @@ pub fn onTemplateCommand(r: *const DocRenderer, command: DocTemplate.Token.Comma
 }
 
 const TemplateFunctions = struct {
-    pub fn @"relative-url-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
+    pub fn @"filepath-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
-            try r.ctx.stderr.print("function [relative-url-in-attribute] needs one argument.\n", .{});
+            try r.ctx.stderr.print("function [filepath-in-attribute] needs one argument.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         };
         if (filePathArg.next != null) {
-            try r.ctx.stderr.print("function [relative-url-in-attribute] has too many arguments.\n", .{});
+            try r.ctx.stderr.print("function [filepath-in-attribute] has too many arguments.\n", .{});
             return error.TooFewTemplateFunctionArguments;
         }
 
         const filePath = try r.getFilePath(args.?);
 
-        if (r.callbackConfig.relativeUrlInAttributeCallback) |callback| {
+        if (r.callbackConfig.filepathInAttributeCallback) |callback| {
             try callback(r.callbackConfig.owner, r, filePath);
             return;
         }

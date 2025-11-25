@@ -229,8 +229,8 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
 
 // prefix and suffix have already used posix seperator.
 // validatedPath uses OS specified seperator.
-pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![]u8 {
-    const out = try std.mem.concat(allocator, u8, &.{ prefix, validatedPath, suffix });
+pub fn buildEpubFilePath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
+    const out = try std.mem.concatWithSentinel(allocator, u8, &.{ prefix, validatedPath, suffix }, 0);
     if (std.fs.path.sep != std.fs.path.sep_posix) {
         std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
     }
@@ -238,7 +238,7 @@ pub fn buildPosixPath(prefix: []const u8, validatedPath: []const u8, suffix: []c
 }
 
 // prefix has already used posix seperator.
-pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]u8 {
+pub fn buildEpubFilePathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
     if (builtin.mode == .Debug and prefix.len > 0) {
         const c = prefix[prefix.len - 1];
         std.debug.assert(c == '/');
@@ -258,7 +258,7 @@ pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []c
 
     const n = prefix.len + barename.len + sep.len;
 
-    const out = try allocator.alloc(u8, n + encoded_len + ext.len);
+    const out = try allocator.allocSentinel(u8, n + encoded_len + ext.len, 0);
     {
         var info = out;
         @memcpy(info[0..prefix.len], prefix);
@@ -278,7 +278,7 @@ pub fn buildPosixPathWithContentHashBase64(prefix: []const u8, fileBasename: []c
     return out;
 }
 
-test buildPosixPathWithContentHashBase64 {
+test buildEpubFilePathWithContentHashBase64 {
     const Case = struct {
         prefix: []const u8,
         basename: []const u8,
@@ -292,7 +292,7 @@ test buildPosixPathWithContentHashBase64 {
     };
 
     for (testCases) |tc| {
-        const path = try buildPosixPathWithContentHashBase64(tc.prefix, tc.basename, tc.content, std.testing.allocator);
+        const path = try buildEpubFilePathWithContentHashBase64(tc.prefix, tc.basename, tc.content, std.testing.allocator);
         defer std.testing.allocator.free(path);
         try std.testing.expectEqualStrings(tc.expected, path);
     }
@@ -523,19 +523,18 @@ test relativePath {
     }
 }
 
-pub const PathAllocator = struct {
-    fba: ?std.heap.FixedBufferAllocator = null,
-    buffer: [std.fs.max_path_bytes]u8 = undefined,
+pub fn ArrayBufferAllocator(comptime N: usize) type {
+    return struct {
+        fba: ?std.heap.FixedBufferAllocator = null,
+        buffer: [N]u8 = undefined,
 
-    pub fn allocator(self: *PathAllocator) std.mem.Allocator {
-        if (self.fba) |*fba| return fba.allocator() else {
-            self.fba = .init(&self.buffer);
-            return self.fba.?.allocator();
+        pub fn allocator(self: *@This()) std.mem.Allocator {
+            if (self.fba) |*fba| return fba.allocator() else {
+                self.fba = .init(&self.buffer);
+                return self.fba.?.allocator();
+            }
         }
-    }
+    };
+}
 
-    //pub fn path(self: *const PathAllocator) []const u8 {
-    //    if (self.fba) |fba| return fba.buffer[0..fba.end_index];
-    //    unreachable;
-    //}
-};
+pub const PathAllocator = ArrayBufferAllocator(std.fs.max_path_bytes);

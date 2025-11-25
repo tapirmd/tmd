@@ -21,7 +21,10 @@ As a tech article writer,
 //   * prefer line-leading marks over line-ending marks
 //   * line leading spaces have no semantic meaning. Identions and whitespace counts are bad pattern/characteristic.
 //   * close style marks can be absent, style marks can be viewed a style toggle switches.
-//   * char escaping
+//   * header blocks can have multiple lines, any lower-lever headers are more eye-catching.
+//   * link definitions can also, have multiple lines, 
+//   * urls will not be automatically rendered as a link.
+//   * char escaping ways
 //   * line-end spacing
 //   * steaming to code blocks
 
@@ -39,7 +42,8 @@ But for me, the limited feature set is the real blocker.
 I don’t want to rely on a patchwork of extensions and third-party tools.
 
 TapirMD (where MD stands for `markup doc`) aims to address these shortcomings. 
-It is a new language, deliberately not compatible with Markdown, and never intended to fit within the Markdown ecosystem. 
+It is a new language, deliberately not compatible with Markdown,
+and never intended to fit within the Markdown ecosystem. 
 Its official toolchain is designed to empower web content writers to create rich, 
 feature-complete articles without relying on any third-party tools.
 

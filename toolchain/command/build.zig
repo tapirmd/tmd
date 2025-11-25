@@ -71,7 +71,7 @@ pub const StandaloneHtmlBuilder = struct {
     }
 };
 
-fn build(ctx: *AppContext, args: []const []const u8, builder: anytype) !void {
+fn build(ctx: *AppContext, args: []const []const u8, BuilderType: anytype) !void {
     const paths = if (args.len > 0) args else blk: {
         const default: []const []const u8 = &.{"."};
         break :blk default;
@@ -84,7 +84,7 @@ fn build(ctx: *AppContext, args: []const []const u8, builder: anytype) !void {
                 //try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
             },
             .registered => {},
-            .new => |project| try project.build(ctx, builder),
+            .new => |project| try project.build(ctx, BuilderType),
         }
     }
 }

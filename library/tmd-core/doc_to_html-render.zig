@@ -49,7 +49,7 @@ pub const Generator = struct {
                     pub fn writeAll(v: *const anyopaque, w: *std.Io.Writer) !void {
                         const Base = pointer.child;
                         const ptr: *const Base = @ptrCast(@alignCast(v));
-                        return try Base.gen(ptr, w);
+                        return try ptr.gen(w);
                     }
                 };
                 return .{ .obj = obj, .genFn = C.writeAll };
@@ -59,7 +59,7 @@ pub const Generator = struct {
 
                 const C = struct {
                     pub fn writeAll(_: *const anyopaque, w: *std.Io.Writer) !void {
-                        return try T.gen(T{}, w);
+                        return try (T{}).gen(w);
                     }
                 };
                 return .{ .obj = undefined, .genFn = C.writeAll };
@@ -366,7 +366,7 @@ pub const TmdRender = struct {
                         );
 
                         if (listItem.isFirst()) try w.writeAll(" checked");
-                        try w.writeAll(">\n");
+                        try w.writeAll("/>\n");
 
                         const headerTag = "label";
                         const headerClasses = "tmd-tab-header tmd-tab-label";
@@ -1649,7 +1649,7 @@ pub const TmdRender = struct {
 
             try self.writeUsualContentBlockLinesForTocItem(w, headerBlock);
 
-            if (id.len == 0) try w.writeAll("</span>\n") else try w.writeAll("</a>\n");
+            if (id.len == 0) try w.writeAll("</span>") else try w.writeAll("</a>");
 
             try w.writeAll("</li>\n");
         }

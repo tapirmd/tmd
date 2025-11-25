@@ -981,13 +981,13 @@ to set some attributes for the custom block.
 The optional tokens are seperated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
-//
+%%
 content-type
 arguments-of-custom-block-generator
 '''
 
 Here,
-*  `//` means the custom block is commented out and will not be rendered in HTML output.
+*  `%%` means the custom block is commented out and will not be rendered in HTML output.
 *  `content-type` means the content type of the custom block.
    It is used to identify which custom block generator will be used to generate HTML
    the custom block.

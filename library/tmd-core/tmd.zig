@@ -18,7 +18,9 @@ pub const extensionFromString = @import("tmd_to_doc-attribute_parser.zig").exten
 pub const extension = @import("tmd_to_doc-attribute_parser.zig").extension;
 pub const getExtensionInfo = @import("tmd_to_doc-attribute_parser.zig").getExtensionInfo;
 
+pub const writeHtmlAttributeValue = @import("doc_to_html-fns.zig").writeHtmlAttributeValue;
 pub const writeUrlAttributeValue = @import("doc_to_html-fns.zig").writeUrlAttributeValue;
+pub const writeHtmlContentText = @import("doc_to_html-fns.zig").writeHtmlContentText;
 
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
 pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;

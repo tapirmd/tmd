@@ -110,6 +110,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
 
 // by grok3
 fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u8, stdinText: []const u8) !void {
+    // ToDo: ..., use an alternative allocator?
     const allocator = std.heap.page_allocator;
 
     var child = std.process.Child.init(commandWithArgs, allocator);
@@ -238,7 +239,7 @@ pub fn writeFaviconAssetInHead(w: *std.Io.Writer, faviconFilePath: config.FilePa
             try writeRelativeUrl(w, targetPath, sep, relativeTo, sep);
 
             try w.writeAll(
-                \\">
+                \\"/>
                 \\
             );
         },
@@ -250,7 +251,7 @@ pub fn writeFaviconAssetInHead(w: *std.Io.Writer, faviconFilePath: config.FilePa
             try tmd.writeUrlAttributeValue(w, url);
 
             try w.writeAll(
-                \\">
+                \\"/>
                 \\
             );
         },
@@ -269,7 +270,7 @@ pub fn writeCssAssetInHead(w: *std.Io.Writer, cssFilePath: config.FilePath, file
             try writeRelativeUrl(w, targetPath, sep, relativeTo, sep);
 
             try w.writeAll(
-                \\" rel="stylesheet">
+                \\" rel="stylesheet"/>
                 \\
             );
         },
@@ -281,7 +282,7 @@ pub fn writeCssAssetInHead(w: *std.Io.Writer, cssFilePath: config.FilePath, file
             try tmd.writeUrlAttributeValue(w, url);
 
             try w.writeAll(
-                \\" rel="stylesheet">
+                \\" rel="stylesheet"/>
                 \\
             );
         },

@@ -23,8 +23,8 @@ const Command = union(enum) {
     @"gen-full-page": gen.FullPageGenerator,
 
     build: build.StaticWebsiteBuilder,
-    //@"build-epub": build.EpubBuilder,
-    //@"build-standalone-html": build.StandaloneHtmlBuilder,
+    @"build-epub": build.EpubBuilder,
+    @"build-standalone-html": build.StandaloneHtmlBuilder,
 
     //run: run.Runner,
 
