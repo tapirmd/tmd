@@ -1601,34 +1601,46 @@ pub const TmdRender = struct {
 
     //================================= TOC and footnotes
 
-    fn writeTableOfContents(self: *TmdRender, w: *std.Io.Writer, level: u8) !void {
+    fn writeTableOfContents(self: *TmdRender, w: *std.Io.Writer, maxlevel: u8) !void {
         if (self.doc.tocHeaders.empty()) return;
 
-        try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
+        //try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
 
         var levelOpened: [tmd.MaxHeaderLevel + 1]bool = .{false} ** (tmd.MaxHeaderLevel + 1);
-        var lastLevel: u8 = tmd.MaxHeaderLevel + 1;
+        var numOpenedLevel: usize = 0;
+        var lastLevel: u8 = 0;
         var listElement = self.doc.tocHeaders.head;
         while (listElement) |element| {
             defer listElement = element.next;
             const headerBlock = element.value;
             const headerLevel = headerBlock.blockType.header.level(self.doc.data);
-            if (headerLevel > level) continue;
+            if (headerLevel > maxlevel) continue;
 
             defer lastLevel = headerLevel;
 
-            //std.debug.print("== lastLevel={}, level={}\n", .{lastLevel, level});
+            //std.debug.print("== lastLevel={}, maxlevel={}\n", .{lastLevel, maxlevel});
 
             if (lastLevel > headerLevel) {
-                for (headerLevel..lastLevel) |level_1| if (levelOpened[level_1]) {
-                    // close last level
-                    levelOpened[level_1] = false;
-                    try w.writeAll("</ul>\n");
-                };
+                if (!levelOpened[headerLevel]) {
+                    levelOpened[lastLevel] = false;
+                    levelOpened[headerLevel] = true;
+                    try w.writeAll("</li>\n");
+                } else {
+                    for (headerLevel+1..lastLevel+1) |level| if (levelOpened[level]) {
+                        // close last level
+                        levelOpened[level] = false;
+                        numOpenedLevel -= 1;
+                        try w.writeAll("</li>\n</ul>\n");
+                    };
+                    try w.writeAll("</li>\n");
+                }
             } else if (lastLevel < headerLevel) {
                 // open level
-                levelOpened[headerLevel - 1] = true;
+                levelOpened[headerLevel] = true;
+                numOpenedLevel += 1;
                 try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
+            } else {
+                try w.writeAll("</li>\n");
             }
 
             try w.writeAll("<li class=\"tmd-list-item tmd-toc-item\">");
@@ -1651,14 +1663,14 @@ pub const TmdRender = struct {
 
             if (id.len == 0) try w.writeAll("</span>") else try w.writeAll("</a>");
 
-            try w.writeAll("</li>\n");
+            //try w.writeAll("</li>\n");
         }
 
         for (&levelOpened) |opened| if (opened) {
-            try w.writeAll("</ul>\n");
+            try w.writeAll("</li>\n</ul>\n");
         };
 
-        try w.writeAll("</ul>\n");
+        //try w.writeAll("</ul>\n");
     }
 
     fn writeFootnotes(self: *TmdRender, w: *std.Io.Writer) !void {
