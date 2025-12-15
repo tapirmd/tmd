@@ -6,12 +6,8 @@ const miniz = @cImport({
 
 const Zip = @This();
 
-
-
 zipArchive: *miniz.mz_zip_archive,
 finalData: ?[]u8 = null,
-
-
 
 pub fn init(initialCapacity: usize) !Zip {
     const za: *miniz.mz_zip_archive = @ptrCast(@alignCast(std.c.malloc(@sizeOf(miniz.mz_zip_archive)) orelse return error.ZipCreate));
@@ -50,7 +46,7 @@ pub fn finalize(self: *@This()) ![]const u8 {
     var size: usize = 0;
     if (miniz.mz_zip_writer_finalize_heap_archive(self.zipArchive, &ptr, &size) == miniz.MZ_FALSE)
         return error.ZipFinalize;
-    
+
     std.debug.assert(ptr != null);
     const data = @as([*]u8, @ptrCast(ptr.?))[0..size];
     self.finalData = data;

@@ -28,7 +28,7 @@ pub const GenOptions = struct {
         // ToDo: fnCodeBlockGenerator, and for any kinds of blocks?
 
         fnGetMediaUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?Generator = null,
-        fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentItemInNav: *?bool) anyerror!?Generator = null,
+        fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) anyerror!?Generator = null,
     } = .{},
 };
 
@@ -149,9 +149,9 @@ pub const TmdRender = struct {
         return .dummy();
     }
 
-    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link, isCurrentItemInNav: *?bool) !?Generator {
+    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link, isCurrentPage: *?bool) !?Generator {
         if (self.options.callbacks.fnGetLinkUrlGenerator) |get| {
-            if (try get(self.options.callbacks.context, link, isCurrentItemInNav)) |callback| return callback;
+            if (try get(self.options.callbacks.context, link, isCurrentPage)) |callback| return callback;
         }
         return null;
     }
@@ -1241,13 +1241,13 @@ pub const TmdRender = struct {
                                         break :blk;
                                     }
 
-                                    var isCurrentItemInNav: ?bool = null;
-                                    if (try self.getLinkUrlGenerator(link, &isCurrentItemInNav)) |callback| {
-                                        if (isCurrentItemInNav) |b| {
+                                    var isCurrentPage: ?bool = null;
+                                    if (try self.getLinkUrlGenerator(link, &isCurrentPage)) |callback| {
+                                        if (isCurrentPage) |b| {
                                             if (b) try w.writeAll(
-                                                \\<a class="tmd-nav-current" href="
+                                                \\<a class="tmd-current-page-url" href="
                                             ) else try w.writeAll(
-                                                \\<a class="tmd-nav-others" href="
+                                                \\<a href="
                                             );
                                         } else try w.writeAll(
                                             \\<a href="
@@ -1626,7 +1626,7 @@ pub const TmdRender = struct {
                     levelOpened[headerLevel] = true;
                     try w.writeAll("</li>\n");
                 } else {
-                    for (headerLevel+1..lastLevel+1) |level| if (levelOpened[level]) {
+                    for (headerLevel + 1..lastLevel + 1) |level| if (levelOpened[level]) {
                         // close last level
                         levelOpened[level] = false;
                         numOpenedLevel -= 1;

@@ -2,7 +2,7 @@
 ##### The Homepage of TapirMD
 
 
-TapirMD is a powerful markup language which supports rich inline styling 
+TapirMD is a powerful markup language which supports rich inline styling
 and a wide range of common block types.
 It also addresses many other frequently requested features
 and details that content creators often need.
@@ -11,13 +11,13 @@ TapirMD is also known as //Tapir's Markup Doc//, or //TMD// for short.
 
 In addition to its primary goal of being powerful,
 TapirMD pursues several other key objectives:
-* Good readability.
-  +  All marks consist of ASCII punctuation characters.
-  +  Minimizes non-content text to enhance readibilty in source mode.
-  +  Line indentations have no semantic meaning.
-* Good extensibility. TapirMD supports custom block kind and custom URL generation.
-* Fast parsing. Each TapirMD document can be parsed and generated (to HTML) both in a single pass.
-* All functionalities can be implemented without using JavaScript.
+*  Good readability.
+   +  All marks consist of ASCII punctuation characters.
+   +  Minimizes non-content text to enhance readibilty in source mode.
+   +  Line indentations have no semantic meaning.
+*  Good extensibility. TapirMD supports custom block kind and custom URL generation.
+*  Fast parsing. Each TapirMD document can be parsed and generated (to HTML) both in a single pass.
+*  All functionalities can be implemented without using JavaScript.
 
 For TapirMD features and examples, please check
 __some TapirMD demos`` demos.tmd__,

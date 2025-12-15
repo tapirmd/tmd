@@ -8,6 +8,8 @@ const config = @import("Config.zig");
 const gen = @import("gen.zig");
 const util = @import("util.zig");
 
+const maxEmbeddingTmdFileSize = 1 << 19; // 0.5M
+
 const DocRenderer = @This();
 
 ctx: *AppContext,
@@ -44,13 +46,14 @@ pub const Callbacks = struct {
     assetElementsInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageTitleInHeadCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
     pageContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
-    navContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
+    //navContentInBodyCallback: ?*const fn (*anyopaque, *const DocRenderer) anyerror!void = null,
+    generateHtmlCallback: ?*const fn (*anyopaque, *const DocRenderer, tmdDoc: *tmd.Doc, tmdDocAbsPath: []const u8) anyerror!void = null,
 
     // local-file-url
 };
 
 pub const TmdDocInfo = struct {
-    doc: *const tmd.Doc = undefined,
+    doc: *const tmd.Doc = undefined, // just use its data (right?)
     sourceFilePath: []const u8 = undefined, // absolute
     targetFilePath: []const u8 = undefined, // relative to output dir
 };
@@ -84,7 +87,7 @@ const TemplateFunctions = struct {
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const filePath = try r.getFilePath(args.?);
+        const filePath = try r.getFilePath(filePathArg);
 
         if (r.callbackConfig.filepathInAttributeCallback) |callback| {
             try callback(r.callbackConfig.owner, r, filePath);
@@ -181,27 +184,65 @@ const TemplateFunctions = struct {
 
         const tmdDocInfo = if (r.tmdDocInfo) |info| info else return;
 
-        var externalBlockGenerator: gen.ExternalBlockGenerator = undefined;
+        var mutableData: gen.BlockGeneratorCallbackOwner.MutableData = undefined;
         const co: gen.BlockGeneratorCallbackOwner = .{
+            .appContext = r.ctx,
             .tmdDoc = tmdDocInfo.doc,
+            .tmdDocSourceFilePath = tmdDocInfo.sourceFilePath,
+            .currentPageSourceFilePath = tmdDocInfo.sourceFilePath,
             .configEx = r.configEx,
-            .externalBlockGenerator = &externalBlockGenerator,
+            .mutableData = &mutableData,
         };
         const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
 
         try tmdDocInfo.doc.writeHTML(r.w, genOptions, r.ctx.allocator);
     }
 
-    pub fn @"nav-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
-        if (args != null) return error.TooManyTemplateFunctionArguments;
+    pub fn @"generate-html"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
+        const filePathArg = args orelse {
+            try r.ctx.stderr.print("function [tmd-to-html] needs one argument.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        };
+        if (filePathArg.next != null) {
+            try r.ctx.stderr.print("function [tmd-to-html] has too many arguments.\n", .{});
+            return error.TooFewTemplateFunctionArguments;
+        }
 
-        if (r.callbackConfig.navContentInBodyCallback) |callback| {
-            try callback(r.callbackConfig.owner, r);
+        const embeddingTmdDocInfo = try r.getTmdDocInfoFromFilePathArg(filePathArg);
+
+        if (r.callbackConfig.generateHtmlCallback) |callback| {
+            try callback(r.callbackConfig.owner, r, embeddingTmdDocInfo.doc, embeddingTmdDocInfo.sourceFilePath);
             return;
         }
 
-        // @panic("nav-content-in-body template command has no default implementation");
+        // Default implementation
+
+        const tmdDocInfo = if (r.tmdDocInfo) |info| info else return;
+
+        var mutableData: gen.BlockGeneratorCallbackOwner.MutableData = undefined;
+        const co: gen.BlockGeneratorCallbackOwner = .{
+            .appContext = r.ctx,
+            .tmdDoc = embeddingTmdDocInfo.doc,
+            .tmdDocSourceFilePath = embeddingTmdDocInfo.sourceFilePath,
+            .currentPageSourceFilePath = tmdDocInfo.sourceFilePath,
+            .configEx = r.configEx,
+            .mutableData = &mutableData,
+        };
+        const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
+
+        try embeddingTmdDocInfo.doc.writeHTML(r.w, genOptions, r.ctx.allocator);
     }
+
+    //pub fn @"nav-content-in-body"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
+    //    if (args != null) return error.TooManyTemplateFunctionArguments;
+    //
+    //    if (r.callbackConfig.navContentInBodyCallback) |callback| {
+    //        try callback(r.callbackConfig.owner, r);
+    //        return;
+    //    }
+    //
+    //    // @panic("nav-content-in-body template command has no default implementation");
+    //}
 
     pub fn @"embed-file-content"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
@@ -213,7 +254,9 @@ const TemplateFunctions = struct {
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const filePath = try r.getFilePath(args.?);
+        // ToDo: should cached as []const u8 in ConfigEx.ParsedCommandArg.
+
+        const filePath = try r.getFilePath(filePathArg);
         try r.ctx.writeFile(r.w, filePath, null, true);
     }
 
@@ -227,7 +270,9 @@ const TemplateFunctions = struct {
             return error.TooFewTemplateFunctionArguments;
         }
 
-        const filePath = try r.getFilePath(args.?);
+        // ToDo: should cached as []const u8 in ConfigEx.ParsedCommandArg.
+
+        const filePath = try r.getFilePath(filePathArg);
         try r.ctx.writeFile(r.w, filePath, .base64, true);
     }
 };
@@ -244,6 +289,7 @@ fn getFilePath(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) 
     const valuePtr = if (result.found_existing) {
         switch (result.value_ptr.*) {
             .filePath => |filePath| return filePath,
+            else => unreachable,
         }
     } else result.value_ptr;
 
@@ -263,6 +309,37 @@ fn getFilePath(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) 
 
     valuePtr.* = .{ .filePath = filePath };
     return filePath;
+}
+
+fn getTmdDocInfoFromFilePathArg(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) !@FieldType(AppContext.ConfigEx.ParsedCommandArg, "tmdDocInfo") {
+    const result = try r.configEx.parsedCommandArgs.getOrPut(arg.value.ptr);
+    const valuePtr = if (result.found_existing) {
+        switch (result.value_ptr.*) {
+            .tmdDocInfo => |tmdDocInfo| return tmdDocInfo,
+            else => unreachable,
+        }
+    } else result.value_ptr;
+
+    const assetPath = arg.value;
+    const relativeToPath = r._template.ownerFilePath;
+
+    const tmdDocInfo: @FieldType(AppContext.ConfigEx.ParsedCommandArg, "tmdDocInfo") = switch (tmd.checkFilePathType(assetPath)) {
+        .remote => return error.InvalidTmdFilePath,
+        .local => blk: {
+            const filePath = try util.resolvePathFromFilePathAlloc(relativeToPath, assetPath, true, r.ctx.arenaAllocator);
+            const tmdContent = try util.readFile(null, filePath, .{ .alloc = .{ .allocator = r.ctx.arenaAllocator, .maxFileSize = maxEmbeddingTmdFileSize } }, r.ctx.stderr);
+            const tmdDoc = try r.ctx.arenaAllocator.create(tmd.Doc);
+            tmdDoc.* = try tmd.Doc.parse(tmdContent, r.ctx.arenaAllocator);
+            break :blk .{
+                .doc = tmdDoc,
+                .sourceFilePath = filePath,
+            };
+        },
+        .invalid => return error.InvalidTmdFilePath,
+    };
+
+    valuePtr.* = .{ .tmdDocInfo = tmdDocInfo };
+    return tmdDocInfo;
 }
 
 fn writeFaviconAssetInHead(r: *const DocRenderer, faviconFilePath: config.FilePath) !void {

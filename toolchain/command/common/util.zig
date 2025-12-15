@@ -538,3 +538,14 @@ pub fn ArrayBufferAllocator(comptime N: usize) type {
 }
 
 pub const PathAllocator = ArrayBufferAllocator(std.fs.max_path_bytes);
+
+pub fn eqlFilePathsWithoutExtension(a: []const u8, b: []const u8) bool {
+    const x = std.fs.path.extension(a);
+    const y = std.fs.path.extension(b);
+    return std.mem.eql(u8, a[0 .. a.len - x.len], b[0 .. b.len - y.len]);
+}
+
+pub fn replaceExtension(path: []const u8, newExt: []const u8, allocator: std.mem.Allocator) ![]const u8 {
+    const ext = std.fs.path.extension(path);
+    return std.mem.concat(allocator, u8, &.{ path[0 .. path.len - ext.len], newExt });
+}

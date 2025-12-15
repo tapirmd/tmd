@@ -11,9 +11,6 @@ const Config = @import("Config.zig");
 const gen = @import("gen.zig");
 const util = @import("util.zig");
 
-
-
-
 const bufferSize = Project.maxTmdFileSize * 8;
 
 const maxAssetFileSize = 1 << 22; // 4M
@@ -22,6 +19,10 @@ const BuildSession = Project.BuildSession(@This());
 
 session: *BuildSession,
 genBuffer: []u8,
+
+pub fn targetPathSep() u8 {
+    return '/';
+}
 
 pub fn buildNameSuffix() []const u8 {
     return "-standalone.html";
@@ -48,8 +49,7 @@ pub fn build(builder: *@This()) !void {
     _ = session;
 }
 
-
-pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpose: Project.FilePurpose) !struct{[]const u8, bool} {
+pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpose: Project.FilePurpose) !struct { []const u8, bool } {
     const session = builder.session;
     switch (filePurpose) {
         .article => {
@@ -64,7 +64,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     //try session.targetFileContents.put(targetPath, ""); // Don't
-                    return .{targetPath, true};
+                    return .{ targetPath, true };
                 },
                 .builtin, .remote => unreachable,
             }
@@ -78,10 +78,10 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try session.targetFileContents.put(targetPath, "");
-                    return .{targetPath, true};
+                    return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                     defer session.appContext.allocator.free(content);
 
                     const ext = tmd.extension(sourceAbsPath) orelse unreachable;
@@ -91,10 +91,10 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const targetPath = try util.buildEmbeddedImageHref(ext, content, session.arenaAllocator);
                     if (session.targetFileContents.get(targetPath) == null) {
                         try session.targetFileContents.put(targetPath, "");
-                        return .{targetPath, true};
+                        return .{ targetPath, true };
                     }
 
-                    return .{targetPath, false};
+                    return .{ targetPath, false };
                 },
                 .remote => unreachable,
             }
@@ -109,10 +109,10 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try session.targetFileContents.put(targetPath, info.content);
-                    return .{targetPath, true};
+                    return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(std.fs.cwd(), sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                     //defer session.appContext.allocator.free(content);
 
                     // ToDo: why buildHashString?
@@ -121,7 +121,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                         try session.targetFileContents.put(targetPath, content);
                     }
 
-                    return .{targetPath, true};
+                    return .{ targetPath, true };
                 },
                 .remote => unreachable,
             }

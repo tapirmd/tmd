@@ -23,7 +23,7 @@ pub fn write_doc_title_in_html_toc_item(writer: *std.Io.Writer, tmdDoc: *const t
 }
 
 pub const HtmlBlockGenerator = struct {
-    doc: *const tmd.Doc,
+    doc: *const tmd.Doc, // just use its data
     custom: *const tmd.BlockType.Custom,
 
     pub fn gen(self: *const HtmlBlockGenerator, w: *std.Io.Writer) !void {

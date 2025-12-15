@@ -8,6 +8,7 @@ const config = @import("Config.zig");
 const util = @import("util.zig");
 
 pub const RelativePathWriter = struct {
+    allocatorToFreePath: ?std.mem.Allocator,
     path: []const u8,
     pathSep: ?u8,
     relativeTo: []const u8,
@@ -15,6 +16,8 @@ pub const RelativePathWriter = struct {
     fragment: []const u8,
 
     pub fn gen(self: *const RelativePathWriter, w: *std.Io.Writer) !void {
+        defer if (self.allocatorToFreePath) |a| a.free(self.path);
+
         try writeRelativeUrl(w, self.path, self.pathSep, self.relativeTo, self.relativeToSep);
 
         if (self.fragment.len > 0) {
@@ -22,8 +25,9 @@ pub const RelativePathWriter = struct {
         }
     }
 
-    pub fn asGenBacklback(self: *RelativePathWriter, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
+    pub fn asGenBacklback(self: *RelativePathWriter, a: ?std.mem.Allocator, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
         self.* = .{
+            .allocatorToFreePath = a,
             .path = path,
             .pathSep = pathSep,
             .relativeTo = relativeTo,
@@ -208,24 +212,110 @@ pub const ExternalBlockGenerator = struct {
 };
 
 pub const BlockGeneratorCallbackOwner = struct {
-    tmdDoc: *const tmd.Doc,
+    pub const MutableData = struct {
+        relativePathWriter: RelativePathWriter = undefined,
+        externalBlockGenerator: ExternalBlockGenerator = undefined,
+    };
+
+    appContext: *AppContext,
+    tmdDoc: *const tmd.Doc, // just use its data (right?)
+    tmdDocSourceFilePath: []const u8,
+    currentPageSourceFilePath: []const u8,
     configEx: *const AppContext.ConfigEx,
-    externalBlockGenerator: *ExternalBlockGenerator,
+    mutableData: *MutableData,
 
     pub fn makeTmdGenOptions(self: *const @This()) tmd.GenOptions {
         return .{
             .callbacks = .{
                 .context = self,
                 .fnGetCustomBlockGenerator = getCustomBlockGenerator,
+                .fnGetMediaUrlGenerator = getMediaUrlGenerator,
+                .fnGetLinkUrlGenerator = getLinkUrlGenerator,
             },
         };
     }
 
     pub fn getCustomBlockGenerator(callbackContext: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
-        return self.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom);
+        return self.mutableData.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom);
+    }
+
+    fn getLinkUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !?tmd.Generator {
+        std.debug.assert(isCurrentPage.* == null);
+
+        const self: *const @This() = @ptrCast(@alignCast(callbackContext));
+
+        const url = link.url.?;
+        const targetPath, const fragment = switch (url.manner) {
+            .relative => |v| blk: {
+                if (v.extension) |ext| switch (ext) {
+                    .tmd => {
+                        std.debug.assert(v.isTmdFile());
+
+                        var pa: util.PathAllocator = .{};
+                        const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
+                        var pa2: util.PathAllocator = .{};
+                        const realPath = try util.resolveRealPathAlloc(filePath, false, pa2.allocator());
+
+                        isCurrentPage.* = util.eqlFilePathsWithoutExtension(realPath, self.currentPageSourceFilePath);
+
+                        const absPath = try util.replaceExtension(realPath, ".html", self.appContext.allocator);
+                        break :blk .{ absPath, url.fragment };
+                    },
+                    .txt, .html, .htm, .xhtml, .css, .js => {
+                        // keep as is.
+                    },
+                    .png, .gif, .jpg, .jpeg => {
+                        var pa: util.PathAllocator = .{};
+                        const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
+                        const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
+                        break :blk .{ absPath, "" };
+                    },
+                };
+
+                return null;
+            },
+            else => return null,
+        };
+
+        // ToDo: standalone-html build needs different handling.
+
+        return self.mutableData.relativePathWriter.asGenBacklback(
+            self.appContext.allocator,
+            targetPath,
+            std.fs.path.sep,
+            self.currentPageSourceFilePath,
+            std.fs.path.sep,
+            fragment,
+        );
+    }
+
+    fn getMediaUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link) !?tmd.Generator {
+        const self: *const @This() = @ptrCast(@alignCast(callbackContext));
+
+        const url = link.url.?;
+        const targetPath = switch (url.manner) {
+            .relative => blk: {
+                var pa: util.PathAllocator = .{};
+                const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
+                const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
+                break :blk absPath;
+            },
+            else => return null,
+        };
+
+        return self.mutableData.relativePathWriter.asGenBacklback(
+            self.appContext.allocator,
+            targetPath,
+            std.fs.path.sep,
+            self.currentPageSourceFilePath,
+            std.fs.path.sep,
+            "",
+        );
     }
 };
+
+// ToDo: also use template to implement the following write functions.
 
 pub fn writeFaviconAssetInHead(w: *std.Io.Writer, faviconFilePath: config.FilePath, fileRegister: anytype, relativeTo: []const u8, sep: u8) !void {
     switch (faviconFilePath) {

@@ -50,7 +50,7 @@ test "span marks" {
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\:://aaa **bbb
-    , &.{.fontSize, .fontWeight}));
+    , &.{ .fontSize, .fontWeight }));
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\://aaa **bbb

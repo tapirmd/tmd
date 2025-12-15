@@ -140,11 +140,14 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     switch (fullPage) {
         false => {
-            var externalBlockGenerator: gen.ExternalBlockGenerator = undefined;
+            var mutableData: gen.BlockGeneratorCallbackOwner.MutableData = undefined;
             const co: gen.BlockGeneratorCallbackOwner = .{
+                .appContext = ctx,
                 .tmdDoc = &tmdDoc,
+                .tmdDocSourceFilePath = absFilePath,
+                .currentPageSourceFilePath = absFilePath,
                 .configEx = configEx,
-                .externalBlockGenerator = &externalBlockGenerator,
+                .mutableData = &mutableData,
             };
             const genOptions: tmd.GenOptions = co.makeTmdGenOptions();
 

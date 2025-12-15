@@ -18,6 +18,10 @@ pub const ConfigEx = struct {
 
     pub const ParsedCommandArg = union(enum) {
         filePath: Config.FilePath,
+        tmdDocInfo: struct {
+            doc: *tmd.Doc,
+            sourceFilePath: []const u8,
+        },
     };
 };
 
@@ -368,7 +372,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         };
 
         var paths = list.List(Config.FilePath){};
-        // errdefer path.destroy(nil, ctx.arenaAllocator);
+        // errdefer path.destroy(null, ctx.arenaAllocator);
 
         var it = std.mem.tokenizeAny(u8, cssFilesData, "\n");
         while (it.next()) |item| {
@@ -392,7 +396,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         };
 
         var paths = list.List(Config.FilePath){};
-        // errdefer path.destroy(nil, ctx.arenaAllocator);
+        // errdefer path.destroy(null, ctx.arenaAllocator);
 
         var it = std.mem.tokenizeAny(u8, jsFilesData, "\n");
         while (it.next()) |item| {
