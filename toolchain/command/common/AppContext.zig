@@ -81,3 +81,22 @@ pub const excludeSpecialDir = @import("AppContext-project.zig").excludeSpecialDi
 pub fn getTemplateCommandObject(ctx: *AppContext, cmdName: []const u8) !?*const anyopaque {
     return ctx._templateFunctions.get(cmdName);
 }
+
+// name should be folder name or file name.
+pub fn isValidArticlePathName(name: []const u8, isDir: bool) bool {
+    if (std.mem.startsWith(u8, name, "@")) return false;
+    if (isDir) return true;
+    return std.ascii.endsWithIgnoreCase(name, ".tmd");
+}
+
+// path should a relative path to project root etc.
+pub fn isValidArticlePath(path: []const u8) bool {
+    var start: usize = 0;
+    while (start < path.len) {
+        if (std.mem.indexOfScalarPos(u8, path, start, std.fs.path.sep)) |end| {
+            if (!isValidArticlePathName(path[start..end], true)) return false;
+            start = end + 1;
+        } else return isValidArticlePathName(path[start..], false);
+    }
+    return false;
+}

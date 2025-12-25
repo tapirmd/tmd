@@ -15,7 +15,7 @@ cursorLineIndex: u32 = 0, // for debug. 1-based. 0 means invalod.
 lineEnd: ?tmd.Line.EndType = null,
 
 pub const bytesKindTable = blk: {
-    var table = [1]union(enum) {
+    var table: [256]union(enum) {
         lineEnd: void, // '\n'
         blank: struct {
             isSpace: bool = false,
@@ -42,7 +42,7 @@ pub const bytesKindTable = blk: {
         pub fn isBlank(k: ByteKind) bool {
             return k == .blank;
         }
-    }{.{ .others = .{} }} ** 256;
+    } = @splat(.{ .others = .{} });
 
     // For parser implementation convenience, '\n' is not treated as blank.
     table['\n'] = .lineEnd;

@@ -25,6 +25,7 @@ pub const Runner = struct {
             1 => args[0],
             else => {
                 try ctx.stderr.print("Too many arguments.\n", .{});
+                try ctx.stderr.flush();
                 std.process.exit(1);
 
                 // This line is needless, because std.process.exit is a noreturn function.
@@ -38,6 +39,7 @@ pub const Runner = struct {
         switch (result) {
             .invalid => {
                 try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
+                try ctx.stderr.flush();
             },
             .registered => unreachable,
             .new => |project| try project.run(ctx),

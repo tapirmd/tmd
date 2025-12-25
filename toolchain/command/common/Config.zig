@@ -61,19 +61,16 @@ favicon: ?union(enum) {
 } = null,
 
 // Default to a temp file referencing all .tmd files in project-dir.
-@"project-navigation-article": ?union(enum) {
-    path: []const u8, // relative to project dir
+@"seed-articles": ?union(enum) {
+    data: []const u8, // containing paths relative to the containing config file
+    _parsed: list.List([]const u8), // relative to project dir
 } = null,
 
 //====================================================
 
-pub const FileType = enum {
-    builtin,
-    local,
-    remote,
-};
+pub const FileLocation = std.meta.Tag(FilePath);
 
-pub const FilePath = union(FileType) {
+pub const FilePath = union(enum) {
     builtin: []const u8, // name starting with @
     local: []const u8, // abs path
     remote: []const u8, // url

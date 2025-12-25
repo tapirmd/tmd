@@ -127,6 +127,7 @@ pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
 fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesInSession: *std.BufSet) !*ConfigEx {
     if (loadedFilesInSession.contains(absFilePath)) {
         try ctx.stderr.print("error: loop config reference: {s}", .{absFilePath});
+        try ctx.stderr.flush();
         return error.ConfigFileLoopReference;
     }
 
@@ -341,8 +342,8 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
     if (configEx.basic.@"html-page-template") |*htmlPageTemplate| handle: {
         const content, const ownerFilePath = switch (htmlPageTemplate.*) {
             .data => |data| .{ data, configEx.path },
-            .path => |filePath| blk: {
-                const absPath = try util.resolvePathFromFilePathAlloc(configEx.path, filePath, true, ctx.arenaAllocator);
+            .path => |path| blk: {
+                const absPath = try util.resolvePathFromFilePathAlloc(configEx.path, path, true, ctx.arenaAllocator);
                 const data = try util.readFile(null, absPath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = DocTemplate.maxTemplateSize } }, ctx.stderr);
                 break :blk .{ data, absPath };
             },
@@ -351,6 +352,31 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
 
         htmlPageTemplate.* = .{
             ._parsed = try DocTemplate.parseTemplate(content, ownerFilePath, ctx, ctx.arenaAllocator, ctx.stderr),
+        };
+    }
+
+    if (configEx.basic.@"seed-articles") |*seedArticles| handle: {
+        const seedArticlesData = switch (seedArticles.*) {
+            .data => |data| std.mem.trim(u8, data, " \t\r\n"),
+            ._parsed => break :handle,
+        };
+
+        var paths = list.List([]const u8){};
+        // errdefer path.destroy(null, ctx.arenaAllocator);
+
+        var it = std.mem.tokenizeAny(u8, seedArticlesData, "\n");
+        while (it.next()) |item| {
+            const line = std.mem.trim(u8, item, " \t\r");
+            if (line.len == 0) continue;
+
+            const absPath = try util.resolvePathFromFilePathAlloc(configEx.path, line, true, ctx.arenaAllocator);
+
+            const element = try paths.createElement(ctx.arenaAllocator, true);
+            element.value = absPath;
+        }
+
+        seedArticles.* = .{
+            ._parsed = paths,
         };
     }
 

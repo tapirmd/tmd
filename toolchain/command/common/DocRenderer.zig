@@ -80,10 +80,12 @@ const TemplateFunctions = struct {
     pub fn @"filepath-in-attribute"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
             try r.ctx.stderr.print("function [filepath-in-attribute] needs one argument.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         };
         if (filePathArg.next != null) {
             try r.ctx.stderr.print("function [filepath-in-attribute] has too many arguments.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         }
 
@@ -201,10 +203,12 @@ const TemplateFunctions = struct {
     pub fn @"generate-html"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
             try r.ctx.stderr.print("function [tmd-to-html] needs one argument.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         };
         if (filePathArg.next != null) {
             try r.ctx.stderr.print("function [tmd-to-html] has too many arguments.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         }
 
@@ -247,10 +251,12 @@ const TemplateFunctions = struct {
     pub fn @"embed-file-content"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
             try r.ctx.stderr.print("function [embed-file-content] needs one argument.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         };
         if (filePathArg.next != null) {
             try r.ctx.stderr.print("function [embed-file-content] has too many arguments.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         }
 
@@ -263,10 +269,12 @@ const TemplateFunctions = struct {
     pub fn @"base64-encode"(r: *const DocRenderer, _: []const u8, args: ?*DocTemplate.Token.Command.Argument) !void {
         const filePathArg = args orelse {
             try r.ctx.stderr.print("function [base64-encode] needs one argument.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         };
         if (filePathArg.next != null) {
             try r.ctx.stderr.print("function [base64-encode] has too many arguments.\n", .{});
+            try r.ctx.stderr.flush();
             return error.TooFewTemplateFunctionArguments;
         }
 

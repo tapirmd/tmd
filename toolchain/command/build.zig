@@ -82,6 +82,7 @@ fn build(ctx: *AppContext, args: []const []const u8, BuilderType: anytype) !void
         switch (result) {
             .invalid => {
                 //try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
+                //try ctx.stderr.flush();
             },
             .registered => {},
             .new => |project| try project.build(ctx, BuilderType),

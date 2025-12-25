@@ -9,8 +9,10 @@ html @html
 @@@ #favicon
 @tmd-favicon
 
-@@@ #project-navigation-article
-nav.tmd
+@@@ #seed-articles
+'''
+index.tmd
+'''
 
 @@@ #html-page-template .path
 tmd.template

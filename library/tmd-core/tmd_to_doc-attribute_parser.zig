@@ -31,7 +31,7 @@ const tmd = @import("tmd.zig");
 
 // Only for ASCII chars in range[0, 127].
 const charPropertiesTable = blk: {
-    var table = [1]packed struct {
+    var table: [128]packed struct {
         canBeFirstInID: bool = false,
         canBeInID: bool = false,
 
@@ -41,7 +41,7 @@ const charPropertiesTable = blk: {
         canBeInLanguageName: bool = false,
 
         canBeInAppName: bool = false,
-    }{.{}} ** 128;
+    } = @splat(.{});
 
     for ('a'..'z' + 1, 'A'..'Z' + 1) |i, j| {
         table[i].canBeFirstInID = true;

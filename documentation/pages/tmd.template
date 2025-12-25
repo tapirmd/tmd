@@ -99,7 +99,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <body>
 
 <nav>
-{{ generate-html nav.tmd }}
+{{ generate-html sidebar.tmd }}
 </nav>
 
 <main>

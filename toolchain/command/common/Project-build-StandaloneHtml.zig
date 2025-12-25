@@ -58,6 +58,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const project = session.project;
                     if (!util.isFileInDir(sourceAbsPath, project.path)) {
                         try session.appContext.stderr.print("Article file must be in project path ({s}): {s}.\n", .{ session.project.path, sourceAbsPath });
+                        try session.appContext.stderr.flush();
                         return error.FileOutOfProject;
                     }
                     const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ "#", sourceAbsPath[project.path.len + 1 ..] });

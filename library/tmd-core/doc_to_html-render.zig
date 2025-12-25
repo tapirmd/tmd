@@ -1095,7 +1095,7 @@ pub const TmdRender = struct {
         const List = list.List(@This());
     };
     const MarkStatusesTracker = struct {
-        markStatusElements: [MarkCount]MarkStatus.List.Element = .{MarkStatus.List.Element{ .value = .{} }} ** MarkCount,
+        markStatusElements: [MarkCount]MarkStatus.List.Element = @splat(.{ .value = .{} }),
         marksStack: MarkStatus.List = .{},
 
         activeLinkInfo: ?*tmd.Token.LinkInfo = null,
@@ -1606,7 +1606,7 @@ pub const TmdRender = struct {
 
         //try w.writeAll("\n<ul class=\"tmd-list tmd-toc\">\n");
 
-        var levelOpened: [tmd.MaxHeaderLevel + 1]bool = .{false} ** (tmd.MaxHeaderLevel + 1);
+        var levelOpened: [tmd.MaxHeaderLevel + 1]bool = @splat(false);
         var numOpenedLevel: usize = 0;
         var lastLevel: u8 = 0;
         var listElement = self.doc.tocHeaders.head;

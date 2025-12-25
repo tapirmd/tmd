@@ -28,11 +28,13 @@ pub const AstDumper = struct {
         const tmdFilePath = switch (args.len) {
             0 => {
                 try ctx.stderr.print("Too few arguments.\n", .{});
+                try ctx.stderr.flush();
                 std.process.exit(1);
             },
             1 => args[0],
             else => {
                 try ctx.stderr.print("Too many arguments.\n", .{});
+                try ctx.stderr.flush();
                 std.process.exit(1);
             },
         };

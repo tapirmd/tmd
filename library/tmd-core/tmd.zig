@@ -43,7 +43,7 @@ pub const Doc = struct {
     tocHeaders: list.List(*Block) = .{},
     titleHeader: ?*Block = null,
     // User should use the headerLevelNeedAdjusted method instead.
-    _headerLevelNeedAdjusted: [MaxHeaderLevel]bool = .{false} ** MaxHeaderLevel,
+    _headerLevelNeedAdjusted: [MaxHeaderLevel]bool = @splat(false),
 
     blocksByID: BlockRedBlack.Tree = .{}, // ToDo: use PatriciaTree to get a better performance
 

@@ -22,7 +22,7 @@ bolockSessionValid: bool = false,
 blockSession: struct {
     atomBlock: *tmd.Block = undefined,
 
-    spanStatuses: [MarkCount]SpanStatus = .{SpanStatus{}} ** MarkCount,
+    spanStatuses: [MarkCount]SpanStatus = @splat(.{}),
     currentTextNumber: u32 = 0,
 
     lastLink: ?*tmd.Link = null, // ignore media links

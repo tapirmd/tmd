@@ -117,7 +117,7 @@ const FormatWriter = struct {
     needExtraIndentUnit: bool = false,
 
     const indentUnit = 3;
-    const spaces = " " ** (tmd.MaxBlockNestingDepth * indentUnit);
+    const spaces: *const [tmd.MaxBlockNestingDepth * indentUnit]u8 = &@splat(' ');
 
     fn data(fw: *const FormatWriter, start: tmd.DocSize, end: tmd.DocSize) []const u8 {
         return fw.tmdDoc.rangeData(.{ .start = start, .end = end });

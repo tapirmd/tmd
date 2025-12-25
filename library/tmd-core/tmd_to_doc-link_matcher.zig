@@ -166,6 +166,10 @@ const InvertedRevisedLinkText = struct {
 
 fn Patricia(comptime TextType: type) type {
     return struct {
+        const rbtree = tree.RedBlack(NodeValue, NodeValue);
+        const Tree = rbtree.Tree;
+        const Node = rbtree.Node;
+
         allocator: std.mem.Allocator,
 
         topTree: Tree = .{},
@@ -175,10 +179,6 @@ fn Patricia(comptime TextType: type) type {
 
         _debugAlloctedNodeCount: usize = 0,
         _debugFreeNodeCount: usize = 0,
-
-        const rbtree = tree.RedBlack(NodeValue, NodeValue);
-        const Tree = rbtree.Tree;
-        const Node = rbtree.Node;
 
         fn init(self: *@This()) void {
             self.topTree.init(&self.nilNode);

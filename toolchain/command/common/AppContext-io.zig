@@ -33,6 +33,7 @@ pub fn getBuiltinFileInfo(ctx: *AppContext, name: []const u8) !BuiltinFileInfo {
         if (std.mem.eql(u8, info.name, name)) return info;
     }
     try ctx.stderr.print("Unknown builtin asset: {s}\n", .{name});
+    try ctx.stderr.flush();
     return error.UnknownBuiltinAsset;
 }
 

@@ -20,7 +20,7 @@ const BaseContext = struct {
     commentedOut: bool,
 
     // !!! here, u6 must be larger than tmd.ListItemTypeIndex.
-    openingListNestingDepths: [tmd.MaxListNestingDepthPerBase]u6 = [_]u6{0} ** tmd.MaxListNestingDepthPerBase,
+    openingListNestingDepths: [tmd.MaxListNestingDepthPerBase]u6 = @splat(0),
     openingListCount: tmd.ListNestingDepthType = 0,
 };
 

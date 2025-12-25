@@ -31,7 +31,7 @@ fn verifyNextSibling(block: *const tmd.Block, nextSibling: ?*const tmd.Block) vo
 }
 
 fn verifyBlockSiblings(tmdDoc: *const tmd.Doc) void {
-    var lastBlocksAtDepths = [1]*const tmd.Block{undefined} ** tmd.MaxBlockNestingDepth;
+    var lastBlocksAtDepths: [tmd.MaxBlockNestingDepth]*const tmd.Block = undefined;
     var currentDepthIndex: u32 = 0;
     var block = tmdDoc.rootBlock();
     std.debug.assert(block.nextSibling() == null);
