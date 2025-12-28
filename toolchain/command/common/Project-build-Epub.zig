@@ -160,6 +160,9 @@ fn writeRemainingFilesInEpub(builder: *@This()) !void {
             lastDepth: usize = 0,
 
             pub fn onEntry(t: *@This(), fullPath: []const u8, dirTitle: ?[]const u8, depth: usize) !void {
+                //const sign = if (dirTitle) |_| "+" else "-";
+                //std.debug.print("{}: {s} {s}\n", .{ depth, sign, fullPath });
+
                 if (depth < t.lastDepth) try t.closeLists(depth);
                 t.lastDepth = depth;
 

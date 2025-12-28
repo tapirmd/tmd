@@ -170,8 +170,11 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     try util.writeFile(null, outputFilename, htmlContent);
 
-    if (false) try ctx.stdout.print(
-        \\{s} ({} bytes)
-        \\
-    , .{ outputFilename, htmlContent.len });
+    if (false) {
+        try ctx.stdout.print(
+            \\{s} ({} bytes)
+            \\
+        , .{ outputFilename, htmlContent.len });
+        try ctx.stdout.flush();
+    }
 }

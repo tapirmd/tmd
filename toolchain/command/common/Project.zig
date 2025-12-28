@@ -78,7 +78,7 @@ pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void
 
     try session.builder.build();
 
-    std.debug.print("Done. Output directory: {s}\n", .{session.buildOutputPath});
+    std.debug.print("Done. Output path: {s}\n", .{session.buildOutputPath});
 }
 
 pub const FilePurpose = enum {
@@ -415,6 +415,8 @@ pub fn BuildSession(BuilderType: type) type {
         }
 
         pub fn renderArticles(session: *@This(), buffer: []u8, tmdRenderResultHandler: anytype) !void {
+            if (session.articleFiles.items.len == 0) return;
+
             var tmdDocRenderer: DocRenderer = .init(
                 session.appContext,
                 session.project.configEx,
@@ -462,7 +464,7 @@ pub fn BuildSession(BuilderType: type) type {
 
             if (session.articleDirEntries) |_| {} else {
                 const T = struct {
-                    articleFiles: std.ArrayList([]const u8),
+                    articleFiles: @TypeOf(session.articleFiles),
                     index: usize = 0,
 
                     pub fn next(self: *@This()) ?[]const u8 {
@@ -478,6 +480,60 @@ pub fn BuildSession(BuilderType: type) type {
                 var dirEntries: DirEntries = try .collectFromFilepaths(session.project.path, &t, session.appContext.allocator, session.arenaAllocator);
                 dirEntries.sort();
                 session.articleDirEntries = dirEntries;
+
+                // re-store articles in sorted order
+
+                const H = struct {
+                    const E = struct {
+                        path: []const u8,
+                        order: usize,
+
+                        fn compare(_: void, x: @This(), y: @This()) bool {
+                            if (x.order < y.order) return true;
+                            if (x.order > y.order) return false;
+                            unreachable;
+                        }
+                    };
+
+                    s: @TypeOf(session),
+                    articles: []E,
+                    index: usize = 0,
+
+                    fn init(s: @TypeOf(session), count: usize) !@This() {
+                        return .{
+                            .s = s,
+                            .articles = try s.appContext.allocator.alloc(E, count),
+                        };
+                    }
+
+                    fn deinit(h: *@This()) void {
+                        h.s.appContext.allocator.free(h.articles);
+                    }
+
+                    pub fn onEntry(h: *@This(), fullPath: []const u8, dirTitle: ?[]const u8, depth: usize) !void {
+                        if (dirTitle != null) return;
+                        _ = depth;
+
+                        h.articles[h.index] = .{
+                            .path = h.s.articleTocTitles.getKey(fullPath) orelse unreachable,
+                            .order = h.index,
+                        };
+                        h.index += 1;
+                    }
+                };
+
+                var h: H = try .init(session, session.articleFiles.items.len);
+                defer h.deinit();
+
+                try dirEntries.iterate(&h);
+                std.debug.assert(h.index == h.articles.len);
+
+                std.sort.pdq(H.E, h.articles, {}, H.E.compare);
+
+                const items = session.articleFiles.items;
+                for (h.articles) |a| {
+                    items[a.order] = a.path;
+                }
             }
         }
 

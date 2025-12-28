@@ -84,6 +84,7 @@ pub const Formatter = struct {
                 \\{s}
                 \\
             , .{outputFilename});
+            try ctx.stdout.flush();
         }
     }
 };

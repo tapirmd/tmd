@@ -23,6 +23,7 @@ This page lists some use cases of TapirMD.
       __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/fundamentals
       __)
+      """
    +  __ Go Optimizations 101
       ``https://go101.org/optimizations/101.html
       __ //::(__ source code
@@ -33,6 +34,7 @@ This page lists some use cases of TapirMD.
       __ //::(__ source code
       ``https://github.com/go101/go101/tree/master/pages/details-and-tips
       __)
+      """
    +  __ Go 101 Apps & Libs
       ``https://go101.org/apps-and-libs/101.html
       __ //::(__ source code

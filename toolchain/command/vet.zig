@@ -27,6 +27,7 @@ pub const Vetter = struct {
 
     pub fn process(ctx: *AppContext, _: []const []const u8) !void {
         try ctx.stdout.print("Not implemented yet.\n", .{});
+        try ctx.stdout.flush();
     }
 };
 
@@ -48,5 +49,6 @@ pub const ProjectVetter = struct {
 
     pub fn process(ctx: *AppContext, _: []const []const u8) !void {
         try ctx.stdout.print("Not implemented yet.\n", .{});
+        try ctx.stdout.flush();
     }
 };
