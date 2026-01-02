@@ -1000,18 +1000,9 @@ The remaining un-parsed texts are ignored.
 Currently, the text after the custom-block-leading mark token
 in the end boundary line of a custom block are all ignored.
 
-If no custom block generators are identified for a custom content type,
-then custom blocks will be ignored during HTML generation.
-Such custom blocks act as comment blocks.
-
-NOTE:
-*. If a custom block is not specified with a content type,
-   then the custom block should be always ignored during HTML generation.
-   This is the recommended way to do block commenting.
-*. If a custom block is specified with a custom content type named as `html`
-   and a custom block generator is identified for the custom content type,
-   then it is recommended to let the custom block generator output exactly
-   the same HTML texts as the texts in the custom block.
+If a custom block is not specified with a content type,
+then the custom block should be always ignored during HTML generation.
+This is the recommended way to do block commenting.
 
 !  ### ⚠ Warning!
    ;;; Be careful when using custom block generators.

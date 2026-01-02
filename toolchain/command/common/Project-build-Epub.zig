@@ -5,7 +5,6 @@ const tmd = @import("tmd");
 const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
-const DocRenderer = @import("DocRenderer.zig");
 const Project = @import("Project.zig");
 const Config = @import("Config.zig");
 const gen = @import("gen.zig");

@@ -23,8 +23,8 @@ const Project = @This();
 
 path: []const u8,
 
-// .configEx.path might be "" (for default config),
-// path of tmd.workspace, or path of tmd.project.
+// .configEx.path might be "" (for default config)
+// if default config is not found and no non-default config is specified.
 configEx: *AppContext.ConfigEx,
 
 // If tmd.workspace file is not found in self+ancestor directories,
@@ -473,13 +473,22 @@ pub fn BuildSession(BuilderType: type) type {
                         defer self.index += 1;
                         return self.articleFiles.items[self.index];
                     }
+
+                    pub fn reset(self: *@This()) void {
+                        self.index = 0;
+                    }
                 };
 
                 var t: T = .{ .articleFiles = session.articleFiles };
 
                 var dirEntries: DirEntries = try .collectFromFilepaths(session.project.path, &t, session.appContext.allocator, session.arenaAllocator);
+                defer session.articleDirEntries = dirEntries;
+
+                if (true) return;
+
+                // unnecessary ...
+
                 dirEntries.sort();
-                session.articleDirEntries = dirEntries;
 
                 // re-store articles in sorted order
 
@@ -596,7 +605,7 @@ pub fn BuildSession(BuilderType: type) type {
                                 try handler.session.appContext.stderr.flush();
                                 return error.DocOtherThanTmdNotSupportedNow;
                             },
-                            .png, .gif, .jpg, .jpeg => {
+                            .png, .gif, .jpg, .jpeg, .ico => {
                                 var pa: util.PathAllocator = .{};
                                 const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
                                 break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .images), "" };

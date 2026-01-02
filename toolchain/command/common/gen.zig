@@ -265,7 +265,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                     .txt, .html, .htm, .xhtml, .css, .js => {
                         // keep as is.
                     },
-                    .png, .gif, .jpg, .jpeg => {
+                    .png, .gif, .jpg, .jpeg, .ico => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);

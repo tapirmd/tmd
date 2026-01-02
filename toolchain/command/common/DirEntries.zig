@@ -77,6 +77,7 @@ pub fn collectFromRootDir(absPath: []const u8, allocator: std.mem.Allocator, fil
 // Assume that filepaths have be checked with isValidArticlePath.
 pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, localAllocator: std.mem.Allocator, allocator: std.mem.Allocator) !DirEntries {
     const EntryInfo = struct {
+        index: usize,
         name: []const u8,
         childCount: usize = 0,
         parent: ?*@This() = null, // null means this is a child of top
@@ -96,9 +97,11 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
     // pass 1
 
     var topEntryInfo: EntryInfo = .{
+        .index = undefined,
         .name = rootPath,
     };
 
+    var entryCount: usize = 0;
     while (absPathIterator.next()) |absPath| {
         if (!std.mem.startsWith(u8, absPath, rootPath)) unreachable;
         std.debug.assert(absPath.len > rootPath.len);
@@ -132,10 +135,12 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
             } else if (isDirectory) {
                 const infoPtr = try localAllocator.create(EntryInfo);
                 infoPtr.* = .{
+                    .index = entryCount,
                     .name = name,
                     .childCount = 1,
                     .children = &.{},
                 };
+                entryCount += 1;
                 r.value_ptr.* = infoPtr;
                 if (newChild) |child| {
                     std.debug.assert(child.parent == null);
@@ -145,8 +150,10 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
             } else {
                 const infoPtr = try localAllocator.create(EntryInfo);
                 infoPtr.* = .{
+                    .index = entryCount,
                     .name = name,
                 };
+                entryCount += 1;
                 r.value_ptr.* = infoPtr;
                 std.debug.assert(newChild == null);
                 newChild = infoPtr;
@@ -160,6 +167,11 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
 
     // pass 2
 
+    var entryInfoList: std.ArrayList(*EntryInfo) = .empty;
+    try entryInfoList.ensureTotalCapacityPrecise(localAllocator, entryCount);
+    defer entryInfoList.deinit(localAllocator);
+    entryInfoList.expandToCapacity();
+
     topEntryInfo.children = try allocator.alloc(Entry, topEntryInfo.childCount);
     topEntryInfo.childCount = 0;
 
@@ -170,6 +182,7 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
             infoPtr.children = try allocator.alloc(Entry, infoPtr.childCount);
             infoPtr.childCount = 0;
         }
+        entryInfoList.items[infoPtr.index] = infoPtr;
     }
 
     // pass 3
@@ -179,9 +192,10 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
         .children = topEntryInfo.children,
     };
 
-    it = pathToEntries.valueIterator();
-    while (it.next()) |infoPtrPtr| {
-        const infoPtr = infoPtrPtr.*;
+    //it = pathToEntries.valueIterator();
+    //while (it.next()) |infoPtrPtr| {
+    //    const infoPtr = infoPtrPtr.*;
+    for (entryInfoList.items) |infoPtr| {
         if (infoPtr.parent) |parent| {
             if (parent.children) |children| {
                 std.debug.assert(parent.childCount < children.len);
@@ -234,14 +248,22 @@ pub fn sort(de: *DirEntries) void {
 
 fn iterateDirEntry(dirEntry: Entry, buffer: []u8, k: usize, handler: anytype, depth: usize) !void {
     if (dirEntry.children) |children| {
-        for (children) |child| if (child.isNonBlank) {
+        var handled = false;
+        for (children, 0..) |child, index| if (child.isNonBlank) {
             const i = k + child.name.len;
             @memcpy(buffer[k..i], child.name);
             if (child.children) |cc| {
-                try handler.onEntry(buffer[0..i], child.title, depth);
+                // If this folder is the only child of its parent, don't handle it.
+                if (handled or index < children.len - 1) {
+                    try handler.onEntry(buffer[0..i], child.title, depth);
+                    handled = true;
+                }
                 buffer[i] = std.fs.path.sep;
-                if (cc.len > 0) try iterateDirEntry(child, buffer, i + 1, handler, depth + 1);
-            } else try handler.onEntry(buffer[0..i], null, depth);
+                if (cc.len > 0) try iterateDirEntry(child, buffer, i + 1, handler, if (handled) depth + 1 else depth);
+            } else {
+                try handler.onEntry(buffer[0..i], null, depth);
+                handled = true;
+            }
         };
     } else unreachable;
 }
@@ -284,12 +306,17 @@ const Entry = struct {
     name: []const u8,
     children: ?[]Entry = null, // null means this is a file entry
     isNonBlank: bool = true, // for files, it must be true.
+    nonBlockFolderChildren: usize = 0,
 
     title: []const u8 = undefined,
 
     fn compare(_: void, x: @This(), y: @This()) bool {
         if (x.children) |_| {
-            if (y.children) |_| return compareNames(x, y) else return false;
+            if (y.children) |_| {
+                if (x.isNonBlank != y.isNonBlank) return y.isNonBlank;
+
+                return compareNames(x, y);
+            } else return false;
         } else if (y.children) |_| {
             return true;
         } else return compareNames(x, y);

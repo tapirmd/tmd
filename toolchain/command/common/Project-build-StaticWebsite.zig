@@ -5,7 +5,6 @@ const tmd = @import("tmd");
 const list = @import("list");
 
 const AppContext = @import("AppContext.zig");
-const DocRenderer = @import("DocRenderer.zig");
 const Project = @import("Project.zig");
 const Config = @import("Config.zig");
 const gen = @import("gen.zig");
@@ -138,15 +137,17 @@ pub fn makeCachedArticleContent(builder: *@This(), targetFilePath: []const u8, h
 //     and use the files in a generated navigation file.
 // If "project-navigation-file" is specified and the file doesn't reference any doc file,
 //     iterate all tmd files in project dir and append the files to the navigation file.
+// (update: the navigation file concept is cancelled.)
 
 // Referencing articles outside project dir is a broken-link.
+// (update: fatal error now.)
 
 // Missing referenced assets is not a fatal error.
 
 // Directories which paths (relative to workspace) containing "@xxx" is ignored in tmd file scanning.
 
-// If the workspace directory is not found, then the project directory is viewed as the workspace directory.
+// If workspace directory is not found, then the specified directory is viewed as a workspace.
 
-// Missing tmd.project file will make a default one (Project title is defaulted to the containing directory name).
+// Project title is defaulted to the containing directory name.
 
 // Project name is generated from project title and config file name.

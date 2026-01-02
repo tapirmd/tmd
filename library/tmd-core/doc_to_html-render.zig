@@ -14,6 +14,9 @@ pub const GenOptions = struct {
     identSuffix: []const u8 = "", // for forum posts etc. To avoid id duplications.
     autoIdentSuffix: []const u8 = "", // to avoid some auto id duplication. Should only be used when identPrefix is blank.
 
+    // ToDo:
+    // staticLayout: bool = false, // true for epub/print etc.
+
     // more render switches
     // enabled_style_xxx: bool,
     // ignoreClasses: bool = false, // for forum posts etc.

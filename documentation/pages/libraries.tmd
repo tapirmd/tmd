@@ -49,6 +49,8 @@ Here is __an example Zig project__ which uses the TapirMD Zig library.
 
     === an example Zig project :: https://github.com/tapirmd/lib-use-examples/tree/master/zig
 
+!  Note: The APIs in the Zig library are still not stable yet.
+
 @@@ #wasm-lib
 ###-------- The WASM library
 

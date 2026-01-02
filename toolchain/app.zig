@@ -24,7 +24,7 @@ const Command = union(enum) {
 
     build: build.StaticWebsiteBuilder,
     @"build-epub": build.EpubBuilder,
-    @"build-standalone-html": build.StandaloneHtmlBuilder,
+    //@"build-standalone-html": build.StandaloneHtmlBuilder,
 
     //run: run.Runner,
 

@@ -58,7 +58,9 @@ const charPropertiesTable = blk: {
     }
 
     for ('0'..'9' + 1) |i| {
+        table[i].canBeFirstInID = true; // loose the rule
         table[i].canBeInID = true;
+        table[i].canBeFirstInClassName = true; // loose the rule
         table[i].canBeInClassName = true;
     }
 
@@ -767,6 +769,7 @@ pub const Extension = enum {
     gif,
     jpg,
     jpeg,
+    ico,
 
     css,
     js,
@@ -826,6 +829,7 @@ const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]ExtensionInfo = .{
     .{ .ext = .gif, .mime = "image/gif", .isImage = true, .canBeUsedAsURL = true },
     .{ .ext = .jpg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
     .{ .ext = .jpeg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
+    .{ .ext = .ico, .mime = "image/x-icon", .isImage = true, .canBeUsedAsURL = true },
 
     // ToDo: also support canBeUsedAsURL/
     //       Or never. Only support .css.txt, .js.txt, ....
