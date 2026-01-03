@@ -331,7 +331,7 @@ pub const Link = struct {
 };
 
 pub const BaseBlockAttibutes = struct {
-    commentedOut: bool = false, // ToDo: use Range
+    undisplayed: bool = false, // ToDo: use Range
     horizontalAlign: enum {
         none,
         left,
@@ -350,7 +350,7 @@ pub const BaseBlockAttibutes = struct {
 };
 
 pub const CodeBlockAttibutes = struct {
-    commentedOut: bool = false, // ToDo: use Range
+    undisplayed: bool = false, // ToDo: use Range
     language: []const u8 = "", // ToDo: use Range
     // ToDo
     // startLineNumber: u32 = 0, // +n, +0 means not show line numbers
@@ -362,7 +362,7 @@ pub const ContentStreamAttributes = struct {
 };
 
 pub const CustomBlockAttibutes = struct {
-    commentedOut: bool = false,
+    undisplayed: bool = false,
     contentType: []const u8 = "",
     //arguments: []const []const u8 = "",
     // The last argument is the content in the following custom block.
@@ -1237,18 +1237,18 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 //     tag: struct {
 //        _: uN,
 //        _type: enum(uM) { // M == 16*8 - N
-//            content,
-//            commentText,
+//            plainText,
+//            evenBackticks,
 //            ...
 //        },
 //     },
-//     content: ...,
-//     commentText: ...,
+//     plainText: ...,
+//     evenBackticks: ...,
 
 pub const Token = union(enum) {
     // Same results as using std.meta.TagPayload(Token, .XXX)
-    pub const PlainText = @FieldType(Token, "plaintext");
-    pub const CommentText = @FieldType(Token, "commentText");
+    pub const PlainText = @FieldType(Token, "plainText");
+    //pub const InvisibleText = @FieldType(Token, "invisibleText");
     pub const EvenBackticks = @FieldType(Token, "evenBackticks");
     pub const SpanMark = @FieldType(Token, "spanMark");
     pub const LinkInfo = @FieldType(Token, "linkInfo");
@@ -1257,7 +1257,7 @@ pub const Token = union(enum) {
     pub const LineTypeMark = @FieldType(Token, "lineTypeMark");
     pub const Extra = @FieldType(Token, "extra");
 
-    plaintext: struct {
+    plainText: struct {
         start: DocSize,
 
         more: packed struct {
@@ -1265,20 +1265,19 @@ pub const Token = union(enum) {
             // But it is good to keep it here, to verify the this value is the same as ....
             textLen: DocSize,
 
+            undisplayed: bool = false,
             followedByLineEndSpaceInLink: bool = false,
         },
 
         // The last one might be a URL source of a self-defined link.
-        // Might be .plaintext or .evenBackticks.
+        // Might be .plainText or .evenBackticks.
         nextInLink: ?*Token = null,
     },
-    commentText: struct {
-        start: DocSize,
-        // The value should be the same as the end of line.
-        end: DocSize,
-
-        inAttributesLine: bool, // ToDo: don't use commentText tokens for attributes lines.
-    },
+    //invisibleText: struct {
+    //    start: DocSize,
+    //    // The value should be the same as the end of line.
+    //    end: DocSize,
+    //},
     // ToDo: follow a .media LineSpanMarkType.
     //mediaInfo: struct {
     //    attrs: *MediaAttributes,
@@ -1301,7 +1300,7 @@ pub const Token = union(enum) {
         },
 
         // The last one might be a URL source of a self-defined link.
-        // Might be content or evenBackticks.
+        // Might be plainText or evenBackticks.
         nextInLink: ?*Token = null,
     },
     spanMark: struct {
@@ -1343,9 +1342,6 @@ pub const Token = union(enum) {
             markLen: u2, // ToDo: remove it? It must be 2 now.
             markType: LineSpanMarkType,
 
-            // when isBare is false,
-            // * for .media, if it is not bare, the next two tokens are .linkInfo and .plaintext tokens.
-            // * for .comment and .anchor, the next token is a .commentText token.
             isBare: bool = false,
         },
 
@@ -1426,10 +1422,10 @@ pub const Token = union(enum) {
 
     pub fn end(self: *const @This()) DocSize {
         switch (self.*) {
-            .commentText => |t| {
-                return t.end;
-            },
-            .plaintext => |t| {
+            //.invisibleText => |t| {
+            //    return t.end;
+            //},
+            .plainText => |t| {
                 return t.start + t.more.textLen;
             },
             .evenBackticks => |s| {
@@ -1487,14 +1483,14 @@ pub const Token = union(enum) {
 
     pub fn nextContentTokenInLink(self: *const @This()) ?*const Token {
         return switch (self.*) {
-            inline .plaintext, .evenBackticks => |t| t.nextInLink,
+            inline .plainText, .evenBackticks => |t| t.nextInLink,
             else => unreachable,
         };
     }
 
     pub fn followedByLineEndSpaceInLink(self: *const @This()) bool {
         return switch (self.*) {
-            inline .plaintext, .evenBackticks => |t| t.more.followedByLineEndSpaceInLink,
+            inline .plainText, .evenBackticks => |t| t.more.followedByLineEndSpaceInLink,
             else => unreachable,
         };
     }
@@ -1538,7 +1534,7 @@ pub const SpanMarkType = enum(u4) {
 // used in usual blocks:
 pub const LineSpanMarkType = enum(u3) {
     lineBreak, // \\
-    comment, // //
+    undisplayed, // %% (called comment before)
     media, // &&
     escape, // !!
     spoiler, // ??

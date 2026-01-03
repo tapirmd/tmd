@@ -362,7 +362,7 @@ and they must be in the following order (from top to bottom) if present:
 '''
 
 Here,
-*  `%%` means the explciit base block is commented out and will not be rendered in HTML output.
+*  `%%` means the explciit base block is undisplayed (not rendered) in HTML output.
    However, the internal of the explciit base block will still be parsed.
 *  `<< >> >< <>` are four text horizontal alignment tokens. At most one of them can present.
    {
@@ -595,15 +595,11 @@ Here is the list of all line-leading mark tokens supported now.
    A line-break token which is equivalent to `<br>` in HTML.
    }
    ----------------
-   ### //line-comment token
+   ### //undisplayed token
    ;;; ^`%%`
    {
-   Within the containig line (called a //**comment line**//),
-   the text following the perceivable blank token is mark-escaped
-   unless it exhibits the characteristics of a link definition.
-   Link definitions are specified in a following section.
-
-   Texts on comment lines are not interpreted as plain-text tokens.
+   Within the containig line (called a //**undisplayed line**//),
+   the text following the perceivable blank token is mark-escaped.
    }
 
 Line-leading mark tokens take higher precedence over all non-line-leading mark tokens.
@@ -926,7 +922,7 @@ language
 '''
 
 Here,
-*  `%%` means the code block is commented out and will not be rendered in HTML output.
+*  `%%` means the code block is undisplayed (not rendered) in HTML output.
 *  `language` means a programming language name, such as `zig`, `c`, `go`, etc.
    HTML renderers may use the language name to add class names for the code block.
 
@@ -987,7 +983,7 @@ arguments-of-custom-block-generator
 '''
 
 Here,
-*  `%%` means the custom block is commented out and will not be rendered in HTML output.
+*  `%%` means the custom block is undisplayed (not rendered) in HTML output.
 *  `content-type` means the content type of the custom block.
    It is used to identify which custom block generator will be used to generate HTML
    the custom block.

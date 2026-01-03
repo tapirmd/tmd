@@ -35,7 +35,7 @@ test "span contents" {
                             self.opening = true;
                         }
                     },
-                    .plaintext => if (self.opening) {
+                    .plainText => |plainText| if (!plainText.more.undisplayed and self.opening) {
                         try self.buffer.append(doc.rangeData(token.range()));
                     },
                     .evenBackticks => |m| if (self.opening) {

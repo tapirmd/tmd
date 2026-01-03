@@ -250,7 +250,7 @@ test "parse_element_attributes" {
 pub fn parse_base_block_open_playload(playload: []const u8) tmd.BaseBlockAttibutes {
     var attrs = tmd.BaseBlockAttibutes{};
 
-    const commentedOut = std.meta.fieldIndex(tmd.BaseBlockAttibutes, "commentedOut").?;
+    const undisplayed = std.meta.fieldIndex(tmd.BaseBlockAttibutes, "undisplayed").?;
     const horizontalAlign = std.meta.fieldIndex(tmd.BaseBlockAttibutes, "horizontalAlign").?;
     const verticalAlign = std.meta.fieldIndex(tmd.BaseBlockAttibutes, "verticalAlign").?;
     const cellSpans = std.meta.fieldIndex(tmd.BaseBlockAttibutes, "cellSpans").?;
@@ -263,14 +263,14 @@ pub fn parse_base_block_open_playload(playload: []const u8) tmd.BaseBlockAttibut
         if (item.len != 0) {
             switch (item[0]) {
                 '%' => {
-                    if (lastOrder >= commentedOut) break;
-                    defer lastOrder = commentedOut;
+                    if (lastOrder >= undisplayed) break;
+                    defer lastOrder = undisplayed;
 
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
                         if (c != '%') break :parse;
                     }
-                    attrs.commentedOut = true;
+                    attrs.undisplayed = true;
                     return attrs;
                 },
                 '>', '<' => {
@@ -345,13 +345,13 @@ test "parse_base_block_open_playload" {
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\%% >> ^^ ..2:3
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = true,
+        .undisplayed = true,
     });
 
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\>> ^^ ..2:3
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .horizontalAlign = .right,
         .verticalAlign = .top,
         .cellSpans = .{
@@ -363,7 +363,7 @@ test "parse_base_block_open_playload" {
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\>< :3
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .horizontalAlign = .center,
         .verticalAlign = .none,
         .cellSpans = .{
@@ -375,7 +375,7 @@ test "parse_base_block_open_playload" {
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\^^ ..2
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .horizontalAlign = .none,
         .verticalAlign = .top,
         .cellSpans = .{
@@ -387,21 +387,21 @@ test "parse_base_block_open_playload" {
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\<>
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .horizontalAlign = .justify,
     });
 
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\<<
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .horizontalAlign = .left,
     });
 
     try std.testing.expectEqualDeep(parse_base_block_open_playload(
         \\^^ <<
     ), tmd.BaseBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .verticalAlign = .top,
     });
 }
@@ -409,7 +409,7 @@ test "parse_base_block_open_playload" {
 pub fn parse_code_block_open_playload(playload: []const u8) tmd.CodeBlockAttibutes {
     var attrs = tmd.CodeBlockAttibutes{};
 
-    const commentedOut = std.meta.fieldIndex(tmd.CodeBlockAttibutes, "commentedOut").?;
+    const undisplayed = std.meta.fieldIndex(tmd.CodeBlockAttibutes, "undisplayed").?;
     //const language = std.meta.fieldIndex(tmd.CodeBlockAttibutes, "language").?;
 
     const lastOrder: isize = -1;
@@ -420,13 +420,13 @@ pub fn parse_code_block_open_playload(playload: []const u8) tmd.CodeBlockAttibut
         if (item.len != 0) {
             switch (item[0]) {
                 '%' => {
-                    if (lastOrder >= commentedOut) break;
+                    if (lastOrder >= undisplayed) break;
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
                         if (c != '%') break :parse;
                     }
-                    attrs.commentedOut = true;
-                    //lastOrder = commentedOut;
+                    attrs.undisplayed = true;
+                    //lastOrder = undisplayed;
                     return attrs;
                 },
                 else => {
@@ -456,28 +456,28 @@ test "parse_code_block_open_playload" {
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
         \\%% 
     ), tmd.CodeBlockAttibutes{
-        .commentedOut = true,
+        .undisplayed = true,
         .language = "",
     });
 
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
         \\%% zig
     ), tmd.CodeBlockAttibutes{
-        .commentedOut = true,
+        .undisplayed = true,
         .language = "",
     });
 
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
         \\zig
     ), tmd.CodeBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .language = "zig",
     });
 
     try std.testing.expectEqualDeep(parse_code_block_open_playload(
         \\zig bla bla bla ...
     ), tmd.CodeBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .language = "zig",
     });
 }
@@ -540,7 +540,7 @@ test "parse_code_block_close_playload" {
 pub fn parse_custom_block_open_playload(playload: []const u8) tmd.CustomBlockAttibutes {
     var attrs = tmd.CustomBlockAttibutes{};
 
-    const commentedOut = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "commentedOut").?;
+    const undisplayed = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "undisplayed").?;
     //const contentType = std.meta.fieldIndex(tmd.CustomBlockAttibutes, "contentType").?;
 
     const lastOrder: isize = -1;
@@ -551,13 +551,13 @@ pub fn parse_custom_block_open_playload(playload: []const u8) tmd.CustomBlockAtt
         if (item.len != 0) {
             switch (item[0]) {
                 '%' => {
-                    if (lastOrder >= commentedOut) break;
+                    if (lastOrder >= undisplayed) break;
                     if (item.len == 1) break;
                     for (item[1..]) |c| {
                         if (c != '%') break :parse;
                     }
-                    attrs.commentedOut = true;
-                    //lastOrder = commentedOut;
+                    attrs.undisplayed = true;
+                    //lastOrder = undisplayed;
                     return attrs;
                 },
                 else => {
@@ -588,28 +588,28 @@ test "parse_custom_block_open_playload" {
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\%% 
     ), tmd.CustomBlockAttibutes{
-        .commentedOut = true,
+        .undisplayed = true,
         .contentType = "",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\%% html
     ), tmd.CustomBlockAttibutes{
-        .commentedOut = true,
+        .undisplayed = true,
         .contentType = "",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\html
     ), tmd.CustomBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .contentType = "html",
     });
 
     try std.testing.expectEqualDeep(parse_custom_block_open_playload(
         \\html bla bla bla ...
     ), tmd.CustomBlockAttibutes{
-        .commentedOut = false,
+        .undisplayed = false,
         .contentType = "html",
     });
 }

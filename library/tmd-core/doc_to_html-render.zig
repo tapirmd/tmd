@@ -260,7 +260,7 @@ pub const TmdRender = struct {
             },
             .base => |*base| {
                 const attrs = base.attributes();
-                if (attrs.commentedOut) break :handle;
+                if (attrs.undisplayed) break :handle;
 
                 const tag = "div";
                 const classes = switch (attrs.horizontalAlign) {
@@ -603,13 +603,13 @@ pub const TmdRender = struct {
             },
             .code => |*code| {
                 const attrs = code.attributes();
-                if (!attrs.commentedOut) {
+                if (!attrs.undisplayed) {
                     try self.writeCodeBlockLines(w, block, attrs);
                 }
             },
             .custom => |*custom| {
                 const attrs = custom.attributes();
-                if (attrs.contentType.len > 0 and !attrs.commentedOut) {
+                if (attrs.contentType.len > 0 and !attrs.undisplayed) {
                     try self.writeCustomBlock(w, block, attrs);
                 }
             },
@@ -675,7 +675,7 @@ pub const TmdRender = struct {
                     .blank => unreachable,
                     .attributes => break :check,
                     .seperator => break :check,
-                    .base => |base| if (base.attributes().commentedOut) break :check,
+                    .base => |base| if (base.attributes().undisplayed) break :check,
                     else => std.debug.assert(child.isAtom()),
                 }
 
@@ -713,7 +713,7 @@ pub const TmdRender = struct {
                     },
                     .base => |base| blk: {
                         const attrs = base.attributes();
-                        if (attrs.commentedOut) break :handle;
+                        if (attrs.undisplayed) break :handle;
                         break :blk .{ attrs.cellSpans.crossSpan, attrs.cellSpans.axisSpan };
                     },
                     else => .{ 1, 1 },
@@ -981,7 +981,7 @@ pub const TmdRender = struct {
         std.debug.assert(block.blockType == .code);
 
         //std.debug.print("\n==========\n", .{});
-        //std.debug.print("commentedOut: {}\n", .{attrs.commentedOut});
+        //std.debug.print("undisplayed: {}\n", .{attrs.undisplayed});
         //std.debug.print("language: {s}\n", .{@tagName(attrs.language)});
         //std.debug.print("==========\n", .{});
 
@@ -1143,8 +1143,11 @@ pub const TmdRender = struct {
             while (element) |tokenElement| {
                 const token = &tokenElement.value;
                 switch (token.*) {
-                    inline .commentText, .extra, .lineTypeMark, .containerMark => {},
-                    .plaintext => blk: {
+                    //inline .invisibleText, .extra, .lineTypeMark, .containerMark => {},
+                    inline .extra, .lineTypeMark, .containerMark => {},
+                    .plainText => |plainText| blk: {
+                        std.debug.assert(!plainText.more.undisplayed);
+
                         if (tracker.activeLinkInfo) |linkInfo| {
                             const link = linkInfo.link;
                             const url = link.url orelse unreachable;
@@ -1327,7 +1330,15 @@ pub const TmdRender = struct {
                                 );
                                 isNonBareSpoilerLine = true;
                             },
-                            .comment => break,
+                            .undisplayed => {
+                                if (builtin.mode == .Debug and !m.more.isBare) {
+                                    const plainTextElement = tokenElement.next.?;
+                                    const plainTextToken = &plainTextElement.value;
+
+                                    std.debug.assert(plainTextToken.plainText.more.undisplayed);
+                                }
+                                break; // skip this line
+                            },
                             .media => blk: {
                                 if (m.more.isBare) {
                                     //try w.writeAll(" "); // uncessary. Medias are not surrounded spaces automatically.
@@ -1367,7 +1378,7 @@ pub const TmdRender = struct {
                                     }
                                 }
 
-                                std.debug.assert(linkInfoElement.next.?.value == .plaintext);
+                                std.debug.assert(linkInfoElement.next.?.value == .plainText);
                                 element = linkInfoElement.next.?.next; // skip the media specification text token
                                 continue;
                             },

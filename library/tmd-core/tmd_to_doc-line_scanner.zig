@@ -53,7 +53,7 @@ pub const bytesKindTable = blk: {
     table['\t'] = .{ .blank = .{ .isSpace = true } };
 
     table['\\'] = .{ .leadingSpanMark = .lineBreak };
-    table['%'] = .{ .leadingSpanMark = .comment };
+    table['%'] = .{ .leadingSpanMark = .undisplayed };
     table['&'] = .{ .leadingSpanMark = .media };
     table['!'] = .{ .leadingSpanMark = .escape };
     table['?'] = .{ .leadingSpanMark = .spoiler };

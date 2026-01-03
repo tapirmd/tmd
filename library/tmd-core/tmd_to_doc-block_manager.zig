@@ -17,7 +17,7 @@ baseCount_1: tmd.BlockNestingDepthType = 0,
 
 const BaseContext = struct {
     nestingDepth: tmd.BlockNestingDepthType,
-    commentedOut: bool,
+    undisplayed: bool,
 
     // !!! here, u6 must be larger than tmd.ListItemTypeIndex.
     openingListNestingDepths: [tmd.MaxListNestingDepthPerBase]u6 = @splat(0),
@@ -37,7 +37,7 @@ pub fn start(root: *tmd.Block, doc: *tmd.Doc) BlockArranger {
     s.stackedBlocks[0] = root;
     s.openingBaseBlocks[0] = BaseContext{
         .nestingDepth = 0,
-        .commentedOut = false,
+        .undisplayed = false,
     };
     s.stackedBlocks[s.count_1] = root; // fake first child (for implementation convenience)
     return s;
@@ -61,7 +61,7 @@ pub fn canCloseBaseBlock(self: *const BlockArranger) bool {
     return self.baseCount_1 > 0;
 }
 
-pub fn openBaseBlock(self: *BlockArranger, newBaseBlock: *tmd.Block, firstInContainer: bool, commentedOut: bool) !void {
+pub fn openBaseBlock(self: *BlockArranger, newBaseBlock: *tmd.Block, firstInContainer: bool, undisplayed: bool) !void {
     std.debug.assert(newBaseBlock.blockType == .base);
 
     if (!self.canOpenBaseBlock()) return error.NestingDepthTooLarge;
@@ -83,11 +83,11 @@ pub fn openBaseBlock(self: *BlockArranger, newBaseBlock: *tmd.Block, firstInCont
         }
     }
 
-    const newCommentedOut = commentedOut or self.openingBaseBlocks[self.baseCount_1].commentedOut;
+    const newCommentedOut = undisplayed or self.openingBaseBlocks[self.baseCount_1].undisplayed;
     self.baseCount_1 += 1;
     self.openingBaseBlocks[self.baseCount_1] = BaseContext{
         .nestingDepth = self.count_1,
-        .commentedOut = newCommentedOut,
+        .undisplayed = newCommentedOut,
     };
 
     self.count_1 += 1;
@@ -145,8 +145,8 @@ pub fn stackAsChildOfBase(self: *BlockArranger, block: *tmd.Block) !void {
     self.stackedBlocks[self.count_1] = block;
 }
 
-pub fn shouldHeaderChildBeInTOC(self: *BlockArranger) bool {
-    return self.stackedBlocks[self.count_1].nestingDepth - 1 == self.baseCount_1 and !self.openingBaseBlocks[self.baseCount_1].commentedOut;
+pub fn shouldHeaderChildBeInTOC(self: *BlockArranger, titleNotDeterminedYet: bool) bool {
+    return self.stackedBlocks[self.count_1].nestingDepth - 1 == self.baseCount_1 and (titleNotDeterminedYet or !self.openingBaseBlocks[self.baseCount_1].undisplayed);
 }
 
 pub fn stackContainerBlock(self: *BlockArranger, block: *tmd.Block) !void {

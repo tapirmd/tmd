@@ -61,7 +61,7 @@ favicon: ?union(enum) {
 } = null,
 
 // Default to a temp file referencing all .tmd files in project-dir.
-@"seed-articles": ?union(enum) {
+@"project-seed-articles": ?union(enum) {
     data: []const u8, // containing paths relative to the containing config file
     _parsed: list.List([]const u8), // relative to project dir
 } = null,

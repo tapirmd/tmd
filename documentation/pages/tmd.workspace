@@ -9,7 +9,7 @@ html @html
 @@@ #favicon
 @tmd-favicon
 
-@@@ #seed-articles
+@@@ #project-seed-articles
 '''
 index.tmd
 '''

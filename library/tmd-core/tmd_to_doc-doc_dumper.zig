@@ -90,18 +90,19 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
                         std.debug.assert(token.end() == token.end2(line));
 
                         switch (token.*) {
-                            .commentText => {
-                                std.debug.print("|{}-{}: [{s}]", .{
+                            //.invisibleText => {
+                            //    std.debug.print("|{}-{}: [{s}]", .{
+                            //        token.start() - line.start(.none) + 1,
+                            //        token.end() - line.start(.none) + 1,
+                            //        token.typeName(),
+                            //    });
+                            //},
+                            .plainText => |t| {
+                                std.debug.print("|{}-{}: [{s}]{s}", .{
                                     token.start() - line.start(.none) + 1,
                                     token.end() - line.start(.none) + 1,
                                     token.typeName(),
-                                });
-                            },
-                            .plaintext => {
-                                std.debug.print("|{}-{}: [{s}]", .{
-                                    token.start() - line.start(.none) + 1,
-                                    token.end() - line.start(.none) + 1,
-                                    token.typeName(),
+                                    if (t.more.undisplayed) " (undisplayed)" else "",
                                 });
                             },
                             .leadingSpanMark => |m| {

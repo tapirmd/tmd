@@ -117,11 +117,12 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
     };
 
     const lineTypeToken = line.lineTypeMarkToken() orelse unreachable;
-    const commentToken = lineTypeToken.next() orelse return;
-    if (commentToken.* != .commentText) return;
-    std.debug.assert(commentToken.next() == null);
-    const comment = parser.tmdDoc.rangeData(commentToken.range());
-    const attrs = AttributeParser.parse_element_attributes(comment);
+    const textToken = lineTypeToken.next() orelse return;
+    //if (textToken.* != .invisibleText) return;
+    if (textToken.* != .plainText) return;
+    std.debug.assert(textToken.next() == null);
+    const attrText = parser.tmdDoc.rangeData(textToken.range());
+    const attrs = AttributeParser.parse_element_attributes(attrText);
 
     //if (forBulletContainer) {
     //    std.debug.assert(parser.nextElementAttributes == null);
@@ -165,10 +166,13 @@ fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
                 if (headerBlock.blockType.header.isBare()) break :handle;
 
                 const level = headerBlock.blockType.header.level(parser.tmdDoc.data);
-                if (level == 1) {
-                    if (parser.tmdDoc.titleHeader == null) {
-                        parser.tmdDoc.titleHeader = headerBlock;
-                        break :handle;
+                
+                if (parser.tmdDoc.tocHeaders.empty()) {
+                    if (level == 1) {
+                        if (parser.tmdDoc.titleHeader == null) {
+                            parser.tmdDoc.titleHeader = headerBlock;
+                            break :handle;
+                        }
                     }
                 }
 
@@ -597,7 +601,7 @@ fn parse(parser: *DocParser) !void {
                             };
                         }
 
-                        try blockArranger.openBaseBlock(baseBlock, hasContainerMark, attrs.commentedOut);
+                        try blockArranger.openBaseBlock(baseBlock, hasContainerMark, attrs.undisplayed);
 
                         try parser.setEndLineForAtomBlock(currentAtomBlock);
                         currentAtomBlock = baseBlock;
@@ -796,7 +800,7 @@ fn parse(parser: *DocParser) !void {
                     currentAtomBlock = headerBlock;
                     atomBlockCount += 1;
 
-                    if (blockArranger.shouldHeaderChildBeInTOC()) {
+                    if (blockArranger.shouldHeaderChildBeInTOC(isFirstLevel and parser.tmdDoc.titleHeader == null)) {
                         // Will use the info in setEndLineForAtomBlock.
                         // Note: whether or not headerBlock is empty can't be determined now.
                         parser.pendingTocHeaderBlock = headerBlock;

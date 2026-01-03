@@ -90,6 +90,29 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
+        \\__
+        \\&& foo.png
+        \\%% bar
+        \\===...bar``https://go101.org
+        \\
+    , &.{
+        "https://go101.org",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\__ this
+        \\%% -1
+        \\__ and __this
+        \\%% -2
+        \\===this-2``https://go101.org
+        \\===this-1``https://tapirgames.com
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://go101.org",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
         \\__foo__
         \\===foo``https://go101.org
         \\

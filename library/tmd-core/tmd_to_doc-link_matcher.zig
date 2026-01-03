@@ -26,7 +26,7 @@ pub fn init(doc: *tmd.Doc) LinkMatcher {
 
 fn tokenAsString(self: *const LinkMatcher, contentToken: *const tmd.Token) []const u8 {
     switch (contentToken.*) {
-        .plaintext => return self.tmdData[contentToken.start()..contentToken.end()],
+        .plainText => return self.tmdData[contentToken.start()..contentToken.end()],
         .evenBackticks => |t| {
             if (t.more.secondary) {
                 const start = contentToken.start() + 1;

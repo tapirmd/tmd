@@ -191,7 +191,7 @@ pub fn BuildSession(BuilderType: type) type {
         }
 
         fn collectSeedArticles(session: *@This()) !void {
-            if (session.project.configEx.basic.@"seed-articles") |option| {
+            if (session.project.configEx.basic.@"project-seed-articles") |option| {
                 const paths = option._parsed;
 
                 var element = paths.head;

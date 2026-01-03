@@ -355,7 +355,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
         };
     }
 
-    if (configEx.basic.@"seed-articles") |*seedArticles| handle: {
+    if (configEx.basic.@"project-seed-articles") |*seedArticles| handle: {
         const seedArticlesData = switch (seedArticles.*) {
             .data => |data| std.mem.trim(u8, data, " \t\r\n"),
             ._parsed => break :handle,

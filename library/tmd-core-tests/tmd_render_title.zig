@@ -27,6 +27,24 @@ test "tmd render" {
     , true, "title"));
 
     try std.testing.expect(try PageTitleChecker.check(
+        \\
+        \\ {%%
+        \\   ### title
+        \\ }
+        \\
+    , true, "title"));
+
+    try std.testing.expect(try PageTitleChecker.check(
+        \\
+        \\ ###=== section
+        \\
+        \\ {%%
+        \\   ### title
+        \\ }
+        \\
+    , false, ""));
+
+    try std.testing.expect(try PageTitleChecker.check(
         \\   ###--- not title
         \\
     , false, ""));
