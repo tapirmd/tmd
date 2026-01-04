@@ -34,14 +34,12 @@ fn collectDir(dir: std.fs.Dir, dirEntry: *Entry, allocator: std.mem.Allocator, f
             switch (e.kind) {
                 .file => if (filter(e.name, false)) {
                     children[i] = .{ .name = try allocator.dupe(u8, e.name) };
-                    children[i].confirmTitle();
                     children[i].isNonBlank = true;
                     hasFiles = true;
                     i += 1;
                 },
                 .directory => if (filter(e.name, true)) {
                     children[i] = .{ .name = try allocator.dupe(u8, e.name) };
-                    children[i].confirmTitle();
                     const subDir = try dir.openDir(e.name, .{ .iterate = true });
                     try collectDir(subDir, &children[i], allocator, filter);
                     hasFiles = hasFiles or children[i].isNonBlank;
@@ -203,7 +201,6 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
                     .name = infoPtr.name,
                     .children = infoPtr.children,
                 };
-                children[parent.childCount].confirmTitle();
                 parent.childCount += 1;
             } else unreachable;
         } else unreachable;
@@ -255,13 +252,13 @@ fn iterateDirEntry(dirEntry: Entry, buffer: []u8, k: usize, handler: anytype, de
             if (child.children) |cc| {
                 // If this folder is the only child of its parent, don't handle it.
                 if (handled or index < children.len - 1) {
-                    try handler.onEntry(buffer[0..i], child.title, depth);
+                    try handler.onEntry(buffer[0..i], child.name, true, depth);
                     handled = true;
                 }
                 buffer[i] = std.fs.path.sep;
                 if (cc.len > 0) try iterateDirEntry(child, buffer, i + 1, handler, if (handled) depth + 1 else depth);
             } else {
-                try handler.onEntry(buffer[0..i], null, depth);
+                try handler.onEntry(buffer[0..i], child.name, false, depth);
                 handled = true;
             }
         };
@@ -279,36 +276,11 @@ pub fn iterate(de: *DirEntries, handler: anytype) !void {
     try iterateDirEntry(de.top, &buffer, k, handler, 0);
 }
 
-fn confirmTitlePart(text: []const u8) []const u8 {
-    var titleOffset: usize = 0;
-    var index: usize = 0;
-    while (index < text.len) {
-        const c = text[index];
-        switch (c) {
-            '0'...'9' => index += 1,
-            '.', ',' => { // ',' is for German
-                if (index == 0) break;
-                index += 1;
-                titleOffset = index;
-            },
-            '-', '_' => {
-                titleOffset = index + 1;
-                break;
-            },
-            else => break,
-        }
-    }
-    const title = std.mem.trim(u8, text[titleOffset..], &std.ascii.whitespace);
-    return if (title.len == 0) text else title;
-}
-
 const Entry = struct {
     name: []const u8,
     children: ?[]Entry = null, // null means this is a file entry
     isNonBlank: bool = true, // for files, it must be true.
     nonBlockFolderChildren: usize = 0,
-
-    title: []const u8 = undefined,
 
     fn compare(_: void, x: @This(), y: @This()) bool {
         if (x.children) |_| {
@@ -328,10 +300,6 @@ const Entry = struct {
             .lt => return true,
             .gt => return false,
         }
-    }
-
-    fn confirmTitle(self: *@This()) void {
-        self.title = confirmTitlePart(self.name);
     }
 };
 

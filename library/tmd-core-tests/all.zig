@@ -155,14 +155,15 @@ test "RenderChecker" {
 }
 
 pub const TitleRenderChecker = struct {
-    pub fn check(data: []const u8, v: anytype) !bool {
+    pub fn check(data: []const u8, forToc: bool, v: anytype) !bool {
         var doc = try tmd.Doc.parse(data, std.testing.allocator);
         defer doc.destroy();
 
         var wa: std.Io.Writer.Allocating = try .initCapacity(std.testing.allocator, 1 << 16);
         defer wa.deinit();
 
-        const hasTitle = try doc.writePageTitle(&wa.writer, .inHtmlHead);
+        const hasTitle = try if (forToc) doc.writePageTitle(&wa.writer, .htmlTocItem)
+        else doc.writePageTitle(&wa.writer, .inHtmlHead);
         //try wa.writer.flush(); // no-op
 
         const titleText = wa.written();
@@ -172,13 +173,13 @@ pub const TitleRenderChecker = struct {
 };
 
 test "TitleRenderChecker" {
-    try std.testing.expect(try TitleRenderChecker.check("", struct {
+    try std.testing.expect(try TitleRenderChecker.check("", false, struct {
         fn checkFn(_: bool, _: []const u8) !void {
             return;
         }
     }));
 
-    try std.testing.expect(TitleRenderChecker.check("", struct {
+    try std.testing.expect(TitleRenderChecker.check("", false, struct {
         fn checkFn(_: bool, _: []const u8) !void {
             return error.Nothing;
         }

@@ -158,18 +158,18 @@ fn writeRemainingFilesInEpub(builder: *@This()) !void {
             relToPath: []const u8,
             lastDepth: usize = 0,
 
-            pub fn onEntry(t: *@This(), fullPath: []const u8, dirTitle: ?[]const u8, depth: usize) !void {
-                //const sign = if (dirTitle) |_| "+" else "-";
-                //std.debug.print("{}: {s} {s}\n", .{ depth, sign, fullPath });
+            pub fn onEntry(t: *@This(), fullPath: []const u8, name: []const u8, isFolder: bool, depth: usize) !void {
+                //const sign = if (isFolder) |_| "+" else "-";
+                //std.debug.print("{}: {s} {s}: {s}\n", .{ depth, sign, fullPath, name });
 
                 if (depth < t.lastDepth) try t.closeLists(depth);
                 t.lastDepth = depth;
 
-                if (dirTitle) |partTitle| {
+                if (isFolder) {
                     try t.w.writeAll(
                         \\<li><span>
                     );
-                    try tmd.writeHtmlContentText(t.w, partTitle);
+                    try tmd.writeHtmlContentText(t.w, util.retrieveNameMainPart(name));
                     try t.w.writeAll(
                         \\</span><ol>
                         \\
@@ -186,7 +186,7 @@ fn writeRemainingFilesInEpub(builder: *@This()) !void {
                         \\">
                     );
                     //try tmd.writeHtmlContentText(t.w, targetTitle);
-                    try t.w.writeAll(targetTitle); // targetTitle is valid HTML
+                    try t.w.writeAll(targetTitle); // targetTitle is already valid HTML
                     try t.w.writeAll(
                         \\</a></li>
                         \\

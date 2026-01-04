@@ -1,11 +1,6 @@
 
 ### TapirMD (Tapir's Markup Doc) Specification
 
-!  { ><
-   :: The specification is written in TapirMD (source is available __here__).
-   }
-       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/specification.tmd
-
 TapirMD is a powerful, next-generation markup language that
 simplifies content creation.
 Inspired by Markdown's straightforward syntax, it offers
@@ -725,9 +720,11 @@ if their character count does not match the opening mark token,
 ensuring they do not deactivate the style prematurely.
 All content tokens between when the style is activated and when it is deactivated
 form the //**content span**// of the style.
+The content span of a style might be blank.
 
-The content span of style might be blank. If the first content span in a usual block
-is blank,  then it signals that the first letter in the normal block should be a drop cap.
+If the first non-block-leadng-mark token in a usual block is a style mark token
+and the content span of the corresponding style is blank,
+then it signals that the first letter in the usual block should be a drop cap.
 
 Style mark tokens in the primary mode (code span) of the font-face type
 take precedence over other style mark tokens.

@@ -4,8 +4,8 @@ const all = @import("all.zig");
 
 test "tmd render" {
     const PageTitleChecker = struct {
-        fn check(data: []const u8, expectedHasTitle: bool, expectedTitleText: []const u8) !bool {
-            return all.TitleRenderChecker.check(data, struct {
+        fn check(forToc: bool, data: []const u8, expectedHasTitle: bool, expectedTitleText: []const u8) !bool {
+            return all.TitleRenderChecker.check(data, forToc, struct {
                 expectedHasTitle: bool,
                 expectedTitleText: []const u8,
 
@@ -21,12 +21,12 @@ test "tmd render" {
         }
     };
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\   ### title
         \\
     , true, "title"));
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\
         \\ {%%
         \\   ### title
@@ -34,7 +34,7 @@ test "tmd render" {
         \\
     , true, "title"));
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\
         \\ ###=== section
         \\
@@ -44,19 +44,26 @@ test "tmd render" {
         \\
     , false, ""));
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\   ###--- not title
         \\
     , false, ""));
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\   ### foo
         \\      && bar.png
         \\
-    , true, "foobar.png"));
+    , true, "foo"));
 
-    try std.testing.expect(try PageTitleChecker.check(
+    try std.testing.expect(try PageTitleChecker.check(false,
         \\   ### __link__ **bold **// italic
         \\
     , true, "link bolditalic"));
+
+    try std.testing.expect(try PageTitleChecker.check(true,
+        \\   ### __link__ **bold **// italic
+        \\
+    , true, 
+        \\link <span class="tmd-bold">bold</span><span class="tmd-italic">italic</span>
+        ));
 }

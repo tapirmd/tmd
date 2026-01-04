@@ -8,16 +8,16 @@ manual_scaling:
 handlers:
 - url: /
   static_files: pages/@tmd-build/pages/index.html
-  upload: pages/index.html
+  upload: index.html
   expiration: "1d"
 
 - url: /@assets/(.*)
   static_files: pages/@tmd-build/pages/@assets/\1
-  upload: pages/@assets/(.*)
+  upload: "@assets/(.*)"
 
 - url: /(.*)
   static_files: pages/@tmd-build/pages/\1
-  upload: pages/(.*)
+  upload: (.*)
   expiration: "1d"
 
 - url: /.*

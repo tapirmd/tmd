@@ -549,3 +549,24 @@ pub fn replaceExtension(path: []const u8, newExt: []const u8, allocator: std.mem
     const ext = std.fs.path.extension(path);
     return std.mem.concat(allocator, u8, &.{ path[0 .. path.len - ext.len], newExt });
 }
+
+// Get the part after \.{2}. If the part is blank, return trimmed input.
+pub fn retrieveNameMainPart(input: []const u8) []const u8 {
+    const text = std.mem.trim(u8, input, &std.ascii.whitespace);
+    var index: usize = 0;
+    outer: while (index < text.len) : (index += 1) {
+        if (text[index] == '.') {
+            const dotStart = index;
+            while (true) {
+                index += 1;
+                if (index == text.len) break :outer;
+                if (text[index] != '.') {
+                    if (index - dotStart >= 2) break :outer;
+                    break;
+                }
+            }
+        }
+    }
+
+    return if (index == text.len) text else text[index..];
+}

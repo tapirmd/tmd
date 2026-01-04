@@ -13,12 +13,12 @@ pub fn doc_to_html(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc, options: GenO
 }
 
 pub fn write_doc_title_in_html_head(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc) !bool {
-    var r: render.TmdRender = .init(tmdDoc, undefined, undefined);
+    var r: render.TmdRender = .init(tmdDoc, undefined, .{});
     return try r.writeTitleInHtmlHead(writer);
 }
 
 pub fn write_doc_title_in_html_toc_item(writer: *std.Io.Writer, tmdDoc: *const tmd.Doc) !bool {
-    var r: render.TmdRender = .init(tmdDoc, undefined, undefined);
+    var r: render.TmdRender = .init(tmdDoc, undefined, .{});
     return try r.writeTitleInTocItem(writer);
 }
 

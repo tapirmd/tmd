@@ -18,10 +18,11 @@ pub const maxConfigFileSize = DocTemplate.maxTemplateSize + 32 * 1024;
     _parsed: std.StringHashMap(CustomBlockGenerator), // keys are custom block types
 } = null,
 
-@"pending-url-generators": ?union(enum) {
-    data: []const u8,
-    _parsed: std.StringHashMap(void),
-} = null,
+// ToDo
+//@"custom-url-generators": ?union(enum) {
+//    data: []const u8,
+//    _parsed: std.StringHashMap(void),
+//} = null,
 
 @"html-page-template": ?union(enum) {
     data: []const u8,

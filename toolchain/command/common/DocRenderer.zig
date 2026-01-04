@@ -100,7 +100,7 @@ const TemplateFunctions = struct {
 
         switch (filePath) {
             .builtin => return error.CannotGenerateUrlForBuiltinAssets,
-            .remote => |url| try tmd.writeUrlAttributeValue(r.w, url),
+            .remote => |url| try tmd.writeUrlAttributeValue(r.w, url, false),
             .local => |absPath| {
                 const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
 
@@ -388,7 +388,7 @@ fn writeFaviconAssetInHead(r: *const DocRenderer, faviconFilePath: config.FilePa
                 \\<link rel="icon" href="
             );
 
-            try tmd.writeUrlAttributeValue(r.w, url);
+            try tmd.writeUrlAttributeValue(r.w, url, false);
 
             try r.w.writeAll(
                 \\">
@@ -432,7 +432,7 @@ fn writeCssAssetInHead(r: *const DocRenderer, cssFilePath: config.FilePath) !voi
                 \\<link href="
             );
 
-            try tmd.writeUrlAttributeValue(r.w, url);
+            try tmd.writeUrlAttributeValue(r.w, url, false);
 
             try r.w.writeAll(
                 \\" rel="stylesheet">
@@ -476,7 +476,7 @@ fn writeJsAssetInHead(r: *const DocRenderer, jsFilePath: config.FilePath) !void 
                 \\<script src="
             );
 
-            try tmd.writeUrlAttributeValue(r.w, url);
+            try tmd.writeUrlAttributeValue(r.w, url, false);
 
             try r.w.writeAll(
                 \\"></script>

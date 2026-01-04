@@ -3,9 +3,8 @@
 
 This is a playground for the TapirMD doc format.
 For learning and reference, please read
-__demos``demos.tmd__,
-__use cases``use-cases.tmd__, and
-__the specification``specification.tmd__.
+__the specification``specification.tmd__ and __demos``demos.tmd__.
+You can also learn TapirMD from the projects listed __here``users.tmd__.
 
 @@@ #note-enable-js
 //(Note: This page needs JavaScript to function.)
@@ -32,10 +31,7 @@ __the specification``specification.tmd__.
   <button id="format-tmd-source">Format it</button>
 </div>
 <textarea id="tmd-source" rows="22" style=""></textarea>
-"""
 
-
-""" html
 <style>
 textarea {
   width: 100%;

@@ -108,7 +108,57 @@ pub fn writeHtmlAttributeValue(w: *std.Io.Writer, text: []const u8) !void {
     try w.writeAll(text[last..i]);
 }
 
-pub fn writeUrlAttributeValue(w: *std.Io.Writer, text: []const u8) !void {
+// It is (very) hard to implement a perfect function to do this.
+// Here, I don't pursue the perfection.
+// We only avoid over-processing and breaking outputted html.
+pub fn writeUrlAttributeValue(w: *std.Io.Writer, text: []const u8, isRelativePath: bool) !void {
+    // If isRelativePath, then
+    //    \ will be write as /
+    //    %, &, ?, # will be escaped as %mn
+    // otherwise, these chars are kept unchanged.
+    //
+    // For other chars, the two are kept unchanged.
+    //
+    // The other chars are handled the same for all cases.
+
+    var last: usize = 0;
+    var i: usize = 0;
+    while (i < text.len) : (i += 1) {
+        switch (text[i]) {
+            '\\' => if (isRelativePath) {
+                try w.writeAll(text[last..i]);
+                try w.writeByte('/');
+                last = i + 1;
+            },
+            '%', '#', '&', '?' => |c| if (isRelativePath) {
+                try w.writeAll(text[last..i]);
+                //try w.writeAll("&amp;");
+                try w.writeByte('%');
+                try w.writeByte(std.fmt.hex_charset[c >> 4]);
+                try w.writeByte(std.fmt.hex_charset[c & 15]);
+                last = i + 1;
+            },
+            '`', '~', '!', '@', '$', '^', '*', '(', ')', '-', '+', '_', '=', '{', '}', '[', ']', ':', ';', '<', '>', ',', '.', '/', 'A'...'Z', 'a'...'z', '0'...'9' => {
+                // output as is.
+            },
+            //'\'' => {
+            //    try w.writeAll(text[last..i]);
+            //    try w.writeAll("&apos;");
+            //    last = i + 1;
+            //},
+            else => |c| { // including '"', '\'', and spaces etc.
+                try w.writeAll(text[last..i]);
+                try w.writeByte('%');
+                try w.writeByte(std.fmt.hex_charset[c >> 4]);
+                try w.writeByte(std.fmt.hex_charset[c & 15]);
+                last = i + 1;
+            },
+        }
+    }
+    try w.writeAll(text[last..i]);
+}
+
+pub fn writeRelativeUrlAttributeValue(w: *std.Io.Writer, text: []const u8) !void {
     var last: usize = 0;
     var i: usize = 0;
     while (i < text.len) : (i += 1) {

@@ -83,6 +83,7 @@ pub const Generator = struct {
 pub const TmdRender = struct {
     doc: *const tmd.Doc,
 
+    // Used in manipulating footnotes and tables.
     allocator: std.mem.Allocator,
 
     options: GenOptions,
@@ -207,7 +208,7 @@ pub const TmdRender = struct {
 
     pub fn writeTitleInTocItem(self: *TmdRender, w: *std.Io.Writer) !bool {
         if (self.doc.titleHeader) |titleHeader| {
-            try self.writeUsualContentBlockLinesForTocItem(w, titleHeader);
+            try self.writeUsualContentBlockLinesForTocItem(w, titleHeader, true);
             return true;
         } else {
             //try w.writeAll("");
@@ -1116,8 +1117,8 @@ pub const TmdRender = struct {
         try self.writeContentBlockLines(w, block, .noStyling);
     }
 
-    fn writeUsualContentBlockLinesForTocItem(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) !void {
-        try self.writeContentBlockLines(w, block, .tocItem);
+    fn writeUsualContentBlockLinesForTocItem(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, forTitleInToc: bool) !void {
+        try self.writeContentBlockLines(w, block, if (forTitleInToc) .tocTitleItem else .tocSectionItem);
     }
 
     fn writeUsualContentBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) !void {
@@ -1126,7 +1127,8 @@ pub const TmdRender = struct {
 
     const contentUsage = enum {
         general,
-        tocItem, // disable link (for headers when being rendered as TOC items)
+        tocTitleItem, // disable link and media (for title headers when being rendered as TOC items)
+        tocSectionItem, // disable link (for section headers when being rendered as TOC items)
         noStyling, // disable all styles (for HTML page title in head)
     };
 
@@ -1273,8 +1275,8 @@ pub const TmdRender = struct {
                                             try w.writeAll(
                                                 \\<a href="
                                             );
-                                            try fns.writeUrlAttributeValue(w, url.base); // url.base[fromIndex..]);
-                                            try fns.writeUrlAttributeValue(w, url.fragment);
+                                            try fns.writeUrlAttributeValue(w, url.base, false); // url.base[fromIndex..]);
+                                            try fns.writeUrlAttributeValue(w, url.fragment, false);
                                             try w.writeAll(
                                                 \\">
                                             );
@@ -1290,9 +1292,9 @@ pub const TmdRender = struct {
                                                 try w.writeAll(
                                                     \\<a href="
                                                 );
-                                                try fns.writeUrlAttributeValue(w, baseWithoutExt);
-                                                try fns.writeUrlAttributeValue(w, self.options.renderedExtension);
-                                                try fns.writeUrlAttributeValue(w, url.fragment);
+                                                try fns.writeUrlAttributeValue(w, baseWithoutExt, true);
+                                                try fns.writeUrlAttributeValue(w, self.options.renderedExtension, false);
+                                                try fns.writeUrlAttributeValue(w, url.fragment, false);
                                                 try w.writeAll(
                                                     \\">
                                                 );
@@ -1344,7 +1346,11 @@ pub const TmdRender = struct {
                                     //try w.writeAll(" "); // uncessary. Medias are not surrounded spaces automatically.
                                     break :blk;
                                 }
-                                if (usage == .noStyling) break :blk;
+
+                                const renderIt = switch (usage) {
+                                    inline .noStyling, .tocTitleItem => false,
+                                    inline .general, .tocSectionItem => true,
+                                };
 
                                 const isInline = inHeader or block.more.hasNonMediaContentTokens;
 
@@ -1352,9 +1358,10 @@ pub const TmdRender = struct {
                                 const linkInfoToken = &linkInfoElement.value;
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
 
-                                const link = linkInfoToken.linkInfo.link;
-                                const url = link.url orelse unreachable;
-                                writeMedia: {
+
+                                if (renderIt) writeMedia: {
+                                    const link = linkInfoToken.linkInfo.link;
+                                    const url = link.url orelse unreachable;
                                     if (try self.getMediaUrlGenerator(link)) |callback| {
                                         try w.writeAll("<img src=\"");
                                         try callback.gen(w);
@@ -1362,7 +1369,7 @@ pub const TmdRender = struct {
                                         .absolute, .relative => {
                                             const src = url.base;
                                             try w.writeAll("<img src=\"");
-                                            try fns.writeUrlAttributeValue(w, src);
+                                            try fns.writeUrlAttributeValue(w, src, url.manner == .relative);
 
                                             // ToDo: size info is in url.fragment
                                         },
@@ -1673,7 +1680,7 @@ pub const TmdRender = struct {
             }
             try w.writeAll("\">");
 
-            try self.writeUsualContentBlockLinesForTocItem(w, headerBlock);
+            try self.writeUsualContentBlockLinesForTocItem(w, headerBlock, false);
 
             if (id.len == 0) try w.writeAll("</span>") else try w.writeAll("</a>");
 

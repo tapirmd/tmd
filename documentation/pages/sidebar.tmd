@@ -1,29 +1,28 @@
 
+
+{ ><
 __
-&& ./static/image/tmd.png
-&& any text
-
-    === ./static/image/tmd.png ... :: index.tmd
-
-{
-{
-
-__Home`` index.tmd __
-
-Docs and references
-+  __The specification`` specification.tmd __
-+  __Demos`` demos.tmd __
-+  __Use cases`` use-cases.tmd __
-
-Tools and libraries
-+  __The official toolchain`` installation.tmd __
-+  __Play it online`` play.tmd __
-+  __Official libraries`` libraries.tmd__ (// Zig, WASM, JavaScript, Go //)
-
-Social
-+  __Source code`` https://github.com/tapirmd __
-+  __@zigo_101`` https://x.com/zigo_101 __
-
+&& static/image/tmd-v1.png
+%% logo
+.  (// v0.1.0-preview //)
 }
-@@@
-}
+    === ... logo :: index.tmd
+
+__Home`` index.tmd __ | __Blog`` blog/all.tmd __ | __@zigo_101`` https://x.com/zigo_101 __
+
+*  __The specification`` versions/latest/specification.tmd __
+*  __Demos`` versions/latest/demos.tmd __
+*  __FAQ`` versions/latest/faq.tmd __
+
+*  __Play it online`` versions/latest/play.tmd __
+*  __Official libraries`` versions/latest/libraries.tmd __ (//:: Zig, WASM, JavaScript, Go :://)
+*  __The official toolchain `` versions/latest/toolchain.tmd __
+   ~  __Installation`` versions/latest/installation.tmd __
+   ~  __Tutorials`` versions/latest/tutorials.tmd __
+   ~  __Configure manual`` versions/latest/configure.tmd __
+   ~  __Simple template`` versions/latest/template.tmd __
+
+
+*  __TapirMD users`` versions/latest/users.tmd __
+
+

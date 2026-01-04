@@ -9,6 +9,12 @@
 <style>
 {{ embed-file-content @tmd-css-default }}
 
+
+html {
+  scrollbar-color: #c7923c #f5cc8c;
+  scrollbar-width: thin;
+}
+
 * {
 	margin: 0;
 	padding: 0;
@@ -22,7 +28,8 @@ body {
 
 nav {
 	width: 216px;
-	padding: 16px;
+	font-size: smaller;
+	padding: 0 16px;
 	height: 100vh;
 	position: fixed;
 	overflow-y: auto;
@@ -77,22 +84,26 @@ main {
 </style>
 
 <script>
-
 document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.querySelector('body > nav');
-    
-    // Restore scroll position from sessionStorage
-    const savedScroll = sessionStorage.getItem('sidebarScroll');
-    if (savedScroll !== null) {
-        sidebar.scrollTop = parseInt(savedScroll, 10);
-    }
+    if (!sidebar) return;
 
-    // Save scroll position before page unload
-    window.addEventListener('beforeunload', () => {
+    const restoreScroll = () => {
+        const savedScroll = sessionStorage.getItem('sidebarScroll');
+        if (savedScroll !== null) {
+            sidebar.scrollTop = parseInt(savedScroll, 10);
+        }
+    };
+
+    window.addEventListener('load', () => {
+        restoreScroll();
+    });
+
+    window.addEventListener('pagehide', () => {
         sessionStorage.setItem('sidebarScroll', sidebar.scrollTop);
+        console.log("Saved scroll:", sidebar.scrollTop);
     });
 });
-
 </script>
 
 </head>
@@ -105,6 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 <main>
 {{{ page-content-in-body }}}
 </main>
+
 
 </body>
 </html>

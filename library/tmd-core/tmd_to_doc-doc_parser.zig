@@ -166,7 +166,7 @@ fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
                 if (headerBlock.blockType.header.isBare()) break :handle;
 
                 const level = headerBlock.blockType.header.level(parser.tmdDoc.data);
-                
+
                 if (parser.tmdDoc.tocHeaders.empty()) {
                     if (level == 1) {
                         if (parser.tmdDoc.titleHeader == null) {

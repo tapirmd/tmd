@@ -1,0 +1,62 @@
+
+### TapirMD Frequently Asked Questions
+
+?  ### How to apply drop-cap style to a paragraph?
+   {
+   In TapirMD, if a usual block starts with a style and the content of the style is blank,
+   then the first letter in the usual block should be a drop cap.
+   Here is an example:
+   #  ;;; Source
+      ;;; Effect
+      ------
+      ''' tmd
+      ''' << #example-drop-case
+      @@@ #example-drop-case
+      {
+      ` ` This is a paragraph which
+      first letter is a drop cap.
+
+      ;;; ** **Another paragraph which
+      has the drop-cap effect.
+      }
+   }
+
+?  ### How to make an image clickable so that clicking it opens the image itself?
+   {
+   An example:
+   #  ;;; Source
+      ;;; Effect
+      ------
+      ''' tmd
+      ''' << #example-image-link-self
+      @@@ #example-image-link-self
+      {
+      Click the image __
+      && tmd logo
+      __ to open it.
+
+          === tmd logo :: ../../static/image/tmd-v1.png
+      }
+   }
+
+
+
+?  ### How do I create a link that displays as an image?
+   {
+   An example:
+   #  ;;; Source
+      ;;; Effect
+      ------
+      ''' tmd
+      ''' << #example-image-link
+      @@@ #example-image-link
+      {
+      Click the image __
+      && ../../static/image/tmd-v1.png
+      %% to zig 101
+      __ to visit // Zig 101 //.
+
+          === ... to zig 101
+              https://zig101.tapirgames.com
+      }
+   }

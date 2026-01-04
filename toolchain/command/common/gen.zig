@@ -21,7 +21,7 @@ pub const RelativePathWriter = struct {
         try writeRelativeUrl(w, self.path, self.pathSep, self.relativeTo, self.relativeToSep);
 
         if (self.fragment.len > 0) {
-            try tmd.writeUrlAttributeValue(w, self.fragment);
+            try tmd.writeUrlAttributeValue(w, self.fragment, false);
         }
     }
 
@@ -43,7 +43,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
         if (pathSep) |sep| if (sep == '/') {
             const n, const s = util.relativePath(relativeTo, path, '/');
             for (0..n) |_| try w.writeAll("../");
-            try tmd.writeUrlAttributeValue(w, s);
+            try tmd.writeUrlAttributeValue(w, s, true);
             return;
         };
 
@@ -52,7 +52,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
 
         const n, const s = util.relativePath(relativeTo, validatedPath, '/');
         for (0..n) |_| try w.writeAll("../");
-        try tmd.writeUrlAttributeValue(w, s);
+        try tmd.writeUrlAttributeValue(w, s, true);
         return;
     } else if (pathSep) |sep| {
         if (sep == '/') {
@@ -61,7 +61,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
 
             const n, const s = util.relativePath(validatedRelativeTo, path, '/');
             for (0..n) |_| try w.writeAll("../");
-            try tmd.writeUrlAttributeValue(w, s);
+            try tmd.writeUrlAttributeValue(w, s, true);
             return;
         }
 
@@ -70,7 +70,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
         const validated = try util.validatePathToPosixPathIntoBuffer(s, buffer[0..]);
 
         for (0..n) |_| try w.writeAll("../");
-        try tmd.writeUrlAttributeValue(w, validated);
+        try tmd.writeUrlAttributeValue(w, validated, true);
         return;
     }
 
@@ -82,7 +82,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
 
     const n, const s = util.relativePath(validatedRelativeTo, validatedPath, '/');
     for (0..n) |_| try w.writeAll("../");
-    try tmd.writeUrlAttributeValue(w, s);
+    try tmd.writeUrlAttributeValue(w, s, true);
 }
 
 pub const ShellCommandCustomBlockGenerator = struct {
@@ -338,7 +338,7 @@ pub fn writeFaviconAssetInHead(w: *std.Io.Writer, faviconFilePath: config.FilePa
                 \\<link rel="icon" href="
             );
 
-            try tmd.writeUrlAttributeValue(w, url);
+            try tmd.writeUrlAttributeValue(w, url, false);
 
             try w.writeAll(
                 \\"/>
@@ -369,7 +369,7 @@ pub fn writeCssAssetInHead(w: *std.Io.Writer, cssFilePath: config.FilePath, file
                 \\<link href="
             );
 
-            try tmd.writeUrlAttributeValue(w, url);
+            try tmd.writeUrlAttributeValue(w, url, false);
 
             try w.writeAll(
                 \\" rel="stylesheet"/>
@@ -400,7 +400,7 @@ pub fn writeJsAssetInHead(w: *std.Io.Writer, jsFilePath: config.FilePath, fileRe
                 \\<script src="
             );
 
-            try tmd.writeUrlAttributeValue(w, url);
+            try tmd.writeUrlAttributeValue(w, url, false);
 
             try w.writeAll(
                 \\"></script>

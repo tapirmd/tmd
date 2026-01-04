@@ -205,7 +205,13 @@ pub fn BuildSession(BuilderType: type) type {
                     }
 
                     var pa: util.PathAllocator = .{};
-                    const absPath = try util.resolveRealPath2Alloc(session.project.path, path, true, pa.allocator());
+                    const absPath = util.resolveRealPath2Alloc(session.project.path, path, true, pa.allocator()) catch |err| {
+                        if (err == error.FileNotFound) {
+                            try session.appContext.stderr.print("Navigation file is not found: {s}\n", .{path});
+                            try session.appContext.stderr.flush();
+                        }
+                        return err;
+                    };
                     if (!util.isFileInDir(absPath, session.project.path)) {
                         try session.appContext.stderr.print("Navigation file must be in project path ({s}): {s}.\n", .{ session.project.path, absPath });
                         try session.appContext.stderr.flush();
@@ -225,8 +231,9 @@ pub fn BuildSession(BuilderType: type) type {
                 const T = struct {
                     session: *BuildSessionType,
 
-                    pub fn onEntry(self: *const @This(), fullPath: []const u8, dirTitle: ?[]const u8, depth: usize) !void {
-                        if (dirTitle != null) return;
+                    pub fn onEntry(self: *const @This(), fullPath: []const u8, name: []const u8, isFolder: bool, depth: usize) !void {
+                        if (isFolder) return;
+                        _ = name;
                         _ = depth;
 
                         _ = try self.session.tryToRegisterFile(.{ .local = fullPath }, .article);
@@ -669,7 +676,7 @@ pub fn BuildSession(BuilderType: type) type {
 
                     switch (filePath) {
                         .builtin => @panic("filepath-in-attribute with built-in assets is not supported now"),
-                        .remote => |url| try tmd.writeUrlAttributeValue(r.w, url),
+                        .remote => |url| try tmd.writeUrlAttributeValue(r.w, url, false),
                         .local => |absPath| {
                             const ext = tmd.extension(absPath) orelse return error.UnrecognizedExtension;
                             const purpose: Project.FilePurpose = switch (ext) {

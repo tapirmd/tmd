@@ -11,6 +11,18 @@ As a tech article writer,
 
 '''
 
+why?
+* Markdown, which is even very simpler, but has many ambiguities and glitches.
+* * and _ are used not rare ini general texts.
+* the escape \c way is a programming world style.
+
+void has many usefullnesses
+* line-end spacing control
+* spaces in span
+
+
+__ foo`` https://google.com``__ should be a broken link
+
 // blog: Introduce TapirMD, a new powerful mark up doc formatting
 //   * full featured. zig lib and wasm lib. Lib is fast.
 //   * consistency (marks are at line start, 2+ chars for style marks, 3+ for atomo blocks, 1 for container blocks)

@@ -302,11 +302,12 @@ pub fn build(b: *std.Build) !void {
             defer outputDir.close();
             var outputPagesDir = try outputDir.openDir("pages", .{});
             defer outputPagesDir.close();
-            const oldContent = try outputPagesDir.readFileAlloc(theBuild.allocator, "play.html", 1 << 19);
+            const playPagePath = try std.fs.path.join(theBuild.allocator, &.{ "versions", "latest", "play.html" });
+            const oldContent = try outputPagesDir.readFileAlloc(theBuild.allocator, playPagePath, 1 << 19);
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
                 const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
                 const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
-                const file = try outputPagesDir.createFile("play.html", .{ .truncate = true });
+                const file = try outputPagesDir.createFile(playPagePath, .{ .truncate = true });
                 defer file.close();
 
                 var buffer: [4096]u8 = undefined;

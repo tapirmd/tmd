@@ -1,11 +1,6 @@
 
 ##### The Official TapirMD Toolchain
 
-!  { ><
-   :: The page is written in TapirMD (source is available __here__).
-   }
-       === here :: https://raw.githubusercontent.com/tapirmd/tmd/refs/heads/master/documentation/pages/installation.tmd
-
 This page outlines the steps to install the official TapirMD toolchain
 and introduces some basic commands it provides.
 

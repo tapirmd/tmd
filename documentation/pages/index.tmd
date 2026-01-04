@@ -19,10 +19,18 @@ TapirMD pursues several other key objectives:
 *  Fast parsing. Each TapirMD document can be parsed and generated (to HTML) both in a single pass.
 *  All functionalities can be implemented without using JavaScript.
 
-For TapirMD features and examples, please check
-__some TapirMD demos`` demos.tmd__,
-__TapirMD specification`` specification.tmd__,
-and __some TapirMD use cases`` use-cases.tmd__.
+For information about TapirMD's features, please check the __ demos __ and refer to __ the specification __.
 
-You can also experiment TapirMD either __online`` play.tmd__
-or offline by using __TapirMD official toolchain`` installation.tmd__.
+TapirMD officially provides __ a toolchain __ for building TapirMD projects
+and __ libraries __ in several programming languages.
+
+You can also try TapirMD __ online __.
+
+=== demos :: versions/latest/demos.tmd
+=== the specification :: versions/latest/specification.tmd
+=== a toolchain :: versions/latest/toolchain.tmd
+=== libraries :: versions/latest/libraries.tmd
+=== online :: versions/latest/play.tmd
+
+
+

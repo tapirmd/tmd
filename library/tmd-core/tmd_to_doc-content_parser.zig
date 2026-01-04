@@ -226,7 +226,10 @@ fn create_media_spec_text_token(
     const backup = self.blockSession.atomBlock.more.hasNonMediaContentTokens;
     defer self.blockSession.atomBlock.more.hasNonMediaContentTokens = backup;
 
-    return self.create_plain_text_token(start, end, );
+    return self.create_plain_text_token(
+        start,
+        end,
+    );
 }
 
 fn create_plain_text_token(self: *ContentParser, start: u32, end: u32) !*tmd.Token {
@@ -617,8 +620,10 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             .fontStyle => blk: {
                                 // "://" is never a mark.
                                 if (markLen == 2) {
-                                    if (markStart > lineStart and lineScanner.data[markStart - 1] == ':') break :create_mark_token;
-                                    if (markStart > lineStart + 1 and lineScanner.data[markStart - 1] == ':' and lineScanner.data[markStart - 2] != ':') break :create_mark_token;
+                                    if (markStart > lineStart and lineScanner.data[markStart - 1] == ':') {
+                                        if (! (markStart > lineStart + 1 and lineScanner.data[markStart - 2] == ':'))
+                                            break :create_mark_token;
+                                    }
                                 }
                                 break :blk false;
                             },
