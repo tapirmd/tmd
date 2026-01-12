@@ -27,6 +27,7 @@ blockSession: struct {
 
     lastLink: ?*tmd.Link = null, // ignore media links
     lastLinkContentToken: ?*tmd.Token = null,
+    lastOpenHyperlinkSpanMark: ?*tmd.Token.SpanMark = null,
     //spanStatusChangesAfterTheLastPlainTextToken: u32 = 0,
 
     //endLine: ?*tmd.Line = null,
@@ -155,9 +156,9 @@ fn open_new_link(self: *ContentParser, owner: tmd.Link.Owner, forHyperlinkOrDefi
 
 // content tokens includes .plainText and .evenBackticks tokens.
 fn on_new_content_token(self: *ContentParser, token: *tmd.Token, tokenWillDisplay: bool) void {
-    if (self.blockSession.lastLink) |link| blk: {
-        if (token.isVoid()) break :blk;
-
+    //if (self.blockSession.lastLink) |link| blk: {
+    //    if (token.isVoid()) break :blk;
+    if (self.blockSession.lastLink) |link| {
         if (link.firstContentToken == null) {
             std.debug.assert(self.blockSession.lastLinkContentToken == null);
 
@@ -293,6 +294,10 @@ fn open_span(self: *ContentParser, markType: tmd.SpanMarkType, markStart: u32, m
         .openMark = &token.spanMark,
         .openTextNumber = self.blockSession.currentTextNumber,
     };
+
+    if (self.blockSession.lastOpenHyperlinkSpanMark) |m| {
+        if (markType != .hyperlink) m.more.containsOtherSpanMarks = true;
+    }
 
     return &token.spanMark;
 }
@@ -621,7 +626,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                                 // "://" is never a mark.
                                 if (markLen == 2) {
                                     if (markStart > lineStart and lineScanner.data[markStart - 1] == ':') {
-                                        if (! (markStart > lineStart + 1 and lineScanner.data[markStart - 2] == ':'))
+                                        if (!(markStart > lineStart + 1 and lineScanner.data[markStart - 2] == ':'))
                                             break :create_mark_token;
                                     }
                                 }
@@ -646,6 +651,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
                                     self.blockSession.lastLink = null;
                                     self.blockSession.lastLinkContentToken = null;
+                                    self.blockSession.lastOpenHyperlinkSpanMark = null;
                                 }
                             }
 
@@ -676,10 +682,12 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                                 token.* = .{
                                     .linkInfo = .{
                                         .link = link,
+                                        //.openHyperlinkSpanMark = openMark,
                                     },
                                 };
 
                                 link.owner.hyper = token;
+                                self.blockSession.lastOpenHyperlinkSpanMark = openMark;
                             }
 
                             std.debug.assert(markEnd == lineScanner.cursor);

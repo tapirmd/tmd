@@ -63,7 +63,7 @@ test "tmd render" {
     try std.testing.expect(try PageTitleChecker.check(true,
         \\   ### __link__ **bold **// italic
         \\
-    , true, 
+    , true,
         \\link <span class="tmd-bold">bold</span><span class="tmd-italic">italic</span>
-        ));
+    ));
 }

@@ -792,6 +792,8 @@ Footnote blocks will be always rendered at the end of HTML output.
 
 Specially, a hyperlink span containing only a `#` token links to the footnote section.
 
+Preceding a hyperlink with a void character signals than the hyperlink should be opened in a new window.
+
 @@@ #link-def-blocks
 ###+++++ Link-definition blocks
 

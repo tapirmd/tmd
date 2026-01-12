@@ -11,26 +11,25 @@ TapirMD is also known as //Tapir's Markup Doc//, or //TMD// for short.
 
 In addition to its primary goal of being powerful,
 TapirMD pursues several other key objectives:
-*  Good readability.
-   +  All marks consist of ASCII punctuation characters.
-   +  Minimizes non-content text to enhance readibilty in source mode.
-   +  Line indentations have no semantic meaning.
-*  Good extensibility. TapirMD supports custom block kind and custom URL generation.
-*  Fast parsing. Each TapirMD document can be parsed and generated (to HTML) both in a single pass.
-*  All functionalities can be implemented without using JavaScript.
 
-For information about TapirMD's features, please check the __ demos __ and refer to __ the specification __.
+*  Ambiguity-Free: Strictly specified syntax.
+*  Readability-Focused: Minimal syntax noise; line indentations have no semantic meaning.
+*  Extensible: Supports custom blocks and URL logic.
+*  Fast: Efficient single-pass parsing and rendering.
+*  No JS Required: Fully functional without JavaScript dependencies
 
-TapirMD officially provides __ a toolchain __ for building TapirMD projects
-and __ libraries __ in several programming languages.
+For more information on TapirMD's features, explore the __ demos __ or consult __ the full specification __.
+
+TapirMD provides __ an official toolchain __ that supports building
+TapirMD-based projects and __ libraries __ in several programming languages.
 
 You can also try TapirMD __ online __.
 
-=== demos :: versions/latest/demos.tmd
-=== the specification :: versions/latest/specification.tmd
-=== a toolchain :: versions/latest/toolchain.tmd
-=== libraries :: versions/latest/libraries.tmd
-=== online :: versions/latest/play.tmd
+    === demos :: versions/latest/demos.tmd
+    === the full specification :: versions/latest/specification.tmd
+    === ... toolchain :: versions/latest/toolchain.tmd
+    === libraries :: versions/latest/libraries.tmd
+    === online :: versions/latest/play.tmd
 
 
 

@@ -50,6 +50,7 @@ fn copyLinkText(dst: anytype, from: u32, src: []const u8) u32 {
 
 const LinkText = struct {
     confirmedLen: usize = 0,
+    nonSpacesAppended: bool = false,
     hasPendingSpace: bool = false,
 
     text: []u8 = undefined,
@@ -57,7 +58,7 @@ const LinkText = struct {
     fn appendLinkTextPart(self: *LinkText, part: []const u8, dummy: bool) void {
         for (part) |r| {
             switch (tmd.bytesKindTable[r]) {
-                .blank => |b| if (b.isSpace) {
+                .blank => |b| if (b.isSpace and self.nonSpacesAppended) {
                     self.hasPendingSpace = true;
                 },
                 .lineEnd => unreachable,
@@ -71,6 +72,8 @@ const LinkText = struct {
 
                     if (!dummy) self.text[self.confirmedLen] = r;
                     self.confirmedLen += 1;
+
+                    self.nonSpacesAppended = true;
                 },
             }
         }
@@ -80,6 +83,7 @@ const LinkText = struct {
         self.text = (try a.alloc(u8, self.confirmedLen));
         self.confirmedLen = 0;
         self.hasPendingSpace = false;
+        self.nonSpacesAppended = false;
     }
 };
 
@@ -597,7 +601,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
     while (true) {
         const link = &linkElement.value;
         std.debug.assert(link.url == null);
-        blk: {
+        handle_link: {
             const firstTextToken: *const tmd.Token = if (link.firstContentToken) |first| first else {
                 // The link should be ignored in rendering.
                 //std.debug.print("ignored for no content tokens\n", .{});
@@ -614,18 +618,18 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     }
                 }
 
-                break :blk;
+                break :handle_link;
             };
 
-            //var linkTextLen: u32 = 0;
-            var lastToken = firstTextToken;
             // count sum length without the last text token
+            var lastToken = firstTextToken;
             var linkText = LinkText{};
             if (link.owner == .media) {} // media link has only one token
             else while (lastToken.nextContentTokenInLink()) |nextToken| {
                 defer lastToken = nextToken;
                 const str = self.tokenAsString(lastToken);
                 linkText.appendLinkTextPart(str, true);
+                //std.debug.print(">>> {s}: {}, {}\n", .{str, str.len, linkText.confirmedLen});
 
                 if (lastToken.followedByLineEndSpaceInLink()) {
                     linkText.appendLinkTextPart(" ", true);
@@ -635,23 +639,35 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             // handle the last text token
             {
                 const str = self.tokenAsString(lastToken);
+                //std.debug.print("======== {s}: {}\n", .{str, str.len});
                 if (link.linkBlock() != null) {
                     if (tmd.trimBlanks(str).len == 0) {
                         // This link definition will be ignored.
                         //std.debug.print("ignored for blank link definition\n", .{});
 
                         _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
-                        break :blk;
+                        break :handle_link;
                     }
                 } else {
-                    const url = AttributeParser.parseLinkURL(str, lastToken == firstTextToken);
+                    const potentialFootnoteLink = lastToken == firstTextToken and switch (link.owner) {
+                        inline .block, .media => false,
+                        .hyper => |t| blk: {
+                            const openHyperLinkMark = t.prev() orelse unreachable;
+                            std.debug.assert(openHyperLinkMark.* == .spanMark);
+                            const spanMark = openHyperLinkMark.spanMark;
+                            std.debug.assert(spanMark.markType == .hyperlink and spanMark.more.open);
+
+                            break :blk !spanMark.more.containsOtherSpanMarks;
+                        },
+                    };
+                    const url = AttributeParser.parseLinkURL(str, potentialFootnoteLink);
                     if (url.manner != .undetermined) {
                         // This is a self-defined hyperlink.
 
                         //std.debug.print("self defined url: {s}\n", .{str});
                         (try self.setLinkURL(link, url)).sourceContentToken = lastToken;
 
-                        break :blk;
+                        break :handle_link;
                     }
 
                     // The URL of the hyperlink needs to be matched by a link definition
@@ -660,7 +676,6 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     linkText.appendLinkTextPart(str, true);
                 }
 
-                //if (linkTextLen == 0) {
                 if (linkText.confirmedLen == 0) {
                     // For link definition, it will not match any hyperlinks.
                     // For hyperlink, it will not match any definitions.
@@ -668,7 +683,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                     _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
 
-                    break :blk;
+                    break :handle_link;
                 }
             }
 
@@ -724,7 +739,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                     try normalPatricia.putLinkInfo(revisedLinkText, &linkForTree.linkInfoElementNormal);
                     try invertedPatricia.putLinkInfo(revisedLinkText.invert(), &linkForTree.linkInfoElementInverted);
-                    break :blk;
+                    break :handle_link;
                 }
             };
 

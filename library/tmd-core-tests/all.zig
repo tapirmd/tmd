@@ -162,8 +162,7 @@ pub const TitleRenderChecker = struct {
         var wa: std.Io.Writer.Allocating = try .initCapacity(std.testing.allocator, 1 << 16);
         defer wa.deinit();
 
-        const hasTitle = try if (forToc) doc.writePageTitle(&wa.writer, .htmlTocItem)
-        else doc.writePageTitle(&wa.writer, .inHtmlHead);
+        const hasTitle = try if (forToc) doc.writePageTitle(&wa.writer, .htmlTocItem) else doc.writePageTitle(&wa.writer, .inHtmlHead);
         //try wa.writer.flush(); // no-op
 
         const titleText = wa.written();

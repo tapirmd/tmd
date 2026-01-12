@@ -1320,8 +1320,10 @@ pub const Token = union(enum) {
             // The value is for render optimization purpose, to skip rendering
             // some blank mark spans.
             // Note that, even if this value is true, void (``) and some collapsed
-            // spaces will not get rendered.
-            blankSpan: bool,
+            // spaces and link urls will not get rendered.
+            blankSpan: bool, // no contents in the span?
+            // For hyperlink spans, to distinguish footnote link and fragment link.
+            containsOtherSpanMarks: bool = false,
         },
 
         pub fn typeName(self: @This()) []const u8 {
@@ -1333,7 +1335,8 @@ pub const Token = union(enum) {
     linkInfo: struct {
         link: *Link,
 
-        // ToDo: now here wastes a usize-size memory.
+        // It is the prev token.
+        // openHyperlinkSpanMark: ?*SpanMark = null,
     },
     leadingSpanMark: struct {
         start: DocSize,

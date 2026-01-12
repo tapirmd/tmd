@@ -60,3 +60,23 @@
               https://zig101.tapirgames.com
       }
    }
+
+?  ### How do I make a hyperlink open in a new window?
+   {
+   Preceding a hyperlink with a void character to force it to open in a new window.
+
+   An example:
+   #  ;;; Source
+      ;;; Effect
+      ------
+      ''' tmd
+      ''' << #example-open-in-new-window
+      @@@ #example-open-in-new-window
+      {
+      Open ``__ the link __ in a new window.
+
+          === the link
+              https://zig101.tapirgames.com
+      }
+
+   }

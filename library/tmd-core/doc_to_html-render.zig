@@ -1102,13 +1102,13 @@ pub const TmdRender = struct {
         markStatusElements: [MarkCount]MarkStatus.List.Element = @splat(.{ .value = .{} }),
         marksStack: MarkStatus.List = .{},
 
-        activeLinkInfo: ?*tmd.Token.LinkInfo = null,
-        // These are only valid when activeLinkInfo != null.
+        currentLinkInfo: ?*tmd.Token.LinkInfo = null,
+        // These are only valid when currentLinkInfo != null.
         linkFootnote: ?*Footnote = undefined,
         brokenLinkConfirmed: bool = undefined,
 
         fn onLinkInfo(self: *@This(), linkInfo: *tmd.Token.LinkInfo) void {
-            self.activeLinkInfo = linkInfo;
+            self.currentLinkInfo = linkInfo;
             self.brokenLinkConfirmed = false;
         }
     };
@@ -1150,7 +1150,7 @@ pub const TmdRender = struct {
                     .plainText => |plainText| blk: {
                         std.debug.assert(!plainText.more.undisplayed);
 
-                        if (tracker.activeLinkInfo) |linkInfo| {
+                        if (tracker.currentLinkInfo) |linkInfo| {
                             const link = linkInfo.link;
                             const url = link.url orelse unreachable;
                             if (token != link.firstContentToken) {
@@ -1204,113 +1204,128 @@ pub const TmdRender = struct {
 
                             markElement.value.mark = m;
                             if (m.markType == .hyperlink and !m.more.secondary) {
-                                std.debug.assert(tracker.activeLinkInfo == null);
+                                std.debug.assert(tracker.currentLinkInfo == null);
 
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
+                                std.debug.assert(linkInfoToken.prev() == token);
                                 tracker.onLinkInfo(&linkInfoToken.linkInfo);
 
                                 tracker.marksStack.pushHead(markElement);
-                                try writeCloseMarks(w, markElement, usage);
 
-                                const linkInfo = tracker.activeLinkInfo orelse unreachable;
-                                const link = linkInfo.link;
-                                if (usage == .general) blk: {
-                                    const url = link.url orelse unreachable;
-                                    if (url.manner == .footnote) {
-                                        std.debug.assert(link.url != null);
-                                        std.debug.assert(url.fragment.len > 0);
-                                        //std.debug.assert(url.sourceContentToken != null);
+                                if (usage == .general) {
+                                    try writeCloseMarks(w, markElement, usage);
 
-                                        //const t = url.sourceContentToken.?;
-                                        //const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
+                                    const linkInfo = &linkInfoToken.linkInfo;
+                                    const link = linkInfo.link;
+                                    std.debug.assert(link.owner == .hyper);
 
-                                        //const footnote_id = linkURL[1..];
-                                        const footnote_id = url.fragment[1..];
-                                        if (footnote_id.len == 0) {
-                                            tracker.linkFootnote = null;
+                                    const urlWritten = blk: {
+                                        const url = link.url orelse unreachable;
+                                        if (url.manner == .footnote) {
+                                            std.debug.assert(link.url != null);
+                                            std.debug.assert(url.fragment.len > 0);
+                                            //std.debug.assert(url.sourceContentToken != null);
 
-                                            try w.print(
-                                                \\<sup><a href="#fn{s}:">
-                                            , .{self.options.identSuffix});
-                                        } else {
-                                            const footnote = try self.onFootnoteReference(footnote_id);
-                                            tracker.linkFootnote = footnote;
-                                            tracker.brokenLinkConfirmed = footnote.block == null;
+                                            //const t = url.sourceContentToken.?;
+                                            //const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
 
-                                            if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+                                            //const footnote_id = linkURL[1..];
+                                            const footnote_id = url.fragment[1..];
+                                            if (footnote_id.len == 0) {
+                                                tracker.linkFootnote = null;
 
-                                            try w.print(
-                                                \\<sup><a id="fn{s}:{s}:ref-{}" href="#fn{s}:{s}">
-                                            , .{ self.options.identSuffix, footnote_id, footnote.refWrittenCount, self.options.identSuffix, footnote_id });
+                                                try w.print(
+                                                    \\<sup><a href="#fn{s}:
+                                                , .{self.options.identSuffix});
+                                            } else {
+                                                const footnote = try self.onFootnoteReference(footnote_id);
+                                                tracker.linkFootnote = footnote;
+                                                tracker.brokenLinkConfirmed = footnote.block == null;
+
+                                                if (self.incFootnoteRefWrittenCounts) footnote.refWrittenCount += 1;
+
+                                                try w.print(
+                                                    \\<sup><a id="fn{s}:{s}:ref-{}" href="#fn{s}:{s}
+                                                , .{ self.options.identSuffix, footnote_id, footnote.refWrittenCount, self.options.identSuffix, footnote_id });
+                                            }
+
+                                            break :blk true;
                                         }
 
-                                        break :blk;
-                                    }
-
-                                    var isCurrentPage: ?bool = null;
-                                    if (try self.getLinkUrlGenerator(link, &isCurrentPage)) |callback| {
-                                        if (isCurrentPage) |b| {
-                                            if (b) try w.writeAll(
-                                                \\<a class="tmd-current-page-url" href="
-                                            ) else try w.writeAll(
+                                        var isCurrentPage: ?bool = null;
+                                        if (try self.getLinkUrlGenerator(link, &isCurrentPage)) |callback| {
+                                            if (isCurrentPage) |b| {
+                                                if (b) try w.writeAll(
+                                                    \\<a class="tmd-current-page-url" href="
+                                                ) else try w.writeAll(
+                                                    \\<a href="
+                                                );
+                                            } else try w.writeAll(
                                                 \\<a href="
                                             );
-                                        } else try w.writeAll(
-                                            \\<a href="
-                                        );
 
-                                        try callback.gen(w);
-                                        try w.writeAll(
-                                            \\">
-                                        );
+                                            try callback.gen(w);
 
-                                        break :blk;
-                                    }
+                                            break :blk true;
+                                        }
 
-                                    sw: switch (url.manner) {
-                                        .absolute => {
-                                            //const fromIndex: usize = if (std.mem.startsWith(u8, url.base, "://")) 1 else 0;
-                                            try w.writeAll(
-                                                \\<a href="
-                                            );
-                                            try fns.writeUrlAttributeValue(w, url.base, false); // url.base[fromIndex..]);
-                                            try fns.writeUrlAttributeValue(w, url.fragment, false);
-                                            try w.writeAll(
-                                                \\">
-                                            );
-                                        },
-                                        .relative => |v| {
-                                            if (v.isTmdFile()) {
-                                                const ext = std.fs.path.extension(url.base);
-                                                const baseWithoutExt = url.base[0 .. url.base.len - ext.len];
-                                                //try w.print(
-                                                //    \\<a href="{s}{s}{s}">
-                                                //, .{baseWithoutExt, self.options.renderedExtension, url.fragment});
-
+                                        switch (url.manner) {
+                                            .absolute => {
+                                                //const fromIndex: usize = if (std.mem.startsWith(u8, url.base, "://")) 1 else 0;
                                                 try w.writeAll(
                                                     \\<a href="
                                                 );
-                                                try fns.writeUrlAttributeValue(w, baseWithoutExt, true);
-                                                try fns.writeUrlAttributeValue(w, self.options.renderedExtension, false);
+                                                try fns.writeUrlAttributeValue(w, url.base, false); // url.base[fromIndex..]);
                                                 try fns.writeUrlAttributeValue(w, url.fragment, false);
+                                            },
+                                            .relative => |v| {
                                                 try w.writeAll(
-                                                    \\">
+                                                    \\<a href="
                                                 );
-                                            } else continue :sw .absolute;
-                                        },
-                                        else => {
-                                            try w.writeAll(
-                                                \\<span class="tmd-broken-link">
-                                            );
 
-                                            tracker.brokenLinkConfirmed = true;
-                                        },
+                                                if (v.isTmdFile()) {
+                                                    const ext = std.fs.path.extension(url.base);
+                                                    const baseWithoutExt = url.base[0 .. url.base.len - ext.len];
+
+                                                    try fns.writeUrlAttributeValue(w, baseWithoutExt, true);
+                                                    try fns.writeUrlAttributeValue(w, self.options.renderedExtension, false);
+                                                    try fns.writeUrlAttributeValue(w, url.fragment, false);
+                                                } else {
+                                                    try fns.writeUrlAttributeValue(w, url.base, true);
+                                                    try fns.writeUrlAttributeValue(w, url.fragment, false);
+                                                }
+                                            },
+                                            else => {
+                                                try w.writeAll(
+                                                    \\<span class="tmd-broken-link">
+                                                );
+
+                                                tracker.brokenLinkConfirmed = true;
+
+                                                break :blk false;
+                                            },
+                                        }
+
+                                        break :blk true;
+                                    };
+
+                                    if (urlWritten) {
+                                        if (token.prev()) |t| {
+                                            if (t.isVoid()) {
+                                                try w.writeAll(
+                                                    \\" target="_blank
+                                                );
+                                            }
+                                        }
+                                        try w.writeAll(
+                                            \\">
+                                        );
                                     }
-                                }
 
-                                try writeOpenMarks(w, markElement, usage);
+                                    try writeOpenMarks(w, markElement, usage);
+                                }
 
                                 element = linkInfoElement.next; // skip the media specification text token
                                 continue;
@@ -1357,7 +1372,6 @@ pub const TmdRender = struct {
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
-
 
                                 if (renderIt) writeMedia: {
                                     const link = linkInfoToken.linkInfo.link;
@@ -1434,8 +1448,8 @@ pub const TmdRender = struct {
         done: {
             switch (m.markType) {
                 .hyperlink => blk: {
-                    const linkInfo = tracker.activeLinkInfo orelse break :blk;
-                    tracker.activeLinkInfo = null;
+                    const linkInfo = tracker.currentLinkInfo orelse break :blk;
+                    tracker.currentLinkInfo = null;
                     const link = linkInfo.link;
 
                     try writeCloseMarks(w, markElement, usage);

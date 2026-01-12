@@ -12,16 +12,23 @@ test "line end type" {
                 const openNeedle = "href=\"";
                 const closeNeedle = "\"";
 
-                const Range = struct {
+                const UrlInfo = struct {
                     start: usize,
                     end: usize,
+                    openInNewWindow: bool,
                 };
 
-                fn retrieveFirstLinkURL(html: []const u8) ?Range {
+                fn retrieveFirstLinkURL(html: []const u8) ?UrlInfo {
                     const start = std.mem.indexOf(u8, html, openNeedle) orelse return null;
                     const offset = start + openNeedle.len;
                     const end = std.mem.indexOf(u8, html[offset..], closeNeedle) orelse return null;
-                    return .{ .start = offset, .end = offset + end };
+                    const remaining = html[offset+end+closeNeedle.len..];
+                    const pos = std.mem.indexOfAny(u8, remaining, "_>") orelse unreachable;
+                    if (remaining[pos] == '_') {
+                        if (std.mem.startsWith(u8, remaining[pos+1..], "blank"))
+                            return .{ .start = offset, .end = offset + end, .openInNewWindow = true };
+                    }
+                    return .{ .start = offset, .end = offset + end, .openInNewWindow = false };
                 }
 
                 pub fn checkFn(self: @This(), html: []const u8) !void {
@@ -29,16 +36,19 @@ test "line end type" {
 
                     var remaining = html;
                     for (self.expectedURIs, 1..) |expected, i| {
-                        const range = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
-                        const uri = remaining[range.start..range.end];
-                        const targetUrl, const result = if (std.mem.startsWith(u8, expected, "!"))
-                            .{ std.mem.trimLeft(u8, expected, " \t"), false }
+                        const urlInfo = retrieveFirstLinkURL(remaining) orelse return error.TooLessLinks;
+                        const uri = remaining[urlInfo.start..urlInfo.end];
+                        const targetUrl, const openInNewWindow = if (std.mem.startsWith(u8, expected, "^"))
+                            .{ expected[1..], true }
                         else
-                            .{ expected, true };
-                        if (std.mem.eql(u8, uri, targetUrl) != result) {
+                            .{ expected, false };
+                        if (!std.mem.eql(u8, uri, targetUrl)) {
                             return error.UnmatchedLinkURL;
                         }
-                        remaining = remaining[range.end + closeNeedle.len ..];
+                        if (urlInfo.openInNewWindow != openInNewWindow) {
+                            return error.UnmatchedOpenInNewWindow;
+                        }
+                        remaining = remaining[urlInfo.end + closeNeedle.len ..];
                         if (i == self.expectedURIs.len) {
                             if (retrieveFirstLinkURL(remaining) != null) return error.TooManyLinks;
                             break;
@@ -61,6 +71,14 @@ test "line end type" {
         \\
     , &.{
         "bar.html",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\``__foo `` bar.tmd __ 
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "^bar.html",
     }));
 
     try std.testing.expect(try LinkChecker.check(
@@ -113,11 +131,34 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo__
+        \\````__foo__
         \\===foo``https://go101.org
         \\
     , &.{
         "https://go101.org",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\``__foo__
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "^https://go101.org",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\``__foo__
+        \\===foo`https://go101.org/"foo'bar&zoo?a=b&c=d#ddd"ccc'eee&fff?ggg
+        \\
+    , &.{
+        "^https://go101.org/%22foo%27bar&zoo?a=b&c=d#ddd%22ccc%27eee&fff?ggg",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\``__foo``./foo"bar'zoo/?xx&yy.tmd
+        \\
+    , &.{
+        "^./foo%22bar%27zoo/%3fxx%26yy.html",
     }));
 
     try std.testing.expect(try LinkChecker.check(
@@ -419,24 +460,40 @@ test "line end type" {
         \\
         \\__`` #ccc __ 
         \\
+        \\__`` `` ` ` #xxx``__ 
+        \\
         \\__```` #ddd __ 
+        \\
+        \\__https://google.com``__ 
         \\
         \\__^`` #eee __ 
         \\
-        \\__`` `` #fff __ 
+        \\__fff `` __ broken link
+        \\
+        \\__#bbb `` __ broken link
+        \\
+        \\__`` `` #ggg __ 
         \\
         \\__ #bbb __ 
         \\
+        \\__#__ // link to the whole footnotes div
+        \\
+        \\=== #xxx :: https://go101.org
+        \\
+        \\=== https://google.com :: https://tapirgames.org
+        \\
     , &.{
         "#fn:bbb",
-        "#fn:ccc",
+        "#ccc",
+        "https://go101.org",
         "#ddd",
+        "https://tapirgames.org",
         "#eee",
-        "#fff",
+        "#ggg",
         "#fn:bbb",
+        "#fn:",
         "#fn:bbb:ref-1",
         "#fn:bbb:ref-2",
-        "#fn:ccc:ref-1",
     }));
 
     try std.testing.expect(try LinkChecker.check(
