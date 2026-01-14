@@ -12,7 +12,7 @@ const tmd = @import("tmd");
 
 extern fn print(addr: usize, len: usize, addr2: usize, len2: usize, extra: isize) void;
 
-fn logMessage(msg: []const u8, extraMsg: []const u8, extraInt: isize) void {
+pub fn logMessage(msg: []const u8, extraMsg: []const u8, extraInt: isize) void {
     print(@intFromPtr(msg.ptr), msg.len, @intFromPtr(extraMsg.ptr), extraMsg.len, extraInt);
 }
 
@@ -28,6 +28,7 @@ var docInfo: ?struct {
 } = null;
 
 export fn lib_version() isize {
+    //tmd.wasmLog = logMessage;
     return @intCast(@intFromPtr(tmd.version.ptr));
 }
 
@@ -116,6 +117,8 @@ fn parseTMD() ![]const u8 {
 
     const tmdInput = try retrieveData(buffer, maxTmdDataSize);
     const tmdContent = tmdInput.data;
+
+    logMessage("tmdContent: ", tmdContent, @intCast(tmdContent.len));
 
     // parse tmd
 
@@ -259,7 +262,7 @@ fn generateHTML() ![]const u8 {
     var w2: std.Io.Writer = .fixed(renderBuffer);
     try w2.writeInt(u32, htmlWithLengthHeader.len - 4, .little);
 
-    //logMessage("", "generateHTML: htmlWithLengthHeader.len: ", @intCast(htmlWithLengthHeader.len));
+    logMessage("generateHTML: ", htmlWithLengthHeader[4..], @intCast(htmlWithLengthHeader.len - 4));
 
     return htmlWithLengthHeader;
 }

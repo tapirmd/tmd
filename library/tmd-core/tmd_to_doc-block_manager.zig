@@ -19,10 +19,15 @@ const BaseContext = struct {
     nestingDepth: tmd.BlockNestingDepthType,
     undisplayed: bool,
 
-    // !!! here, u6 must be larger than tmd.ListItemTypeIndex.
     openingListNestingDepths: [tmd.MaxListNestingDepthPerBase]u6 = @splat(0),
     openingListCount: tmd.ListNestingDepthType = 0,
+
+    inBlankContainableContainer: bool = false,
 };
+
+test BaseContext {
+    std.debug.assert(@bitSizeOf(std.meta.Elem(@FieldType(BaseContext, "openingListNestingDepths"))) > @bitSizeOf(tmd.ListItemTypeIndex));
+}
 
 pub fn start(root: *tmd.Block, doc: *tmd.Doc) BlockArranger {
     root.* = .{ .nestingDepth = 0, .blockType = .{
@@ -64,28 +69,13 @@ pub fn openBaseBlock(self: *BlockArranger, newBaseBlock: *tmd.Block, firstInCont
 
     if (!self.canOpenBaseBlock()) return error.NestingDepthTooLarge;
 
-    if (firstInContainer) {
-        try self.stackAsFirstInContainer(newBaseBlock);
-    } else {
-        const last = self.stackedBlocks[self.count_1];
-        std.debug.assert(last.blockType == .root or last.nestingDepth == self.count_1);
+    try self.stackAtomBlock(newBaseBlock, firstInContainer);
 
-        if (last.blockType == .blank) {
-            try self.stackAsChildOfBase(newBaseBlock);
-        } else {
-            if (last.blockType == .base) {
-                last.setNextSibling(newBaseBlock);
-            }
-            newBaseBlock.nestingDepth = self.count_1;
-            self.stackedBlocks[self.count_1] = newBaseBlock;
-        }
-    }
-
-    const newCommentedOut = undisplayed or self.openingBaseBlocks[self.baseCount_1].undisplayed;
+    const newUndisplayed = undisplayed or self.openingBaseBlocks[self.baseCount_1].undisplayed;
     self.baseCount_1 += 1;
     self.openingBaseBlocks[self.baseCount_1] = BaseContext{
         .nestingDepth = self.count_1,
-        .undisplayed = newCommentedOut,
+        .undisplayed = newUndisplayed,
     };
 
     self.count_1 += 1;
@@ -98,7 +88,7 @@ pub fn closeCurrentBaseBlock(self: *BlockArranger) !*tmd.Block {
     return self.tryToCloseCurrentBaseBlock() orelse unreachable;
 }
 
-pub fn tryToCloseCurrentBaseBlock(self: *BlockArranger) ?*tmd.Block {
+fn tryToCloseCurrentBaseBlock(self: *BlockArranger) ?*tmd.Block {
     self.clearListContextInBase(true);
 
     const baseContext = &self.openingBaseBlocks[self.baseCount_1];
@@ -107,7 +97,7 @@ pub fn tryToCloseCurrentBaseBlock(self: *BlockArranger) ?*tmd.Block {
     std.debug.assert(baseBlock.blockType == .base or baseBlock.blockType == .root);
 
     const last = self.stackedBlocks[self.count_1];
-    std.debug.assert(last.blockType == .root or last.nestingDepth == self.count_1);
+    std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .root);
 
     if (last.blockType == .blank) {
         // Ensure the nestingDepth of the blank block.
@@ -122,7 +112,7 @@ pub fn tryToCloseCurrentBaseBlock(self: *BlockArranger) ?*tmd.Block {
     return baseBlock;
 }
 
-pub fn stackAsChildOfBase(self: *BlockArranger, block: *tmd.Block) !void {
+fn stackAsChildOfBase(self: *BlockArranger, block: *tmd.Block, isBlankContainableContainer: bool) !void {
     const baseContext = &self.openingBaseBlocks[self.baseCount_1];
     std.debug.assert(self.count_1 > baseContext.nestingDepth);
     std.debug.assert(self.stackedBlocks[baseContext.nestingDepth].blockType == .base or self.stackedBlocks[baseContext.nestingDepth].blockType == .root);
@@ -136,25 +126,28 @@ pub fn stackAsChildOfBase(self: *BlockArranger, block: *tmd.Block) !void {
     self.count_1 = baseContext.nestingDepth + 1;
 
     const last = self.stackedBlocks[self.count_1];
-    std.debug.assert(last.blockType == .root or last.nestingDepth == self.count_1);
+    std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .root);
     if (last.blockType != .root) last.setNextSibling(block);
 
     block.nestingDepth = self.count_1;
     self.stackedBlocks[self.count_1] = block;
+
+    baseContext.inBlankContainableContainer = isBlankContainableContainer;
 }
 
 pub fn shouldHeaderChildBeInTOC(self: *BlockArranger, titleNotDeterminedYet: bool) bool {
     return self.stackedBlocks[self.count_1].nestingDepth - 1 == self.baseCount_1 and (titleNotDeterminedYet or !self.openingBaseBlocks[self.baseCount_1].undisplayed);
 }
 
-pub fn stackContainerBlock(self: *BlockArranger, block: *tmd.Block) !void {
+// for non-list-item containers.
+pub fn stackContainerBlock(self: *BlockArranger, block: *tmd.Block, blankContainable: bool) !void {
     std.debug.assert(block.isContainer());
     std.debug.assert(block.blockType != .item);
 
-    try self.stackAsChildOfBase(block);
+    try self.stackAsChildOfBase(block, blankContainable);
 }
 
-pub fn assertBaseOpeningListCount(self: *BlockArranger) void {
+fn assertBaseOpeningListCount(self: *BlockArranger) void {
     if (builtin.mode == .Debug) {
         var baseContext = &self.openingBaseBlocks[self.baseCount_1];
 
@@ -193,6 +186,8 @@ pub fn stackListItemBlock(self: *BlockArranger, listItemBlock: *tmd.Block, markT
     const newListItem = &listItemBlock.blockType.item;
 
     if (listBlock) |theListBlock| {
+        baseContext.inBlankContainableContainer = false;
+
         std.debug.assert(theListBlock.blockType.list._itemTypeIndex == markTypeIndex);
 
         if (baseContext.nestingDepth >= tmd.MaxBlockNestingDepth - 1) {
@@ -228,7 +223,7 @@ pub fn stackListItemBlock(self: *BlockArranger, listItemBlock: *tmd.Block, markT
         std.debug.assert(baseContext.openingListNestingDepths[markTypeIndex] != 0);
 
         const last = self.stackedBlocks[self.count_1];
-        std.debug.assert(last.blockType == .root or last.nestingDepth == self.count_1);
+        std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .root);
         std.debug.assert(last.blockType != .item);
 
         var deltaCount: @TypeOf(baseContext.openingListCount) = 0;
@@ -275,7 +270,7 @@ pub fn stackListItemBlock(self: *BlockArranger, listItemBlock: *tmd.Block, markT
 }
 
 // ToDo: remove the forClosingBase parameter?
-pub fn clearListContextInBase(self: *BlockArranger, forClosingBase: bool) void {
+fn clearListContextInBase(self: *BlockArranger, forClosingBase: bool) void {
     _ = forClosingBase; // ToDo: the logic will be a bit simpler but might be unnecessary.
 
     const baseContext = &self.openingBaseBlocks[self.baseCount_1];
@@ -283,14 +278,14 @@ pub fn clearListContextInBase(self: *BlockArranger, forClosingBase: bool) void {
     std.debug.assert(self.stackedBlocks[baseContext.nestingDepth].blockType == .base or self.stackedBlocks[baseContext.nestingDepth].blockType == .root);
 
     const last = self.stackedBlocks[self.count_1];
-    std.debug.assert(last.blockType == .root or last.nestingDepth == self.count_1);
+    std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .root);
     std.debug.assert(last.blockType != .item);
     defer {
         self.count_1 = baseContext.nestingDepth + 1;
         if (last.blockType == .blank and last.nestingDepth != self.count_1) {
             // prevOfLast might be the last item in a just closed list.
             const prevOfLast = self.stackedBlocks[self.count_1];
-            std.debug.assert(prevOfLast.blockType == .root or prevOfLast.nestingDepth == self.count_1);
+            std.debug.assert(prevOfLast.nestingDepth == self.count_1 or prevOfLast.blockType == .root);
             if (prevOfLast.blockType != .root) prevOfLast.setNextSibling(last);
 
             // Ensure the nestingDepth of the blank block.
@@ -325,9 +320,9 @@ pub fn clearListContextInBase(self: *BlockArranger, forClosingBase: bool) void {
     }
 }
 
-pub fn stackAsFirstInContainer(self: *BlockArranger, block: *tmd.Block) !void {
+fn stackAsFirstInContainer(self: *BlockArranger, block: *tmd.Block) !void {
     const last = self.stackedBlocks[self.count_1];
-    std.debug.assert(last.isContainer());
+    if (builtin.mode == .Debug) std.debug.assert(last.isContainer());
     std.debug.assert(last.nestingDepth == self.count_1);
 
     std.debug.assert(block.blockType != .blank);
@@ -341,25 +336,27 @@ pub fn stackAsFirstInContainer(self: *BlockArranger, block: *tmd.Block) !void {
     self.stackedBlocks[self.count_1] = block;
 }
 
+// block can an either atom or base block.
 pub fn stackAtomBlock(self: *BlockArranger, block: *tmd.Block, firstInContainer: bool) !void {
-    std.debug.assert(block.isAtom());
-
+    if (builtin.mode == .Debug) std.debug.assert(block.isAtom() or block.blockType == .base);
     if (firstInContainer) {
         try self.stackAsFirstInContainer(block);
         return;
     }
 
     const last = self.stackedBlocks[self.count_1];
-    std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .base or last.blockType == .root);
+    std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .root);
     std.debug.assert(!last.isContainer());
 
-    if (last.blockType == .blank) {
+    if (last.blockType == .blank) blk: {
         std.debug.assert(block.blockType != .blank);
-        try self.stackAsChildOfBase(block);
-        return;
-    }
 
-    if (last.blockType == .base) {
+        const baseContext = &self.openingBaseBlocks[self.baseCount_1];
+        if (baseContext.inBlankContainableContainer) break :blk;
+
+        try self.stackAsChildOfBase(block, false);
+        return;
+    } else if (last.blockType == .base) {
         last.setNextSibling(block);
     }
 
@@ -383,7 +380,6 @@ pub fn stackFirstLevelHeaderBlock(self: *BlockArranger, block: *tmd.Block, first
         }
     } else {
         const last = self.stackedBlocks[self.count_1];
-        std.debug.assert(last.nestingDepth == self.count_1 or last.blockType == .base or last.blockType == .root);
         std.debug.assert(!last.isContainer());
         if (last.blockType == .attributes) {
             const container = self.stackedBlocks[self.count_1 - 1];

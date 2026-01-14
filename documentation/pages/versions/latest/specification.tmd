@@ -209,19 +209,33 @@ which begins with
       +  is followed by a line-end blank token.
 
 The character in the leading mark token is
--  `#` for table blocks,
--  `>` for quotation blocks,
--  `!` for callout blocks,
--  `?` for reveal blocks,
--  `.` for raw blocks.
+-  `#` or `#.` for table blocks,
+-  `>` or `>.` for quotation blocks,
+-  `!` or `!.` for callout blocks,
+-  `?` or `?.` for reveal blocks,
+-  `.` or `..` for raw blocks.
 
-During line-by-line parsing, a non-item predefined container block will end
-*  before a blank block, or
+If the leading mark token of a non-item predefined container block contains
+only one character, then during line-by-line parsing, the container block
+will end
 *  before a following predefined container block (of either item type or not), or
 *  before its parent base block explicitly closes, or
-*  at the end of the containing document.
+*  at the end of the containing document, or
+*  before a blank block.
+
+If the leading mark token of a non-item predefined container block contains
+two characters (the second is `.`), then the container block can contain direct
+child blank blocks which are between other non-blank direct child blocks.
+During line-by-line parsing, the container block will end
+*  before a following predefined container block (of either item type or not), or
+*  before its parent base block explicitly closes, or
+*  at the end of the containing document, or
+*  before a blank block which is followed by the above cases.
 
 A non-item predefined container block is always directly nested within its parent base block.
+
+A non-item predefined container block always contains at least one direct child
+and its first direct child is never a blank block.
 
 @@@ #item-blocks
 ###+++++ Start and end of item predefined container blocks
@@ -230,7 +244,7 @@ For simplicity, we will refer to item predefined container blocks as //**item bl
 
 Item blocks share some common rules with other predefined container blocks.
 However, since TapirMD supports list nesting in a parent base block,
-the rules for item blocks are somewhat more complex.
+the rules for item blocks are some different from the ones for non-item predefined container blocks.
 
 During line-by-line parsing, an item block starts at a tokenized line
 which begins with
@@ -247,6 +261,11 @@ The character or character sequence in the leading mark token may be
 A sequence of consecutive sibling item blocks form a list.
 All the item blocks in a list must share the same leading mark.
 The same leading mark is called the mark of the list.
+
+Note, the `.` in item predefined-container-leading mark tokens has different
+semantics from non-item predefined-container-leading mark tokens.
+An item predefined container block can never contain direct
+child blank blocks which are between other non-blank direct child blocks.
 
 A list opens when the first item block starts and closes when its last item block ends.
 
@@ -789,7 +808,8 @@ Footnote blocks will be always rendered at the end of HTML output.
 
 Specially, a hyperlink span containing only a `#` token links to the footnote section.
 
-Closely preceding a hyperlink with a blank style span
+Closely preceding a hyperlink with a pair of style marks of the same style type,
+one is opening and the other is closing,
 signals that the hyperlink should be opened in a new window.
 
 @@@ #link-def-blocks

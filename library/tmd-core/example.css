@@ -172,7 +172,10 @@ code, pre {
 }
 
 .tmd-reveal-header {
-  font-weight: bold;
+}
+
+.tmd-reveal[open] .tmd-reveal-header {
+    font-weight: bold;
 }
 
 .tmd-raw {

@@ -1,12 +1,13 @@
 
 ### TapirMD Frequently Asked Questions
 
-?  ### How to apply drop-cap style to a paragraph?
-   {
+?. ### How to apply drop-cap style to a paragraph?
+
    In TapirMD, if a usual block starts with a bare media line,
    then the first letter in the usual block should be a drop cap.
-   
+
    Here is an example:
+   {
    #  ;;; Source
       ;;; Effect
       ------
@@ -24,9 +25,10 @@
       }
    }
 
-?  ### How to make an image clickable so that clicking it opens the image itself?
-   {
+?. ### How to make an image clickable so that clicking it opens the image itself?
+
    An example:
+   {
    #  ;;; Source
       ;;; Effect
       ------
@@ -42,11 +44,10 @@
       }
    }
 
+?. ### How do I create a link that displays as an image?
 
-
-?  ### How do I create a link that displays as an image?
-   {
    An example:
+   {
    #  ;;; Source
       ;;; Effect
       ------
@@ -64,12 +65,13 @@
       }
    }
 
-?  ### How do I make a hyperlink open in a new window?
-   {
+?. ### How do I make a hyperlink open in a new window?
+
    Closely preceding a hyperlink with a blank style span
    to make the hyperlink open in a new window.
 
    An example:
+   {
    #  ;;; Source
       ;;; Effect
       ------
@@ -82,5 +84,7 @@
           === the link
               https://zig101.tapirgames.com
       }
-
    }
+
+.
+

@@ -25,6 +25,15 @@ pub const writeHtmlContentText = @import("doc_to_html-fns.zig").writeHtmlContent
 pub const bytesKindTable = @import("tmd_to_doc-line_scanner.zig").bytesKindTable;
 pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
 
+//pub var wasmLog: ?*const fn(msg: []const u8, extraMsg: []const u8, extraInt: isize) void = blk: {
+//    const T = struct {
+//        fn logMessage(msg: []const u8, extraMsg: []const u8, extraInt: isize) void {
+//            std.debug.print("{s}, {s}, {}\n", .{msg, extraMsg, extraInt});
+//        }
+//    };
+//    break :blk if (builtin.mode == .Debug) T.logMessage else null;
+//};
+
 const std = @import("std");
 const builtin = @import("builtin");
 const list = @import("list");
@@ -472,11 +481,11 @@ pub const Block = struct {
         return inlineTokensBetweenLines(self.startLine(), self.endLine());
     }
 
-    pub fn isBare(self: *const @This()) bool {
-        std.debug.assert(self.isAtom());
-        const line = self.startLine();
-        return line == self.endLine() and line.firstTokenOf(.others) == null;
-    }
+    //pub fn isBare(self: *const @This()) bool {
+    //    std.debug.assert(self.isAtom());
+    //    const line = self.startLine();
+    //    return line == self.endLine() and line.firstTokenOf(.others) == null;
+    //}
 
     pub fn compare(x: *const @This(), y: *const @This()) isize {
         const xAttributes = x.attributes orelse unreachable;
@@ -755,6 +764,7 @@ pub const BlockType = union(enum) {
         // An empty header is used to insert toc.
         pub fn isBare(self: @This()) bool {
             //return self.startLine == self.endLine and self.startLine.tokens().?.empty();
+
             return self.startLine == self.endLine and self.startLine.firstTokenOf(.others) == null;
         }
     },
@@ -778,6 +788,12 @@ pub const BlockType = union(enum) {
 
         // traits:
         const Atom = void;
+
+        // An empty header is used to insert toc.
+        pub fn isBare(self: @This()) bool {
+            //return self.startLine == self.endLine and self.startLine.tokens().?.empty();
+            return self.startLine == self.endLine and self.startLine.firstTokenOf(.others) == null;
+        }
     },
 
     attributes: struct {
@@ -1065,6 +1081,7 @@ pub const Line = struct {
     // Currently, .others means inline style or content tokens.
     pub fn firstTokenOf(self: *const @This(), tokenKind: enum { any, containerMark_or_others, extra_or_others, lineTypeMark_or_others, others }) ?*const Token {
         var tokenElement = self.tokens.head;
+
         switch (tokenKind) {
             .any, .containerMark_or_others => {
                 if (tokenElement) |e| return &e.value;

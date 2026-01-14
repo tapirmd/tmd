@@ -4,4 +4,5 @@ test {
     _ = @import("tmd_to_doc-line_scanner.zig");
     //_ = @import("doc_to_html-fns.zig");
     _ = @import("doc_to_html-render.zig");
+    _ = @import("tmd_to_doc-block_manager.zig");
 }

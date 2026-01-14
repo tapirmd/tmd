@@ -389,7 +389,7 @@ fn parse(parser: *DocParser) !void {
                         break :handle;
                     }
 
-                    lineScanner.advance(1);
+                    lineScanner.advance(1); // ToDo: merged into the last one.
                     const markEnd = lineScanner.cursor;
                     const numSpaces = lineScanner.readUntilNotBlank();
                     if (numSpaces == 0 and lineScanner.lineEnd == null) { // not list item
@@ -442,7 +442,11 @@ fn parse(parser: *DocParser) !void {
                     try blockArranger.stackListItemBlock(listItemBlock, markTypeIndex, listBlock);
                 },
                 '#', '>', '!', '?', '.' => |mark| handle: {
-                    lineScanner.advance(1);
+                    if (lineScanner.peekNext() == '.') {
+                        lineScanner.advance(1);
+                    }
+
+                    lineScanner.advance(1); // ToDo: merged into the last one.
                     const markEnd = lineScanner.cursor;
                     const numSpaces = lineScanner.readUntilNotBlank();
                     if (numSpaces == 0 and lineScanner.lineEnd == null) { // not container
@@ -486,17 +490,18 @@ fn parse(parser: *DocParser) !void {
                         else => unreachable,
                     }
 
+                    const markLen = markEnd - lineStartIgnoreLeadingBlanks;
                     (try parser.createTokenForLine(line)).* = .{
                         .containerMark = .{
                             .start = @intCast(lineStartIgnoreLeadingBlanks),
                             .blankLen = @intCast(markEndWithSpaces - markEnd),
                             .more = .{
-                                .markLen = 1,
+                                .markLen = @intCast(markLen),
                             },
                         },
                     };
 
-                    try blockArranger.stackContainerBlock(containerBlock);
+                    try blockArranger.stackContainerBlock(containerBlock, markLen == 2);
                 },
                 else => {},
             }
@@ -750,17 +755,22 @@ fn parse(parser: *DocParser) !void {
 
                     var isFirstLevel = true;
                     lineScanner.advance(1);
+
                     const markLen = if (lineScanner.peekNext()) |c| blk: {
                         lineScanner.advance(1);
                         switch (c) {
                             '#', '=', '+', '-' => |mark| {
                                 isFirstLevel = mark == '#';
                                 lineScanner.advance(1);
+
                                 break :blk 4 + lineScanner.readUntilNotChar(mark);
                             },
                             else => break :blk 3,
                         }
-                    } else 3;
+                    } else blk: {
+                        lineScanner.advance(1);
+                        break :blk 3;
+                    };
 
                     const markEndWithtoutBlanks = lineScanner.cursor;
                     const markEndWithBlanks = if (lineScanner.lineEnd) |_| blk: {
@@ -772,6 +782,7 @@ fn parse(parser: *DocParser) !void {
                             suffixBlankStart = markEndWithtoutBlanks;
                             break :blk markEndWithtoutBlanks;
                         }
+
                         break :blk lineScanner.cursor;
                     };
 

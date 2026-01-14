@@ -608,7 +608,7 @@ pub fn BuildSession(BuilderType: type) type {
                                 break :blk .{ targetPath, url.fragment };
                             },
                             .txt, .html, .htm, .xhtml, .css, .js => {
-                                try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js fiels is not supported now: {s}\n", .{url.base});
+                                try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js files is not supported now: {s}\n", .{url.base});
                                 try handler.session.appContext.stderr.flush();
                                 //return error.DocOtherThanTmdNotSupportedNow;
                                 // ToDo: support these.

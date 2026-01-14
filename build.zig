@@ -168,13 +168,15 @@ pub fn build(b: *std.Build) !void {
     });
     const wasmOptimize: std.builtin.OptimizeMode = .ReleaseSmall;
 
+    const wasmLibModule = b.addModule("tmd-wasm", .{
+        .root_source_file = b.path("library/tmd-wasm/wasm.zig"),
+        .target = wasmTarget,
+        .optimize = wasmOptimize,
+    });
+
     const wasm = b.addExecutable(.{
         .name = "tmd",
-        .root_module = b.createModule(.{
-            .root_source_file = b.path("library/tmd-wasm/wasm.zig"),
-            .target = wasmTarget,
-            .optimize = wasmOptimize,
-        }),
+        .root_module = wasmLibModule,
     });
 
     // <https://github.com/ziglang/zig/issues/8633>

@@ -126,7 +126,9 @@ For detailed explanations, please refer to __the specification__.
       :  ### Term 2
          ;;; Explanations of term 2.
 
-   .  // force ending of a container
+   .  %% Force ending of a list context.
+      %% If the next container block is not a list item block,
+      %% then this is unnecessary.
 
    *  ### Tab 1
       ;;; Content of tab 1.
@@ -159,18 +161,23 @@ For detailed explanations, please refer to __the specification__.
 
    !  This is a callout box without header.
 
-   !  ### WARNING!
-      {
+   !. ### WARNING!
+
       This is a callout box with header.
-      }
+
 
    ?  This is a reveal box without summary.
 
-   ?  ### Why TapirMD?
-      {
+   ?. ### Why TapirMD?
+
       Because traditional markdown formats
       have many ambiguities and not powerful enough.
-      }
+
+   .  %% Force ending of a container. Only
+      %% necessary when the container starts
+      %% with a two-character leading mark.
+
+   Not in any container block.
    }
 
 

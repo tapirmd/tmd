@@ -609,7 +609,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 _ = try self.setLinkURL(link, .{});
 
                 if (link.linkBlock()) |linkBlock| {
-                    if (linkBlock.isBare()) {
+                    if (linkBlock.blockType.linkdef.isBare()) {
                         normalPatricia.clear();
                         invertedPatricia.clear();
 
@@ -769,7 +769,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
             const linkForTree = &theElement.value;
             const link = linkForTree.getLink();
             if (link.linkBlock()) |linkBlock| {
-                if (linkBlock.isBare()) {
+                if (linkBlock.blockType.linkdef.isBare()) {
                     normalPatricia.clear();
                     invertedPatricia.clear();
                 } else {
