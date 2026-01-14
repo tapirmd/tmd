@@ -251,6 +251,11 @@ pub const URL = struct {
             const ext = self.extension orelse return false;
             return ext == .tmd;
         }
+
+        pub fn isImageFile(self: @This()) bool {
+            const ext = self.extension orelse return false;
+            return getExtensionInfo(ext).isImage;
+        }
     };
 
     manner: union(enum) {
@@ -276,7 +281,7 @@ pub const URL = struct {
     // It is only valid when .more.urlSourceSet == true.
     sourceContentToken: ?*const Token = null, // null for a blank link span
 
-    // Without the fragment part.
+    // For .absloute, this inlcudes the fragment part.
     base: []const u8 = "",
 
     // The ending part starting with #, if it exists.
@@ -1248,7 +1253,6 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 pub const Token = union(enum) {
     // Same results as using std.meta.TagPayload(Token, .XXX)
     pub const PlainText = @FieldType(Token, "plainText");
-    //pub const InvisibleText = @FieldType(Token, "invisibleText");
     pub const EvenBackticks = @FieldType(Token, "evenBackticks");
     pub const SpanMark = @FieldType(Token, "spanMark");
     pub const LinkInfo = @FieldType(Token, "linkInfo");
@@ -1273,15 +1277,6 @@ pub const Token = union(enum) {
         // Might be .plainText or .evenBackticks.
         nextInLink: ?*Token = null,
     },
-    //invisibleText: struct {
-    //    start: DocSize,
-    //    // The value should be the same as the end of line.
-    //    end: DocSize,
-    //},
-    // ToDo: follow a .media LineSpanMarkType.
-    //mediaInfo: struct {
-    //    attrs: *MediaAttributes,
-    //},
     evenBackticks: struct {
         // `` means a void char.
         // ```` means (pairCount-1) non-collapsable spaces?
@@ -1425,9 +1420,6 @@ pub const Token = union(enum) {
 
     pub fn end(self: *const @This()) DocSize {
         switch (self.*) {
-            //.invisibleText => |t| {
-            //    return t.end;
-            //},
             .plainText => |t| {
                 return t.start + t.more.textLen;
             },
@@ -1505,12 +1497,12 @@ pub const Token = union(enum) {
         };
     }
 
-    pub fn isBlankSpanMark(self: *const @This()) bool {
-        return switch (self.*) {
-            .spanMark => |t| t.more.blankSpan,
-            else => false,
-        };
-    }
+    //pub fn isBlankSpanMark(self: *const @This()) bool {
+    //    return switch (self.*) {
+    //        .spanMark => |t| t.more.blankSpan,
+    //        else => false,
+    //    };
+    //}
 };
 
 pub const SpanMarkType = enum(u4) {

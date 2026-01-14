@@ -641,10 +641,9 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
 
     const text = std.mem.trim(u8, urlText, " \t");
     if (std.mem.indexOfAny(u8, text, "#")) |k| {
+        if (k == 0 and potentailFootnoteRef) url.manner = .footnote;
+
         url.base = text[0..k];
-
-        if (potentailFootnoteRef and k == 0) url.manner = .footnote;
-
         url.fragment = text[k..];
     } else {
         url.base = text;
@@ -657,7 +656,7 @@ pub fn parseLinkURL(urlText: []const u8, potentailFootnoteRef: bool) tmd.URL {
                 .remote => url.manner = .absolute,
                 .local => {
                     //if (std.mem.indexOfScalar(u8, base, '?') == null) {
-                    if (checkValidExtensionAsURL(base)) |ext| {
+                    if (extension(base)) |ext| {
                         url.manner = .{
                             .relative = .{ .extension = ext },
                         };
@@ -770,6 +769,10 @@ pub const Extension = enum {
     jpg,
     jpeg,
     ico,
+    svg,
+    webp,
+    avif,
+    apng,
 
     css,
     js,
@@ -800,39 +803,32 @@ pub fn getExtensionInfo(ext: Extension) ExtensionInfo {
     return extensionInfo[@intFromEnum(ext)];
 }
 
-fn checkValidExtensionAsURL(text: []const u8) ?Extension {
-    if (extension(text)) |ext| {
-        const info = getExtensionInfo(ext);
-        if (info.canBeUsedAsURL) return ext;
-    }
-    return null;
-}
-
 pub const ExtensionInfo = struct {
     ext: Extension,
     mime: []const u8,
     isImage: bool = false,
     isText: bool = false,
-    canBeUsedAsURL: bool = false,
 };
 
 const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]ExtensionInfo = .{
-    .{ .ext = .tmd, .mime = "text/tapir-markdown", .isText = true, .canBeUsedAsURL = true },
-    //.{.ext = .md, .mime = "text/markdown", .isText = true, .canBeUsedAsURL = true},
+    .{ .ext = .tmd, .mime = "text/tapir-markdown", .isText = true },
+    //.{.ext = .md, .mime = "text/markdown", .isText = true},
 
-    .{ .ext = .txt, .mime = "text/plain", .isText = true, .canBeUsedAsURL = true },
-    .{ .ext = .htm, .mime = "text/html", .isText = true, .canBeUsedAsURL = true },
-    .{ .ext = .html, .mime = "text/html", .isText = true, .canBeUsedAsURL = true },
-    .{ .ext = .xhtml, .mime = "application/xhtml+xml", .isText = true, .canBeUsedAsURL = true },
+    .{ .ext = .txt, .mime = "text/plain", .isText = true },
+    .{ .ext = .htm, .mime = "text/html", .isText = true },
+    .{ .ext = .html, .mime = "text/html", .isText = true },
+    .{ .ext = .xhtml, .mime = "application/xhtml+xml", .isText = true },
 
-    .{ .ext = .png, .mime = "image/png", .isImage = true, .canBeUsedAsURL = true },
-    .{ .ext = .gif, .mime = "image/gif", .isImage = true, .canBeUsedAsURL = true },
-    .{ .ext = .jpg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
-    .{ .ext = .jpeg, .mime = "image/jpeg", .isImage = true, .canBeUsedAsURL = true },
-    .{ .ext = .ico, .mime = "image/x-icon", .isImage = true, .canBeUsedAsURL = true },
+    .{ .ext = .png, .mime = "image/png", .isImage = true },
+    .{ .ext = .gif, .mime = "image/gif", .isImage = true },
+    .{ .ext = .jpg, .mime = "image/jpeg", .isImage = true },
+    .{ .ext = .jpeg, .mime = "image/jpeg", .isImage = true },
+    .{ .ext = .ico, .mime = "image/x-icon", .isImage = true },
+    .{ .ext = .svg, .mime = "image/svg+xml", .isImage = true },
+    .{ .ext = .webp, .mime = "image/webp", .isImage = true },
+    .{ .ext = .avif, .mime = "image/avif", .isImage = true },
+    .{ .ext = .apng, .mime = "image/apng", .isImage = true },
 
-    // ToDo: also support canBeUsedAsURL/
-    //       Or never. Only support .css.txt, .js.txt, ....
     .{ .ext = .css, .mime = "text/css" },
     .{ .ext = .js, .mime = "text/javascript" },
 };

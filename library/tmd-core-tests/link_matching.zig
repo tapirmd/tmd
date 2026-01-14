@@ -22,10 +22,10 @@ test "line end type" {
                     const start = std.mem.indexOf(u8, html, openNeedle) orelse return null;
                     const offset = start + openNeedle.len;
                     const end = std.mem.indexOf(u8, html[offset..], closeNeedle) orelse return null;
-                    const remaining = html[offset+end+closeNeedle.len..];
+                    const remaining = html[offset + end + closeNeedle.len ..];
                     const pos = std.mem.indexOfAny(u8, remaining, "_>") orelse unreachable;
                     if (remaining[pos] == '_') {
-                        if (std.mem.startsWith(u8, remaining[pos+1..], "blank"))
+                        if (std.mem.startsWith(u8, remaining[pos + 1 ..], "blank"))
                             return .{ .start = offset, .end = offset + end, .openInNewWindow = true };
                     }
                     return .{ .start = offset, .end = offset + end, .openInNewWindow = false };
@@ -74,11 +74,19 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\``__foo `` bar.tmd __ 
+        \\` `__foo `` bar.tmd __
         \\===foo``https://go101.org
         \\
     , &.{
         "^bar.html",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\` ` __foo `` bar.tmd __
+        \\===foo``https://go101.org
+        \\
+    , &.{
+        "bar.html",
     }));
 
     try std.testing.expect(try LinkChecker.check(
@@ -139,7 +147,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\``__foo__
+        \\` `__foo__
         \\===foo``https://go101.org
         \\
     , &.{
@@ -147,7 +155,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\``__foo__
+        \\` `__foo__
         \\===foo`https://go101.org/"foo'bar&zoo?a=b&c=d#ddd"ccc'eee&fff?ggg
         \\
     , &.{
@@ -155,7 +163,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\``__foo``./foo"bar'zoo/?xx&yy.tmd
+        \\` `__foo``./foo"bar'zoo/?xx&yy.tmd
         \\
     , &.{
         "^./foo%22bar%27zoo/%3fxx%26yy.html",

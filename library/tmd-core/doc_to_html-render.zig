@@ -30,8 +30,8 @@ pub const GenOptions = struct {
         fnGetCustomBlockGenerator: ?*const fn (context: *const anyopaque, custom: *const tmd.BlockType.Custom) anyerror!?Generator = null,
         // ToDo: fnCodeBlockGenerator, and for any kinds of blocks?
 
-        fnGetMediaUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!?Generator = null,
-        fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) anyerror!?Generator = null,
+        fnGetMediaUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link) anyerror!??Generator = null,
+        fnGetLinkUrlGenerator: ?*const fn (context: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) anyerror!??Generator = null,
     } = .{},
 };
 
@@ -153,14 +153,14 @@ pub const TmdRender = struct {
         return .dummy();
     }
 
-    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link, isCurrentPage: *?bool) !?Generator {
+    fn getLinkUrlGenerator(self: *const TmdRender, link: *const tmd.Link, isCurrentPage: *?bool) !??Generator {
         if (self.options.callbacks.fnGetLinkUrlGenerator) |get| {
             if (try get(self.options.callbacks.context, link, isCurrentPage)) |callback| return callback;
         }
         return null;
     }
 
-    fn getMediaUrlGenerator(self: *const TmdRender, link: *const tmd.Link) !?Generator {
+    fn getMediaUrlGenerator(self: *const TmdRender, link: *const tmd.Link) !??Generator {
         if (self.options.callbacks.fnGetMediaUrlGenerator) |get| {
             if (try get(self.options.callbacks.context, link)) |callback| return callback;
         }
@@ -584,10 +584,13 @@ pub const TmdRender = struct {
                     try fns.writeBareTag(w, blankTag, blankClasses, null, self.options.identSuffix, true);
                 }
 
-                const dropCap = if (block.startLine().firstTokenOf(.others)) |t| t.isBlankSpanMark() else false;
-
                 const tag = "div";
                 const classes = if (self.toRenderSubtitles) "tmd-usual tmd-subtitle" else blk: {
+                    const dropCap = if (block.startLine().firstTokenOf(.others)) |t| switch (t.*) {
+                        .leadingSpanMark => |lsp| lsp.more.markType == .media and lsp.more.isBare,
+                        else => false,
+                    } else false;
+
                     break :blk if (dropCap) "tmd-usual tmd-dropcap" else "tmd-usual";
                 };
 
@@ -673,7 +676,8 @@ pub const TmdRender = struct {
         while (true) {
             check: {
                 switch (child.blockType) {
-                    .blank => unreachable,
+                    //.blank => unreachable,
+                    .blank => break :check, // possible for #. led blocks now.
                     .attributes => break :check,
                     .seperator => break :check,
                     .base => |base| if (base.attributes().undisplayed) break :check,
@@ -707,6 +711,7 @@ pub const TmdRender = struct {
         while (true) {
             handle: {
                 const rowSpan: u32, const colSpan: u32 = switch (child.blockType) {
+                    .blank => break :handle,
                     .attributes => break :handle,
                     .seperator => {
                         toChangeRow = true;
@@ -1256,6 +1261,8 @@ pub const TmdRender = struct {
 
                                         var isCurrentPage: ?bool = null;
                                         if (try self.getLinkUrlGenerator(link, &isCurrentPage)) |callback| {
+                                            const generator = callback orelse break :blk false;
+
                                             if (isCurrentPage) |b| {
                                                 if (b) try w.writeAll(
                                                     \\<a class="tmd-current-page-url" href="
@@ -1266,7 +1273,7 @@ pub const TmdRender = struct {
                                                 \\<a href="
                                             );
 
-                                            try callback.gen(w);
+                                            try generator.gen(w);
 
                                             break :blk true;
                                         }
@@ -1297,31 +1304,33 @@ pub const TmdRender = struct {
                                                     try fns.writeUrlAttributeValue(w, url.fragment, false);
                                                 }
                                             },
-                                            else => {
-                                                try w.writeAll(
-                                                    \\<span class="tmd-broken-link">
-                                                );
-
-                                                tracker.brokenLinkConfirmed = true;
-
-                                                break :blk false;
-                                            },
+                                            else => break :blk false,
                                         }
 
                                         break :blk true;
                                     };
 
                                     if (urlWritten) {
-                                        if (token.prev()) |t| {
-                                            if (t.isVoid()) {
+                                        if (token.prev()) |pt| if (pt.* == .spanMark) blk: {
+                                            const pm = pt.spanMark;
+                                            if (pm.more.open) break :blk;
+                                            const ppt = pt.prev() orelse break :blk;
+                                            if (ppt.* != .spanMark) break :blk;
+                                            const ppm = ppt.spanMark;
+                                            if (ppm.more.open and ppm.markType == pm.markType and ppm.more.blankSpan) {
                                                 try w.writeAll(
                                                     \\" target="_blank
                                                 );
                                             }
-                                        }
+                                        };
                                         try w.writeAll(
                                             \\">
                                         );
+                                    } else {
+                                        try w.writeAll(
+                                            \\<span class="tmd-broken-link">
+                                        );
+                                        tracker.brokenLinkConfirmed = true;
                                     }
 
                                     try writeOpenMarks(w, markElement, usage);
@@ -1377,13 +1386,18 @@ pub const TmdRender = struct {
                                     const link = linkInfoToken.linkInfo.link;
                                     const url = link.url orelse unreachable;
                                     if (try self.getMediaUrlGenerator(link)) |callback| {
+                                        const generator = callback orelse break :writeMedia;
                                         try w.writeAll("<img src=\"");
-                                        try callback.gen(w);
+                                        try generator.gen(w);
                                     } else switch (url.manner) {
-                                        .absolute, .relative => {
-                                            const src = url.base;
+                                        .absolute => {
                                             try w.writeAll("<img src=\"");
-                                            try fns.writeUrlAttributeValue(w, src, url.manner == .relative);
+                                            try fns.writeUrlAttributeValue(w, url.base, false);
+                                        },
+                                        .relative => |rm| {
+                                            if (!rm.isImageFile()) break :writeMedia;
+                                            try w.writeAll("<img src=\"");
+                                            try fns.writeUrlAttributeValue(w, url.base, true);
 
                                             // ToDo: size info is in url.fragment
                                         },

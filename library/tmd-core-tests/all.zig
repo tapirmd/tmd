@@ -5,6 +5,7 @@ test {
     _ = @import("block_nesting.zig");
     _ = @import("span_contents.zig");
     _ = @import("span_marks.zig");
+    _ = @import("leading_marks.zig");
     _ = @import("block_properties.zig");
     _ = @import("link_matching.zig");
     _ = @import("tmd_config.zig");

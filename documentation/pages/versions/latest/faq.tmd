@@ -3,8 +3,9 @@
 
 ?  ### How to apply drop-cap style to a paragraph?
    {
-   In TapirMD, if a usual block starts with a style and the content of the style is blank,
+   In TapirMD, if a usual block starts with a bare media line,
    then the first letter in the usual block should be a drop cap.
+   
    Here is an example:
    #  ;;; Source
       ;;; Effect
@@ -13,10 +14,12 @@
       ''' << #example-drop-case
       @@@ #example-drop-case
       {
-      ` ` This is a paragraph which
+      &&
+      This is a paragraph which
       first letter is a drop cap.
 
-      ;;; ** **Another paragraph which
+      ;;; &&
+      Another paragraph which
       has the drop-cap effect.
       }
    }
@@ -63,7 +66,8 @@
 
 ?  ### How do I make a hyperlink open in a new window?
    {
-   Preceding a hyperlink with a void character to force it to open in a new window.
+   Closely preceding a hyperlink with a blank style span
+   to make the hyperlink open in a new window.
 
    An example:
    #  ;;; Source
@@ -73,7 +77,7 @@
       ''' << #example-open-in-new-window
       @@@ #example-open-in-new-window
       {
-      Open ``__ the link __ in a new window.
+      Open ` `__the link __ in a new window.
 
           === the link
               https://zig101.tapirgames.com

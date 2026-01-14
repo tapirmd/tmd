@@ -240,7 +240,7 @@ pub const BlockGeneratorCallbackOwner = struct {
         return self.mutableData.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom);
     }
 
-    fn getLinkUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !?tmd.Generator {
+    fn getLinkUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !??tmd.Generator {
         std.debug.assert(isCurrentPage.* == null);
 
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
@@ -262,10 +262,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                         const absPath = try util.replaceExtension(realPath, ".html", self.appContext.allocator);
                         break :blk .{ absPath, url.fragment };
                     },
-                    .txt, .html, .htm, .xhtml, .css, .js => {
-                        // keep as is.
-                    },
-                    .png, .gif, .jpg, .jpeg, .ico => {
+                    .txt, .html, .htm, .xhtml, .css, .js, .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
@@ -273,7 +270,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                     },
                 };
 
-                return null;
+                return @as(?tmd.Generator, null);
             },
             else => return null,
         };
@@ -290,16 +287,23 @@ pub const BlockGeneratorCallbackOwner = struct {
         );
     }
 
-    fn getMediaUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link) !?tmd.Generator {
+    fn getMediaUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link) !??tmd.Generator {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
 
         const url = link.url.?;
         const targetPath = switch (url.manner) {
-            .relative => blk: {
-                var pa: util.PathAllocator = .{};
-                const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
-                const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
-                break :blk absPath;
+            .relative => |v| blk: {
+                if (v.extension) |ext| switch (ext) {
+                    .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
+                        var pa: util.PathAllocator = .{};
+                        const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
+                        const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
+                        break :blk absPath;
+                    },
+                    else => {},
+                };
+
+                return @as(?tmd.Generator, null);
             },
             else => return null,
         };

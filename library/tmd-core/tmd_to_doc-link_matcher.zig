@@ -606,7 +606,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                 // The link should be ignored in rendering.
                 //std.debug.print("ignored for no content tokens\n", .{});
 
-                _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
+                _ = try self.setLinkURL(link, .{});
 
                 if (link.linkBlock()) |linkBlock| {
                     if (linkBlock.isBare()) {
@@ -645,22 +645,26 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                         // This link definition will be ignored.
                         //std.debug.print("ignored for blank link definition\n", .{});
 
-                        _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
+                        _ = try self.setLinkURL(link, .{});
                         break :handle_link;
                     }
                 } else {
-                    const potentialFootnoteLink = lastToken == firstTextToken and switch (link.owner) {
-                        inline .block, .media => false,
+                    const potentailFootnoteRef = switch (link.owner) {
+                        .block => unreachable,
+                        .media => false,
                         .hyper => |t| blk: {
-                            const openHyperLinkMark = t.prev() orelse unreachable;
-                            std.debug.assert(openHyperLinkMark.* == .spanMark);
-                            const spanMark = openHyperLinkMark.spanMark;
-                            std.debug.assert(spanMark.markType == .hyperlink and spanMark.more.open);
+                            if (lastToken == firstTextToken) {
+                                const openHyperLinkMark = t.prev() orelse unreachable;
+                                std.debug.assert(openHyperLinkMark.* == .spanMark);
+                                const spanMark = openHyperLinkMark.spanMark;
+                                std.debug.assert(spanMark.markType == .hyperlink and spanMark.more.open);
 
-                            break :blk !spanMark.more.containsOtherSpanMarks;
+                                break :blk !spanMark.more.containsOtherSpanMarks;
+                            }
+                            break :blk false;
                         },
                     };
-                    const url = AttributeParser.parseLinkURL(str, potentialFootnoteLink);
+                    const url = AttributeParser.parseLinkURL(str, potentailFootnoteRef);
                     if (url.manner != .undetermined) {
                         // This is a self-defined hyperlink.
 
@@ -681,7 +685,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
                     // For hyperlink, it will not match any definitions.
                     //std.debug.print("ignored for blank link text\n", .{});
 
-                    _ = try self.setLinkURL(link, AttributeParser.parseLinkURL("", false));
+                    _ = try self.setLinkURL(link, .{});
 
                     break :handle_link;
                 }

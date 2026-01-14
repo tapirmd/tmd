@@ -587,7 +587,7 @@ pub fn BuildSession(BuilderType: type) type {
                 return handler.mutableData.externalBlockGenerator.makeGenerator(handler.session.project.configEx, handler.tmdDocInfo.doc, custom);
             }
 
-            fn getLinkUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !?tmd.Generator {
+            fn getLinkUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !??tmd.Generator {
                 std.debug.assert(isCurrentPage.* == null);
 
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
@@ -610,16 +610,17 @@ pub fn BuildSession(BuilderType: type) type {
                             .txt, .html, .htm, .xhtml, .css, .js => {
                                 try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js fiels is not supported now: {s}\n", .{url.base});
                                 try handler.session.appContext.stderr.flush();
-                                return error.DocOtherThanTmdNotSupportedNow;
+                                //return error.DocOtherThanTmdNotSupportedNow;
+                                // ToDo: support these.
                             },
-                            .png, .gif, .jpg, .jpeg, .ico => {
+                            .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                                 var pa: util.PathAllocator = .{};
                                 const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
                                 break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .images), "" };
                             },
                         };
 
-                        return null;
+                        return @as(?tmd.Generator, null);
                     },
                     else => return null,
                 };
@@ -636,15 +637,22 @@ pub fn BuildSession(BuilderType: type) type {
                 );
             }
 
-            fn getMediaUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link) !?tmd.Generator {
+            fn getMediaUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link) !??tmd.Generator {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
                 const url = link.url.?;
                 const targetPath = switch (url.manner) {
-                    .relative => blk: {
-                        var pa: util.PathAllocator = .{};
-                        const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
-                        break :blk try handler.session.tryToRegisterFile(.{ .local = absPath }, .images);
+                    .relative => |v| blk: {
+                        if (v.extension) |ext| switch (ext) {
+                            .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
+                                var pa: util.PathAllocator = .{};
+                                const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
+                                break :blk try handler.session.tryToRegisterFile(.{ .local = absPath }, .images);
+                            },
+                            else => {},
+                        };
+
+                        return @as(?tmd.Generator, null);
                     },
                     else => return null,
                 };

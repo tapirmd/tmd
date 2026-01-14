@@ -130,7 +130,7 @@ TapirMD supports a variety of block types, categorized into three groups:
    }
    ;;;
    Except item blocks, predefined container blocks can only directly nest
-   base or non-blank atom blocks
+   base or atom blocks
    and must be directly nested within a base block.
    ;;;
    Item blocks can directly nest base, any atom, and other item blocks.
@@ -334,15 +334,11 @@ starting atom blocks all ignore leading mark tokens of predefined container bloc
 
 During line-by-line parsing, an explciit base block
 *  opens at a tokenized line beginning with a //**base-open-leading mark token**//,
-   which is a character sequence containing one or more consecutive `{` characters.
+   which is exact one `{` character.
 *  closes at
-   -  a tokenized line beginning with one or more consecutive `}` characters
+   -  a tokenized line beginning with exact one `}` character
       (a //**base-close-leading mark token**//), or
    -  at the end of the containing document.
-
-The numbers of the `}` characters in the base-close-leading mark token
-and the numbers of the `{` characters in the base-open-leading mark token
-are not required to match.
 
 On the open line of an explciit base block,
 multiple optional attribute tokens may follow the base-open-leading mark token,
@@ -599,6 +595,12 @@ Here is the list of all line-leading mark tokens supported now.
 
 Line-leading mark tokens take higher precedence over all non-line-leading mark tokens.
 
+A line-leading mark may be followed without content in its containing line.
+Such marks are called bare line-leading marks.
+
+If a usual block starts with a bare media line-leading mark,
+then the first letter in the usual block should be a drop cap.
+
 @@@ #even-backtick-marks
 ###----- even-backtick mark tokens
 
@@ -719,12 +721,7 @@ Before deactivation, additional style mark tokens of the same type are ignored (
 if their character count does not match the opening mark token,
 ensuring they do not deactivate the style prematurely.
 All content tokens between when the style is activated and when it is deactivated
-form the //**content span**// of the style.
-The content span of a style might be blank.
-
-If the first non-block-leadng-mark token in a usual block is a style mark token
-and the content span of the corresponding style is blank,
-then it signals that the first letter in the usual block should be a drop cap.
+form the content of the style. The content of a style might be blank.
 
 Style mark tokens in the primary mode (code span) of the font-face type
 take precedence over other style mark tokens.
@@ -792,7 +789,8 @@ Footnote blocks will be always rendered at the end of HTML output.
 
 Specially, a hyperlink span containing only a `#` token links to the footnote section.
 
-Preceding a hyperlink with a void character signals than the hyperlink should be opened in a new window.
+Closely preceding a hyperlink with a blank style span
+signals that the hyperlink should be opened in a new window.
 
 @@@ #link-def-blocks
 ###+++++ Link-definition blocks
@@ -1131,7 +1129,7 @@ is treated as a //**tab panel**// in HTML output.
 ###+++++ Table semantics
 
 Like other non-item predefined container blocks, the child blocks
-of table blocks can be either base blocks or any non-blank atom blocks.
+of table blocks can be either base blocks or any atom blocks.
 
 #  ### Block Type
    ### Role in Table

@@ -43,12 +43,10 @@ pub fn start(root: *tmd.Block, doc: *tmd.Doc) BlockArranger {
     return s;
 }
 
-// This function should not be callsed deferredly.
+// This function should not be called deferredly. (Why? for errors?)
 pub fn done(self: *BlockArranger) void {
     while (self.tryToCloseCurrentBaseBlock()) |_| {}
 }
-
-// ToDo: change method name to foo_bar style?
 
 pub fn canOpenBaseBlock(self: *const BlockArranger) bool {
     if (self.count_1 == tmd.MaxBlockNestingDepth - 1) {
