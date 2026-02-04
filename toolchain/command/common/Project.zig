@@ -618,7 +618,9 @@ pub fn BuildSession(BuilderType: type) type {
                                 const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
                                 break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .images), "" };
                             },
-                        };
+                        } else if (url.base.len == 0) { // should be always?
+                            break :blk .{ handler.tmdDocInfo.targetFilePath, url.fragment };
+                        }
 
                         return @as(?tmd.Generator, null);
                     },

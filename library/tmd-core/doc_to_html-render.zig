@@ -1208,11 +1208,12 @@ pub const TmdRender = struct {
                             std.debug.assert(markElement.value.mark == null);
 
                             markElement.value.mark = m;
-                            if (m.markType == .hyperlink and !m.more.secondary) {
+                            if (m.markType == .hyperlink) {
                                 std.debug.assert(tracker.currentLinkInfo == null);
 
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
+
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
                                 std.debug.assert(linkInfoToken.prev() == token);
                                 tracker.onLinkInfo(&linkInfoToken.linkInfo);
@@ -1311,18 +1312,11 @@ pub const TmdRender = struct {
                                     };
 
                                     if (urlWritten) {
-                                        if (token.prev()) |pt| if (pt.* == .spanMark) blk: {
-                                            const pm = pt.spanMark;
-                                            if (pm.more.open) break :blk;
-                                            const ppt = pt.prev() orelse break :blk;
-                                            if (ppt.* != .spanMark) break :blk;
-                                            const ppm = ppt.spanMark;
-                                            if (ppm.more.open and ppm.markType == pm.markType and ppm.more.blankSpan) {
-                                                try w.writeAll(
-                                                    \\" target="_blank
-                                                );
-                                            }
-                                        };
+                                        if (m.more.secondary) {
+                                            try w.writeAll(
+                                                \\" target="_blank
+                                            );
+                                        }
                                         try w.writeAll(
                                             \\">
                                         );
@@ -1542,12 +1536,7 @@ pub const TmdRender = struct {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
-            .hyperlink => {
-                std.debug.assert(spanMark.more.secondary);
-                try w.writeAll(
-                    \\<span class="tmd-underlined">
-                );
-            },
+            .hyperlink => unreachable,
             .fontWeight => {
                 if (spanMark.more.secondary) {
                     try w.writeAll(
@@ -1573,11 +1562,11 @@ pub const TmdRender = struct {
             .fontSize => {
                 if (spanMark.more.secondary) {
                     try w.writeAll(
-                        \\<span class="tmd-larger-size">
+                        \\<span class="tmd-smaller-size">
                     );
                 } else {
                     try w.writeAll(
-                        \\<span class="tmd-smaller-size">
+                        \\<span class="tmd-larger-size">
                     );
                 }
             },
@@ -1600,6 +1589,17 @@ pub const TmdRender = struct {
                 } else {
                     try w.writeAll(
                         \\<mark class="tmd-marked">
+                    );
+                }
+            },
+            .underline => {
+                if (spanMark.more.secondary) {
+                    try w.writeAll(
+                        \\<span class="tmd-underline-2">
+                    );
+                } else {
+                    try w.writeAll(
+                        \\<span class="tmd-underline">
                     );
                 }
             },
@@ -1629,7 +1629,7 @@ pub const TmdRender = struct {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
-            .hyperlink, .fontWeight, .fontStyle, .fontSize, .deleted => {
+            .hyperlink, .fontWeight, .fontStyle, .fontSize, .underline, .deleted => {
                 try w.writeAll("</span>");
             },
             .marked => {
@@ -1785,17 +1785,17 @@ test "footnotes" {
             \\
             \\### Title
             \\
-            \\This is a footnode __#foo__
+            \\This is a footnode ::#foo::
             \\
             \\{%%
             \\
             \\@@@ #foo
-            \\bla bla bla __#foo__.
-            \\bla bla __#bar__.
+            \\bla bla bla ::#foo::.
+            \\bla bla ::#bar::.
             \\
             \\@@@ #bar
-            \\bla bla bla __#foo__.
-            \\bla bla __#bar__.
+            \\bla bla bla ::#foo::.
+            \\bla bla ::#bar::.
             \\
             \\}
             \\

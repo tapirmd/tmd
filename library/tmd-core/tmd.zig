@@ -194,8 +194,7 @@ pub fn headerLevel(headeMark: []const u8) ?u8 {
     return switch (headeMark[headeMark.len - 1]) {
         '#' => 1,
         '=' => 2,
-        '+' => 3,
-        '-' => 4,
+        '-' => 3,
         else => null,
     };
 }
@@ -254,7 +253,7 @@ pub const ElementAttibutes = struct {
 // The definition is not the same as web URL.
 pub const URL = struct {
     pub const RelativeManner = struct {
-        extension: ?Extension,
+        extension: ?Extension, // null if .base is "".
 
         pub fn isTmdFile(self: @This()) bool {
             const ext = self.extension orelse return false;
@@ -271,7 +270,7 @@ pub const URL = struct {
         undetermined, //
         absolute, // .base contains :// (not support //xxx.yyy/...)
         relative: RelativeManner, // relative ablolute paths (/foo/bar) are not supported.
-        footnote, // __#[id]__. __#__ means all footnotes.
+        footnote, // ::#[id]::. ::#:: means all footnotes.
         invalid, // should only be set by custom handlers
     } = .undetermined,
 
@@ -1529,6 +1528,7 @@ pub const SpanMarkType = enum(u4) {
     fontSize,
     deleted,
     marked,
+    underline,
     supsub,
     code, // must be the last one (why? forget the reason)
 

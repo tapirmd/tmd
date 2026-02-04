@@ -66,7 +66,7 @@ test "line end type" {
     , &.{}));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo `` bar.tmd __ 
+        \\::foo `` bar.tmd :: 
         \\===foo``https://go101.org
         \\
     , &.{
@@ -74,7 +74,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\` `__foo `` bar.tmd __
+        \\^::foo `` bar.tmd ::
         \\===foo``https://go101.org
         \\
     , &.{
@@ -82,15 +82,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\` ` __foo `` bar.tmd __
-        \\===foo``https://go101.org
-        \\
-    , &.{
-        "bar.html",
-    }));
-
-    try std.testing.expect(try LinkChecker.check(
-        \\__foo `` bar.htm
+        \\::foo `` bar.htm
         \\===foo``https://go101.org
         \\
     , &.{
@@ -98,7 +90,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo `` bar.png
+        \\::foo `` bar.png
         \\===foo``https://go101.org
         \\
     , &.{
@@ -106,9 +98,9 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__
+        \\::
         \\&& bar.png
-        \\__
+        \\::
         \\===foo``https://go101.org
         \\
     , &.{
@@ -116,7 +108,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__
+        \\::
         \\&& foo.png
         \\%% bar
         \\===...bar``https://go101.org
@@ -126,9 +118,9 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__ this
+        \\:: this
         \\%% -1
-        \\__ and __this
+        \\:: and ::this
         \\%% -2
         \\===this-2``https://go101.org
         \\===this-1``https://tapirgames.com
@@ -139,7 +131,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\````__foo__
+        \\````::foo::
         \\===foo``https://go101.org
         \\
     , &.{
@@ -147,7 +139,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\` `__foo__
+        \\^::foo::
         \\===foo``https://go101.org
         \\
     , &.{
@@ -155,7 +147,7 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\` `__foo__
+        \\^::foo::
         \\===foo`https://go101.org/"foo'bar&zoo?a=b&c=d#ddd"ccc'eee&fff?ggg
         \\
     , &.{
@@ -163,14 +155,14 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\` `__foo``./foo"bar'zoo/?xx&yy.tmd
+        \\^::foo``./foo"bar'zoo/?xx&yy.tmd
         \\
     , &.{
         "^./foo%22bar%27zoo/%3fxx%26yy.html",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo__
+        \\::foo::
         \\===foo``https://go101.org
         \\
     , &.{
@@ -178,113 +170,113 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo__
-        \\=== foo :: https://go101.org
+        \\::foo::
+        \\=== foo ` https://go101.org
         \\
     , &.{
         "https://go101.org",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo__
-        \\=== foo `https://go101.org/__foo__`
+        \\::foo::
+        \\=== foo `https://go101.org/::foo::`
         \\
     , &.{
-        "https://go101.org/__foo__",
+        "https://go101.org/::foo::",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__
-        \\!! __foo__
+        \\::
+        \\!! ::foo::
         \\
-        \\=== __foo__:: https://go101.org/__foo__
+        \\=== ::foo::` https://go101.org/::foo::
         \\
     , &.{
-        "https://go101.org/__foo__",
+        "https://go101.org/::foo::",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo__
+        \\::foo::
         \\=== foo 
-        \\    !! https://go101.org/__foo__/`foo``
+        \\    !! https://go101.org/::foo::/`foo``
         \\
     , &.{
-        "https://go101.org/__foo__/`foo``",
+        "https://go101.org/::foo::/`foo``",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo bar__
-        \\=== foo :: https://go101.org
+        \\::foo bar::
+        \\=== foo ` https://go101.org
         \\
     , &.{}));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo bar__
-        \\=== foo... :: https://go101.org
+        \\::foo bar::
+        \\=== foo... ` https://go101.org
         \\
     , &.{
         "https://go101.org",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__foo bar__
-        \\=== ... bar :: https://go101.org
+        \\::foo bar::
+        \\=== ... bar ` https://go101.org
         \\
     , &.{
         "https://go101.org",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo bar__
+        \\::foo bar::
         \\
     , &.{
         "https://tapirgames.com",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo bar__
+        \\::foo bar::
         \\
-        \\=== ... bar :: https://go101.org
+        \\=== ... bar ` https://go101.org
         \\
     , &.{
         "https://go101.org",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo bar__
+        \\::foo bar::
         \\
         \\===
-        \\=== ... bar :: https://go101.org
+        \\=== ... bar ` https://go101.org
         \\
     , &.{
         "https://tapirgames.com",
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\===
         \\
-        \\__foo bar__
+        \\::foo bar::
         \\
         \\===
-        \\=== ... bar :: https://go101.org
+        \\=== ... bar ` https://go101.org
         \\
     , &.{}));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo bar__
+        \\::foo bar::
         \\
-        \\=== ... bar :: https://go101.org
+        \\=== ... bar ` https://go101.org
         \\
-        \\__foo bye__
+        \\::foo bye::
         \\
     , &.{
         "https://go101.org",
@@ -292,10 +284,10 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo bar__
-        \\__foo bye__
+        \\::foo bar::
+        \\::foo bye::
         \\
     , &.{
         "https://tapirgames.com",
@@ -303,29 +295,13 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo ... :: https://tapirgames.com
-        \\=== bar... :: https://go101.com
+        \\=== foo ... ` https://tapirgames.com
+        \\=== bar... ` https://go101.com
         \\
-        \\__foo `bar` byte__
-        \\__foo `bar` `` byte__
-        \\__bar `bye` foo__
-        \\__bar `bye` `` foo__
-        \\
-    , &.{
-        "https://tapirgames.com",
-        "https://tapirgames.com",
-        "https://go101.com",
-        "https://go101.com",
-    }));
-
-    try std.testing.expect(try LinkChecker.check(
-        \\=== ... byte :: https://tapirgames.com
-        \\=== ...foo :: https://go101.com
-        \\
-        \\__foo `bar` byte__
-        \\__foo `bar` `` byte__
-        \\__bar `bye` foo__
-        \\__bar `bye` `` foo__
+        \\::foo `bar` byte::
+        \\::foo `bar` `` byte::
+        \\::bar `bye` foo::
+        \\::bar `bye` `` foo::
         \\
     , &.{
         "https://tapirgames.com",
@@ -335,18 +311,34 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== ... byte ` https://tapirgames.com
+        \\=== ...foo ` https://go101.com
         \\
-        \\__foo__
-        \\__foo zzz__
-        \\__foo bar__
-        \\__foo bar foo__
-        \\__foo zzz foo__
-        \\__foo bar foo bar__
-        \\__foo zzz foo bar__
-        \\__foo bar foo bar foo__
-        \\__foo zzz foo bar foo__
-        \\__foo zzz foo zzz foo__
+        \\::foo `bar` byte::
+        \\::foo `bar` `` byte::
+        \\::bar `bye` foo::
+        \\::bar `bye` `` foo::
+        \\
+    , &.{
+        "https://tapirgames.com",
+        "https://tapirgames.com",
+        "https://go101.com",
+        "https://go101.com",
+    }));
+
+    try std.testing.expect(try LinkChecker.check(
+        \\=== foo... ` https://tapirgames.com
+        \\
+        \\::foo::
+        \\::foo zzz::
+        \\::foo bar::
+        \\::foo bar foo::
+        \\::foo zzz foo::
+        \\::foo bar foo bar::
+        \\::foo zzz foo bar::
+        \\::foo bar foo bar foo::
+        \\::foo zzz foo bar foo::
+        \\::foo zzz foo zzz foo::
         \\
     , &.{
         "https://tapirgames.com",
@@ -362,39 +354,39 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
-        \\__foo__
-        \\__foo zzz__
-        \\__foo bar__
-        \\__foo bar foo__
-        \\__foo zzz foo__
-        \\__foo bar foo bar__
-        \\__foo zzz foo bar__
-        \\__foo bar foo bar foo__
-        \\__foo zzz foo bar foo__
-        \\__foo zzz foo zzz foo__
+        \\=== foo... ` https://tapirgames.com
+        \\::foo::
+        \\::foo zzz::
+        \\::foo bar::
+        \\::foo bar foo::
+        \\::foo zzz foo::
+        \\::foo bar foo bar::
+        \\::foo zzz foo bar::
+        \\::foo bar foo bar foo::
+        \\::foo zzz foo bar foo::
+        \\::foo zzz foo zzz foo::
         \\Here is only one .linkdef block.
         \\
     , &.{}));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo... :: https://tapirgames.com
+        \\=== foo... ` https://tapirgames.com
         \\
-        \\__foo__
-        \\__foo zzz__
-        \\__foo bar__
-        \\__foo bar foo__
+        \\::foo::
+        \\::foo zzz::
+        \\::foo bar::
+        \\::foo bar foo::
         \\
-        \\=== foo bar... :: https://go101.org
+        \\=== foo bar... ` https://go101.org
         \\
-        \\__foo zzz foo__
-        \\__foo bar foo bar__
-        \\__foo         zzz foo bar__
-        \\__foo bar foo bar foo__
-        \\__foo  zzz    foo bar foo__
-        \\__foo    zzz foo zzz foo__
+        \\::foo zzz foo::
+        \\::foo bar foo bar::
+        \\::foo         zzz foo bar::
+        \\::foo bar foo bar foo::
+        \\::foo  zzz    foo bar foo::
+        \\::foo    zzz foo zzz foo::
         \\
-        \\=== foo    zzz... :: https://phyard.com
+        \\=== foo    zzz... ` https://phyard.com
         \\
     , &.{
         "https://tapirgames.com",
@@ -410,13 +402,13 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\=== foo  bar :: https://google.com
-        \\=== foobar :: https://tapirgames.com
+        \\=== foo  bar ` https://google.com
+        \\=== foobar ` https://tapirgames.com
         \\
-        \\__foo
-        \\bar__
-        \\__foo``
-        \\bar__
+        \\::foo
+        \\bar::
+        \\::foo``
+        \\bar::
         \\
     , &.{
         "https://google.com",
@@ -425,14 +417,14 @@ test "line end type" {
 
     try std.testing.expect(try LinkChecker.check(
         \\=== foo
-        \\    bar :: https://google.com
+        \\    bar ` https://google.com
         \\=== foo
-        \\    ``bar :: https://tapirgames.com
+        \\    ``bar ` https://tapirgames.com
         \\
-        \\__foo
-        \\bar__
-        \\__foo``
-        \\bar__
+        \\::foo
+        \\bar::
+        \\::foo``
+        \\bar::
         \\
     , &.{
         "https://google.com",
@@ -440,9 +432,9 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\foo __#foo__
+        \\foo ::#foo::
         \\
-        \\All footnotes __ # __
+        \\All footnotes :: # ::
         \\
     , &.{
         "#fn:foo",
@@ -451,11 +443,11 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__c `` #ccc __ 
+        \\::c `` #ccc :: 
         \\
-        \\__d `` #ddd __ 
+        \\::d `` #ddd :: 
         \\
-        \\__e `` #eee __ 
+        \\::e `` #eee :: 
         \\
     , &.{
         "#ccc",
@@ -464,31 +456,31 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__ #bbb __ 
+        \\:: #bbb :: 
         \\
-        \\__`` #ccc __ 
+        \\::`` #ccc :: 
         \\
-        \\__`` `` ` ` #xxx``__ 
+        \\::`` `` ` ` #xxx``:: 
         \\
-        \\__```` #ddd __ 
+        \\::```` #ddd :: 
         \\
-        \\__https://google.com``__ 
+        \\::https://google.com``:: 
         \\
-        \\__^`` #eee __ 
+        \\::^`` #eee :: 
         \\
-        \\__fff `` __ broken link
+        \\::fff `` :: broken link
         \\
-        \\__#bbb `` __ broken link
+        \\::#bbb `` :: broken link
         \\
-        \\__`` `` #ggg __ 
+        \\::`` `` #ggg :: 
         \\
-        \\__ #bbb __ 
+        \\:: #bbb :: 
         \\
-        \\__#__ // link to the whole footnotes div
+        \\::#:: // link to the whole footnotes div
         \\
-        \\=== #xxx :: https://go101.org
+        \\=== #xxx ` https://go101.org
         \\
-        \\=== https://google.com :: https://tapirgames.org
+        \\=== https://google.com ` https://tapirgames.org
         \\
     , &.{
         "#fn:bbb",
@@ -505,11 +497,11 @@ test "line end type" {
     }));
 
     try std.testing.expect(try LinkChecker.check(
-        \\__a.html ``__ 
+        \\::a.html ``:: 
         \\
-        \\__a.html ````__ 
+        \\::a.html ````:: 
         \\
-        \\__a.html ^``__ 
+        \\::a.html ^``:: 
         \\
     , &.{}));
 }

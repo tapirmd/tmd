@@ -759,7 +759,7 @@ fn parse(parser: *DocParser) !void {
                     const markLen = if (lineScanner.peekNext()) |c| blk: {
                         lineScanner.advance(1);
                         switch (c) {
-                            '#', '=', '+', '-' => |mark| {
+                            '#', '=', '-' => |mark| {
                                 isFirstLevel = mark == '#';
                                 lineScanner.advance(1);
 

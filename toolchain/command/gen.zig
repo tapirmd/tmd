@@ -42,14 +42,17 @@ pub const Generator = struct {
     //       Do it in common.TmdFiles.format() ?
     //       Sort args, short dir paths < longer dir paths < file paths.
     fn genHtmlSnippets(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
+        var n: usize = 0;
         var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
-            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //std.debug.print("> [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
 
             try genHtmlSnippet(entry, buffer, ctx);
+            n += 1;
         }
+        if (n == 1) std.debug.print("1 file is generated.\n", .{}) else std.debug.print("{} files are generated.\n", .{n});
     }
 
     fn genHtmlSnippet(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {

@@ -36,11 +36,11 @@
       ''' << #example-image-link-self
       @@@ #example-image-link-self
       {
-      Click the image __
+      Click the image ::
       && tmd logo
-      __ to open it.
+      :: to open it.
 
-          === tmd logo :: ../../static/image/tmd-v1.png
+          === tmd logo ` ../../static/image/tmd-v1.png
       }
    }
 
@@ -55,36 +55,17 @@
       ''' << #example-image-link
       @@@ #example-image-link
       {
-      Click the image __
+      Click the image ::
       && ../../static/image/tmd-v1.png
       %% to zig 101
-      __ to visit // Zig 101 //.
+      :: to visit // Zig 101 //.
 
           === ... to zig 101
               https://zig101.tapirgames.com
       }
    }
 
-?. ### How do I make a hyperlink open in a new window?
 
-   Closely preceding a hyperlink with a blank style span
-   to make the hyperlink open in a new window.
-
-   An example:
-   {
-   #  ;;; Source
-      ;;; Effect
-      ------
-      ''' tmd
-      ''' << #example-open-in-new-window
-      @@@ #example-open-in-new-window
-      {
-      Open ` `__the link __ in a new window.
-
-          === the link
-              https://zig101.tapirgames.com
-      }
-   }
 
 .
 

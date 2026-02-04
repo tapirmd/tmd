@@ -10,7 +10,7 @@ HTML generation (from TapirMD documents) and TapirMD document formatting.
 @@@ #zig-lib
 ###-------- The Zig library
 
-The repository containing the Zig library is hosted at __ https://github.com/tapirmd/tmd __.
+The repository containing the Zig library is hosted at :: https://github.com/tapirmd/tmd ::.
 
 To use the library, the TapirMD dependency entry should be put in
 the `build.zig.zon` file of your Zig project.
@@ -40,26 +40,26 @@ The library provides a `tmd` module which can be imported into the modules of yo
 ...
    '''
 
-Here is __an example Zig project__ which uses the TapirMD Zig library.
+Here is ::an example Zig project:: which uses the TapirMD Zig library.
 
-    === an example Zig project :: https://github.com/tapirmd/lib-use-examples/tree/master/zig
+    === an example Zig project ` https://github.com/tapirmd/lib-use-examples/tree/master/zig
 
 !  Note: The APIs in the Zig library are still not stable yet.
 
 @@@ #wasm-lib
 ###-------- The WASM library
 
-    === Git :: https://git-scm.com/downloads
-    === Zig :: https://ziglang.org/download/
-    === the TapirMD project :: https://github.com/tapirmd/tmd
-    === download its source code :: https://github.com/tapirmd/tmd/tags
+    === Git ` https://git-scm.com/downloads
+    === Zig ` https://ziglang.org/download/
+    === the TapirMD project ` https://github.com/tapirmd/tmd
+    === download its source code ` https://github.com/tapirmd/tmd/tags
 
 The steps to build the TapirMD WASM library:
 
-*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+*. Install ::Zig::, if haven't. The latest version tip (master) version is recommended.
 
-*. Get the source code of __the TapirMD project__.
-   You can clone it (install __Git__ if needed) or __download its source code__.
+*. Get the source code of ::the TapirMD project::.
+   You can clone it (install ::Git:: if needed) or ::download its source code::.
 
 *. Open your terminal or command prompt, and change directory to the TapirMD project folder,
    then run
@@ -70,10 +70,10 @@ The steps to build the TapirMD WASM library:
    the `lib` folder under the project local `zig-out` folder.
 
 The output `tmd.wasm` binary file can be used in various languages.
-The official TapirMD __JavaScript__ and __Go__ libraries are both built upon WASM.
+The official TapirMD ::JavaScript:: and ::Go:: libraries are both built upon WASM.
 
-    === JavaScript :: #js-lib
-    === Go :: #go-lib
+    === JavaScript ` #js-lib
+    === Go ` #go-lib
 
 The WASM binary file exports several APIs:
 *  `lib_version` returns the memory offset of the version string of the library.
@@ -116,10 +116,10 @@ Currently, the official TapirMD JavaScript library can be only used in browser e
 
 The steps to build the TapirMD JavaScript library:
 
-*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+*. Install ::Zig::, if haven't. The latest version tip (master) version is recommended.
 
-*. Get the source code of __the TapirMD project__.
-   You can clone it (install __Git__ if needed) or __download its source code__.
+*. Get the source code of ::the TapirMD project::.
+   You can clone it (install ::Git:: if needed) or ::download its source code::.
 
 *. Open your terminal or command prompt, and change directory to the TapirMD project folder,
    then run
@@ -129,15 +129,15 @@ The steps to build the TapirMD JavaScript library:
    If the build is successful, the output `tmd-with-wasm.js` file will be located in
    the `lib` folder under the project local `zig-out` folder.
 
-Please read the source code of the __online play page__ to get how to use the JavaScript library.
+Please read the source code of the ::online play page:: to get how to use the JavaScript library.
 
-    === online play page :: play.tmd
+    === online play page ` play.tmd
 
 @@@ #go-lib
 ###-------- The Go library
 
-The TapirMD official Go library is hosted at __ https://github.com/go101/tmd.go __.
+The TapirMD official Go library is hosted at :: https://github.com/go101/tmd.go ::.
 
 The library repository includes an example demonstrating its usage.
 
-The API documentation is available at __ https://pkg.go.dev/go101.org/tmd.go __.
+The API documentation is available at :: https://pkg.go.dev/go101.org/tmd.go ::.

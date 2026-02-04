@@ -246,7 +246,7 @@ pub const BlockGeneratorCallbackOwner = struct {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
 
         const url = link.url.?;
-        const targetPath, const fragment = switch (url.manner) {
+        const a, const targetPath, const fragment = switch (url.manner) {
             .relative => |v| blk: {
                 if (v.extension) |ext| switch (ext) {
                     .tmd => {
@@ -260,15 +260,17 @@ pub const BlockGeneratorCallbackOwner = struct {
                         isCurrentPage.* = util.eqlFilePathsWithoutExtension(realPath, self.currentPageSourceFilePath);
 
                         const absPath = try util.replaceExtension(realPath, ".html", self.appContext.allocator);
-                        break :blk .{ absPath, url.fragment };
+                        break :blk .{ self.appContext.allocator, absPath, url.fragment };
                     },
                     .txt, .html, .htm, .xhtml, .css, .js, .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
-                        break :blk .{ absPath, "" };
+                        break :blk .{ self.appContext.allocator, absPath, "" };
                     },
-                };
+                } else if (url.base.len == 0) { // should be always?
+                    break :blk .{ null, self.currentPageSourceFilePath, url.fragment };
+                }
 
                 return @as(?tmd.Generator, null);
             },
@@ -278,7 +280,7 @@ pub const BlockGeneratorCallbackOwner = struct {
         // ToDo: standalone-html build needs different handling.
 
         return self.mutableData.relativePathWriter.asGenBacklback(
-            self.appContext.allocator,
+            a,
             targetPath,
             std.fs.path.sep,
             self.currentPageSourceFilePath,

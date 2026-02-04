@@ -646,13 +646,11 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                             } else std.debug.assert(textEnd == textStart);
 
                             if (isLinkMark) {
-                                if (openMark.more.secondary) std.debug.assert(self.blockSession.lastLink == null) else {
-                                    std.debug.assert(self.blockSession.lastLink != null);
+                                std.debug.assert(self.blockSession.lastLink != null);
 
-                                    self.blockSession.lastLink = null;
-                                    self.blockSession.lastLinkContentToken = null;
-                                    self.blockSession.lastOpenHyperlinkSpanMark = null;
-                                }
+                                self.blockSession.lastLink = null;
+                                self.blockSession.lastLinkContentToken = null;
+                                self.blockSession.lastOpenHyperlinkSpanMark = null;
                             }
 
                             const closeMark = try self.close_span(spanMarkType, textEnd, markLen, openMark);
@@ -674,7 +672,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
                             const openMark = try self.open_span(spanMarkType, textEnd, markLen, isSecondary);
 
-                            if (isLinkMark and !isSecondary) {
+                            if (isLinkMark) {
                                 const link = try self.open_new_link(.{ .hyper = undefined }, true); // will be modified below
 
                                 // Hyperlink needs 2 tokens to store information.

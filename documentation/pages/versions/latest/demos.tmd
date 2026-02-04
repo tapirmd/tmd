@@ -2,14 +2,14 @@
 ##### Some Simple TapirMD Demos
 
 This page presents a few simple demos using TapirMD.
-For detailed explanations, please refer to __the specification__.
+For detailed explanations, please refer to ::the specification::.
 
-    === the specification:: specification.tmd
+    === the specification` specification.tmd
 
 ###-
 
 @@@ #section-demo-1
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 1 (span styles)
 
 *  ### TapirMD Source
@@ -23,18 +23,21 @@ For detailed explanations, please refer to __the specification__.
 
    //italic text// and ^//revert italic text//.
 
-   ::smaller font size:: and ^::larger font size::.
+   ++larger font size++ and ^++smaller font size++.
 
    ~~deleted text~~ and invisible text:
    ^~~invisible text~~ (non-selectable, still occupy space).
 
    ||marked text|| and ^||marked text with mistake smell||.
 
+   __underline text__ and ^__wavy-underline text__.
+
    $$subscript$$ and ^$$superscript$$.
 
-   This is __a self-defined link``https://go101.org__,
-   this is __a broken link__,
-   and this is ^__an underlined text__.
+   This is ::a self-defined link``https://go101.org::.
+   This is ^::another self-defined link``https://ziglang.org::
+   which will be opened in a new window.
+   This is ::a broken link::.
 
    This is a code span: ` var z = foo::x || bar::y `.
    And this is a mono font text span:
@@ -42,7 +45,7 @@ For detailed explanations, please refer to __the specification__.
    }
 
 @@@ #section-demo-2
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 2 (line leading marks)
 
 *  ### TapirMD Source
@@ -73,7 +76,7 @@ For detailed explanations, please refer to __the specification__.
    }
 
 @@@ #section-demo-3
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 3 (link definitions)
 
 *  ### TapirMD Source
@@ -83,18 +86,18 @@ For detailed explanations, please refer to __the specification__.
 *  ### Render Result
    @@@ #demo-3
    {
-       === Go 101 website :: https://go101.org
+       === Go 101 website ` https://go101.org
 
-   Visit __Go 101 website__ (the link is defined above).
+   Visit ::Go 101 website:: (the link is defined above).
 
    Go 1.22 broke backwards compatibility. More information
-   is on __`for` Loop Semantic Changes in Go 1.22:
-   Be Aware of the Impact__ (the link is defined below).
+   is on ::`for` Loop Semantic Changes in Go 1.22:
+   Be Aware of the Impact:: (the link is defined below).
 
        === for Loop...
            https://go101.org/blog/2024-03-01-for-loop-semantic-changes-in-go-1.22.html
 
-   __No Safe Efficient Ways to Do Three-way String Comparisons in Go__
+   ::No Safe Efficient Ways to Do Three-way String Comparisons in Go::
    (the link is defined below).
 
        === ...in Go
@@ -102,7 +105,7 @@ For detailed explanations, please refer to __the specification__.
    }
 
 @@@ #section-demo-4
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 4 (built-in containers)
 
 *  ### TapirMD Source
@@ -183,7 +186,7 @@ For detailed explanations, please refer to __the specification__.
 
 
 @@@ #section-demo-5
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 5 (table)
 
 *  ### TapirMD Source
@@ -250,7 +253,7 @@ For detailed explanations, please refer to __the specification__.
    }
 
 @@@ #section-demo-6
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 6 (atom blocks)
 
 *  ### TapirMD Source
@@ -260,11 +263,9 @@ For detailed explanations, please refer to __the specification__.
 *  ### Render Result
    @@@ #demo-6
    {
-   ####### Header 1 //::(for titles generally)
+   ####### Header 2
 
-   ###====== Header 2
-
-   ###++++++ Header 3
+   ###====== Header 3
 
    ###------ Header 4
 
@@ -293,7 +294,7 @@ pub fn main() void {
    }
 
 @@@ #section-demo-7
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 7 (line end spacing)
 
 *  ### TapirMD Source
@@ -330,7 +331,7 @@ pub fn main() void {
    }
 
 @@@ #section-demo-8
-###+++++++++++++++++++++++++++++++++++++++++
+###========================
     Demo 8 (character escaping)
 
 *  ### TapirMD Source

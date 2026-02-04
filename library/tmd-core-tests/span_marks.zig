@@ -49,7 +49,7 @@ test "span marks" {
     , &.{.fontWeight}));
 
     try std.testing.expect(try SpanMarksChecker.check(
-        \\:://aaa **bbb
+        \\^++//aaa **bbb
     , &.{ .fontSize, .fontStyle, .fontWeight }));
 
     try std.testing.expect(try SpanMarksChecker.check(
@@ -88,8 +88,8 @@ test "span marks" {
 
     try std.testing.expect(try SpanMarksChecker.check(
         \\^~~aaa ***bbb**
-        \\//ccc ::dddd ^|| eee
-        \\:: fff || __ggg $$2$$ hhh
-        \\`code`__
+        \\//ccc ++dddd ^|| eee
+        \\++ fff || ::ggg $$2$$ hhh
+        \\`code`::
     , &.{ .deleted, .fontWeight, .fontStyle, .fontSize, .marked, .fontSize, .marked, .hyperlink, .supsub, .supsub, .code, .code, .hyperlink }));
 }

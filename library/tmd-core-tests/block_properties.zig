@@ -281,7 +281,7 @@ test "block attributes" {
     }.check));
 
     try std.testing.expect(try all.DocChecker.check(
-        \\ __
+        \\ ::
         \\ && example.png
         \\ **
         \\ && example.png

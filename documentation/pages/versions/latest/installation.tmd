@@ -4,27 +4,27 @@
 This page outlines the steps to install the official TapirMD toolchain
 and introduces some basic commands it provides.
 
-You can also try TapirMD formatting syntax __online__.
+You can also try TapirMD formatting syntax ::online::.
 
-    === online:: play.tmd
+    === online` play.tmd
 
-###+++++ Installation steps
+###====== Installation steps
 
-    === Git :: https://git-scm.com/downloads
-    === Go :: https://go.dev/dl/
-    === Zig :: https://ziglang.org/download/
-    === the TapirMD project :: https://github.com/tapirmd/tmd
-    === the go-tmd project :: https://github.com/go101/tmd
-    === download its source code :: https://github.com/tapirmd/tmd/tags
+    === Git ` https://git-scm.com/downloads
+    === Go ` https://go.dev/dl/
+    === Zig ` https://ziglang.org/download/
+    === the TapirMD project ` https://github.com/tapirmd/tmd
+    === the go-tmd project ` https://github.com/go101/tmd
+    === download its source code ` https://github.com/tapirmd/tmd/tags
 
 TapirMD hasn't yet reached version 1.0.0 (or even 0.1.0).
 At this stage, building from source is the only way to run
 the offcial TapirMD commands locally.
 
-*. Install __Zig__, if haven't. The latest minor version is recommended.
+*. Install ::Zig::, if haven't. The latest minor version is recommended.
 
-*. Get the source code of __the TapirMD project__.
-   You can clone it (install __Git__ if needed) or __download its source code__.
+*. Get the source code of ::the TapirMD project::.
+   You can clone it (install ::Git:: if needed) or ::download its source code::.
 
 *. Open your terminal or command prompt, navigate to the TapirMD project folder,
    and run the following command to build the project:
@@ -46,14 +46,14 @@ the offcial TapirMD commands locally.
    '''
    The debug version will print more readable information when problems are encountered.
    As the toolchain is still in its early development phase, bugs are inevitable.
-   Bug reports are seriously welcome __ here`` https://github.com/tapirmd/tmd/issues __.
+   Bug reports are seriously welcome :: here`` https://github.com/tapirmd/tmd/issues ::.
 
 *. (Optional), copy the `tmd` binary file to a directory configured
    in the `PATH` enviroment variable, or add the path of
    the `bin` folder to the `PATH` enviroment variable,
    so that you can run the `tmd` command anywhere.
 
-###+++++ Use the toolchain
+###====== Use the toolchain
 
 *  Run `tmd` without arguments to show the help information.
 

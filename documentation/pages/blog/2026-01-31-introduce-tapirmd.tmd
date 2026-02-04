@@ -2,6 +2,9 @@
 
 ###### TapirMD: A Markup Language with Simple Syntax and Rich Semantics
 
+// (coming soon)
+
+"""
 
 As a tech article writer,
 
@@ -21,7 +24,7 @@ void has many usefullnesses
 * spaces in span
 
 
-__ foo`` https://google.com``__ should be a broken link
+:: foo`` https://google.com``:: should be a broken link
 
 // blog: Introduce TapirMD, a new powerful mark up doc formatting
 //   * full featured. zig lib and wasm lib. Lib is fast.
@@ -39,6 +42,26 @@ __ foo`` https://google.com``__ should be a broken link
 //   * char escaping ways
 //   * line-end spacing
 //   * steaming to code blocks
+
+// TapirMD debut article 
+// * on go101.org, with title:
+//   Bye markdown, hi TapirMD
+// * Personally, don't like the syntax inconsistency of MD.
+//   And weak core capatibility. And not well specified.
+// * comparing to MD
+//   - header blocks should be eye-catching.
+//     and lower level headers should be more eye-catching.
+//   - span styles should be consistent
+//     links are more important than underline
+//     spans can interlap in tmd.
+//   - spaces following open style marks are ignored,
+//     same for spaces before close style marks.
+//   - end tags are not required.
+//   - different char escaping
+//   - indentation should have no semantics
+//   - common block types, ..., table
+//   - need to be extensiable
+//   - easy parser implementation, use less memory
 
 
 Thank you very much for your feedback. I truly appreciate it.

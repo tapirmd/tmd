@@ -256,10 +256,6 @@ header.tmd-with-subtitle h1 {
   font-size: 1.25em;
 }
 
-.tmd-header-5 {
-  font-size: 1em;
-}
-
 .tmd-usual {
 }
 
@@ -327,8 +323,12 @@ header.tmd-with-subtitle h1 {
   background: #aea;
 }
 
-.tmd-underlined {
+.tmd-underline {
   text-decoration: solid underline 1px;
+}
+
+.tmd-underline-2 {
+  text-decoration: wavy underline 1px;
 }
 
 .tmd-broken-link {
