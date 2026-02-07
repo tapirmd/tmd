@@ -125,21 +125,21 @@ test "span contents" {
         \\--- *** ** // ** *** /// // +++
     ), "** ///");
 
-    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
-        \\aaa ** foo ++ bar--
+    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontStyle,
+        \\aaa ** foo // bar--
         \\hello ** world
     ), "bar--hello world");
 
-    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
-        \\aaa ** foo ^++ bar--
+    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.hyperlink,
+        \\aaa ** foo __ bar--
         \\%% comments
         \\!! //foo**
-        \\ \\ xyz++
+        \\ \\ xyz__
         \\hello ** world
     ), "bar--//foo**xyz");
 
-    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.fontSize,
-        \\aaa ** foo ++ bar--
+    try std.testing.expectEqualStrings(try spanChecker.contentOfFirstSpanOfType(.hyperlink,
+        \\aaa ** foo __ bar--
         \\%% comments
         \\!! //foo**
         \\ \\ xyz //

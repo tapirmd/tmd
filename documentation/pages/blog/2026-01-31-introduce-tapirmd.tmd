@@ -24,7 +24,7 @@ void has many usefullnesses
 * spaces in span
 
 
-:: foo`` https://google.com``:: should be a broken link
+__ foo`` https://google.com``__ should be a broken link
 
 // blog: Introduce TapirMD, a new powerful mark up doc formatting
 //   * full featured. zig lib and wasm lib. Lib is fast.

@@ -36,9 +36,9 @@
       ''' << #example-image-link-self
       @@@ #example-image-link-self
       {
-      Click the image ::
+      Click the image __
       && tmd logo
-      :: to open it.
+      __ to open it.
 
           === tmd logo ` ../../static/image/tmd-v1.png
       }
@@ -55,10 +55,10 @@
       ''' << #example-image-link
       @@@ #example-image-link
       {
-      Click the image ::
+      Click the image __
       && ../../static/image/tmd-v1.png
       %% to zig 101
-      :: to visit // Zig 101 //.
+      __ to visit // Zig 101 //.
 
           === ... to zig 101
               https://zig101.tapirgames.com

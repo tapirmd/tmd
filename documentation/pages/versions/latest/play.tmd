@@ -3,8 +3,8 @@
 
 This is a playground for the TapirMD doc format.
 For learning and reference, please read
-::the specification``specification.tmd:: and ::demos``demos.tmd::.
-You can also learn TapirMD from the projects listed ::here``users.tmd::.
+__the specification``specification.tmd__ and __demos``demos.tmd__.
+You can also learn TapirMD from the projects listed __here``users.tmd__.
 
 @@@ #note-enable-js
 //(Note: This page needs JavaScript to function.)
@@ -130,7 +130,7 @@ function tmdToHTML() {
 		//}
 
 		// generate HTML
-		const html = tmdLibInstance.generateHtml({autoIdentSuffix: "::---demo"});
+		const html = tmdLibInstance.generateHtml({autoIdentSuffix: "---demo"});
 		setRenderEffect(html, true);
 	
 		//const end = Date.now();

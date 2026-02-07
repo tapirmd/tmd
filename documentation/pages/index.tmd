@@ -18,12 +18,12 @@ TapirMD pursues several other key objectives:
 *  Fast: Efficient single-pass parsing and rendering.
 *  No JS Required: Fully functional without JavaScript dependencies
 
-For more information on TapirMD's features, explore the :: demos :: or consult :: the full specification ::.
+For more information on TapirMD's features, explore the __ demos __ or consult __ the full specification __.
 
-TapirMD provides :: an official toolchain :: that supports building
-TapirMD-based projects and :: libraries :: in several programming languages.
+TapirMD provides __ an official toolchain __ that supports building
+TapirMD-based projects and __ libraries __ in several programming languages.
 
-You can also try TapirMD :: online ::.
+You can also try TapirMD __ online __.
 
     === demos ` versions/latest/demos.tmd
     === the full specification ` versions/latest/specification.tmd

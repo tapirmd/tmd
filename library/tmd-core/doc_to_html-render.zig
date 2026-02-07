@@ -1562,11 +1562,11 @@ pub const TmdRender = struct {
             .fontSize => {
                 if (spanMark.more.secondary) {
                     try w.writeAll(
-                        \\<span class="tmd-smaller-size">
+                        \\<span class="tmd-larger-size">
                     );
                 } else {
                     try w.writeAll(
-                        \\<span class="tmd-larger-size">
+                        \\<span class="tmd-smaller-size">
                     );
                 }
             },
@@ -1589,17 +1589,6 @@ pub const TmdRender = struct {
                 } else {
                     try w.writeAll(
                         \\<mark class="tmd-marked">
-                    );
-                }
-            },
-            .underline => {
-                if (spanMark.more.secondary) {
-                    try w.writeAll(
-                        \\<span class="tmd-underline-2">
-                    );
-                } else {
-                    try w.writeAll(
-                        \\<span class="tmd-underline">
                     );
                 }
             },
@@ -1629,7 +1618,7 @@ pub const TmdRender = struct {
         if (usage == .noStyling) return;
 
         switch (spanMark.markType) {
-            .hyperlink, .fontWeight, .fontStyle, .fontSize, .underline, .deleted => {
+            .hyperlink, .fontWeight, .fontStyle, .fontSize, .deleted => {
                 try w.writeAll("</span>");
             },
             .marked => {
@@ -1785,17 +1774,17 @@ test "footnotes" {
             \\
             \\### Title
             \\
-            \\This is a footnode ::#foo::
+            \\This is a footnode __#foo__
             \\
             \\{%%
             \\
             \\@@@ #foo
-            \\bla bla bla ::#foo::.
-            \\bla bla ::#bar::.
+            \\bla bla bla __#foo__.
+            \\bla bla __#bar__.
             \\
             \\@@@ #bar
-            \\bla bla bla ::#foo::.
-            \\bla bla ::#bar::.
+            \\bla bla bla __#foo__.
+            \\bla bla __#bar__.
             \\
             \\}
             \\

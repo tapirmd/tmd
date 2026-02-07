@@ -323,14 +323,6 @@ header.tmd-with-subtitle h1 {
   background: #aea;
 }
 
-.tmd-underline {
-  text-decoration: solid underline 1px;
-}
-
-.tmd-underline-2 {
-  text-decoration: wavy underline 1px;
-}
-
 .tmd-broken-link {
   text-decoration: dotted underline 3px;
 }

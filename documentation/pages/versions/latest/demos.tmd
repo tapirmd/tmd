@@ -2,7 +2,7 @@
 ##### Some Simple TapirMD Demos
 
 This page presents a few simple demos using TapirMD.
-For detailed explanations, please refer to ::the specification::.
+For detailed explanations, please refer to __the specification__.
 
     === the specification` specification.tmd
 
@@ -23,21 +23,19 @@ For detailed explanations, please refer to ::the specification::.
 
    //italic text// and ^//revert italic text//.
 
-   ++larger font size++ and ^++smaller font size++.
+   ::smaller text:: and ^::larger text::.
 
    ~~deleted text~~ and invisible text:
    ^~~invisible text~~ (non-selectable, still occupy space).
 
    ||marked text|| and ^||marked text with mistake smell||.
 
-   __underline text__ and ^__wavy-underline text__.
-
    $$subscript$$ and ^$$superscript$$.
 
-   This is ::a self-defined link``https://go101.org::.
-   This is ^::another self-defined link``https://ziglang.org::
+   This is __a self-defined link``https://go101.org__.
+   This is ^__another self-defined link``https://ziglang.org__
    which will be opened in a new window.
-   This is ::a broken link::.
+   This is __a broken link__.
 
    This is a code span: ` var z = foo::x || bar::y `.
    And this is a mono font text span:
@@ -88,19 +86,19 @@ For detailed explanations, please refer to ::the specification::.
    {
        === Go 101 website ` https://go101.org
 
-   Visit ::Go 101 website:: (the link is defined above).
+   Visit __Go 101 website__ (the link is defined above).
 
    Go 1.22 broke backwards compatibility. More information
-   is on ::`for` Loop Semantic Changes in Go 1.22:
-   Be Aware of the Impact:: (the link is defined below).
+   is on __`for` Loop Semantic Changes in Go 1.22:
+   Be Aware of the Impact__ (the link is defined below).
 
-       === for Loop...
+       === for Loop ...
            https://go101.org/blog/2024-03-01-for-loop-semantic-changes-in-go-1.22.html
 
-   ::No Safe Efficient Ways to Do Three-way String Comparisons in Go::
+   __No Safe Efficient Ways to Do Three-way String Comparisons in Go__
    (the link is defined below).
 
-       === ...in Go
+       === ... in Go
            https://go101.org/blog/2022-10-01-three-way-string-comparison.html
    }
 
@@ -269,7 +267,7 @@ For detailed explanations, please refer to ::the specification::.
 
    ###------ Header 4
 
-   This is a usual block. Nothing special.
+   This is a usual block. Nothing special..
 
    ;;; This is also a usual block.
    The below is a horizontal line.

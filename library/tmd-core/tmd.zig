@@ -1527,8 +1527,7 @@ pub const SpanMarkType = enum(u4) {
     fontStyle,
     fontSize,
     deleted,
-    marked,
-    underline,
+    marked, // underline should be viewed as a case of .marked
     supsub,
     code, // must be the last one (why? forget the reason)
 

@@ -60,11 +60,10 @@ pub const bytesKindTable = blk: {
 
     table['*'] = .{ .spanMark = .fontWeight };
     table['/'] = .{ .spanMark = .fontStyle };
-    table['+'] = .{ .spanMark = .fontSize };
+    table[':'] = .{ .spanMark = .fontSize };
     table['~'] = .{ .spanMark = .deleted };
     table['|'] = .{ .spanMark = .marked };
-    table['_'] = .{ .spanMark = .underline };
-    table[':'] = .{ .spanMark = .hyperlink };
+    table['_'] = .{ .spanMark = .hyperlink };
     table['$'] = .{ .spanMark = .supsub };
     table['`'] = .{ .spanMark = .code };
 
