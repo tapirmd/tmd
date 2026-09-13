@@ -1384,7 +1384,7 @@ pub const Token = union(enum) {
     extra: struct {
         pub const Info = @FieldType(@This(), "info");
 
-        info: packed union {
+        info: union {
             // followed by a .lineTypeMark token in a .baseBlockClose line
             blockRef: ?*Block,
             // followed by a .lineTypeMark token in a .baseBlockOpen line
@@ -1545,7 +1545,7 @@ pub const SpanMarkType = enum(u4) {
 // used in usual blocks:
 pub const LineSpanMarkType = enum(u3) {
     lineBreak, // \\
-    undisplayed, // %% (called comment before)
+    undisplayed, // %% (called comment before, ToDo: rename back to comment again?)
     media, // &&
     escape, // !!
     spoiler, // ??

@@ -12,34 +12,41 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         break :blk try util.resolveRealPathAlloc(path, false, ctx.arenaAllocator);
     };
 
-    const stat = std.fs.cwd().statFile(path) catch |err| {
-        try ctx.stderr.print("Path ({s}) is invalid. Stat error: {s}.\n", .{ path, @errorName(err) });
-        try ctx.stderr.flush();
-        return .invalid;
+    const isDir = blk: {
+        const stat = std.fs.cwd().statFile(path) catch |err| {
+            if (err == error.IsDir) // for Windows
+                break :blk true;
+
+            try ctx.stderr.print("Path ({s}) is invalid. Stat error: {s}.\n", .{ path, @errorName(err) });
+            try ctx.stderr.flush();
+            return .invalid;
+        };
+
+        break :blk switch (stat.kind) {
+            .directory => true,
+            .file => false,
+            else => {
+                try ctx.stderr.print("Path ({s}) is invalid. Unsupported kind: {s}.\n", .{ dirOrConfigPath, @tagName(stat.kind) });
+                try ctx.stderr.flush();
+                return .invalid;
+            },
+        };
     };
 
-    const projectDir, const configPath = blk: switch (stat.kind) {
-        .file => {
-            const filename = std.fs.path.basename(path);
-            const extension = std.fs.path.extension(path);
-            //try ctx.stderr.print("filename: {s}, extension: {s}\n", .{filename, extension});
-            //try ctx.stderr.flush();
-            if (std.mem.startsWith(u8, filename, "tmd.project") and extension.len + 3 == filename.len) break :blk .{ std.fs.path.dirname(path).?, path };
-            try ctx.stderr.print("Project config file ({s}) is invalid. It should start with 'tmd.project' and its base name should be 'tmd'.\n", .{filename});
-            try ctx.stderr.flush();
-            return .invalid;
-        },
-        .directory => {
-            const configPath = util.resolveRealPath2Alloc(path, "tmd.project", false, ctx.arenaAllocator) catch {
-                break :blk .{ path, path };
-            };
-            break :blk .{ path, configPath };
-        },
-        else => {
-            try ctx.stderr.print("Path ({s}) is invalid. Unsupported kind: {s}.\n", .{ dirOrConfigPath, @tagName(stat.kind) });
-            try ctx.stderr.flush();
-            return .invalid;
-        },
+    const projectDir, const configPath = if (isDir) blk: {
+        const configPath = util.resolveRealPath2Alloc(path, "tmd.project", false, ctx.arenaAllocator) catch {
+            break :blk .{ path, path };
+        };
+        break :blk .{ path, configPath };
+    } else blk: {
+        const filename = std.fs.path.basename(path);
+        const extension = std.fs.path.extension(path);
+        //try ctx.stderr.print("filename: {s}, extension: {s}\n", .{filename, extension});
+        //try ctx.stderr.flush();
+        if (std.mem.startsWith(u8, filename, "tmd.project") and extension.len + 3 == filename.len) break :blk .{ std.fs.path.dirname(path).?, path };
+        try ctx.stderr.print("Project config file ({s}) is invalid. It should start with 'tmd.project' and its base name should be 'tmd'.\n", .{filename});
+        try ctx.stderr.flush();
+        return .invalid;
     };
 
     if (ctx._configPathToProjectMap.get(configPath)) |project| {

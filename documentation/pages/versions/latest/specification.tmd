@@ -36,7 +36,6 @@ A //**line end**// in a TapirMD document is defined as one of the following:
 A //**whitespace character**// is defined as any of the following:
 *  An ASCII Space character (Unicode: `U+0020`).
 *  An ASCII Horizontal Tab character (Unicode: `U+0009`).
-*  A CJK Space character (Unicode: `U+3000`).
 
 A //**blank character**// is defined as any of the following:
 *  The ASCII DEL character (Unicode: `U+007F`).

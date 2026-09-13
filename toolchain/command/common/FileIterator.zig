@@ -70,25 +70,29 @@ pub fn next(fi: *FileIterator) !?Entry {
     while (fi._curIndex < fi.paths.len) {
         const path = try util.validatePathIntoBuffer(fi.paths[fi._curIndex], fi._filePathBuffer[0..]);
 
-        const stat = dir.statFile(path) catch |err| {
-            if (err == error.FileNotFound) {
-                fi._curIndex += 1;
-                try fi.stderr.print("Path ({s}) is not found.\n", .{path});
-                try fi.stderr.flush();
-                continue;
-            }
-            return err;
+        const kind: enum {dir, file, others} = blk: {
+            const stat = dir.statFile(path) catch |err| {
+                if (err == error.FileNotFound) {
+                    fi._curIndex += 1;
+                    try fi.stderr.print("Path ({s}) is not found.\n", .{path});
+                    try fi.stderr.flush();
+                    continue;
+                }
+
+                if (err == error.IsDir) // for Windows
+                    break :blk .dir;
+
+                return err;
+            };
+
+            break :blk switch (stat.kind) {
+                .directory => .dir,
+                .file => .file,
+                else => .others,
+            };
         };
-        switch (stat.kind) {
-            .file => {
-                fi._curIndex += 1;
-                return .{
-                    .dir = dir,
-                    .dirPath = ".",
-                    .filePath = path,
-                };
-            },
-            .directory => {
+        switch (kind) {
+            .dir => {
                 var subDir = try dir.openDir(path, .{ .iterate = true });
                 if (fi.pathFilterFn(std.fs.path.basename(path))) {
                     const walker = subDir.walk(fi.allocator) catch |err| {
@@ -102,6 +106,14 @@ pub fn next(fi: *FileIterator) !?Entry {
                     return fi.next();
                 }
                 fi._curIndex += 1;
+            },
+            .file => {
+                fi._curIndex += 1;
+                return .{
+                    .dir = dir,
+                    .dirPath = ".",
+                    .filePath = path,
+                };
             },
             else => fi._curIndex += 1,
         }

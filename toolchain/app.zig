@@ -52,7 +52,7 @@ pub fn main() !void {
 
     if (args.len <= 1) {
         try stdout.print(
-            \\TapirMD Toolchain v{s}
+            \\TapirMD toolchain v{s}
             \\
         , .{tmd.version});
         try listCommands(stdout);

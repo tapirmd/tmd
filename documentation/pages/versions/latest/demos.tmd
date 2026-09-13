@@ -57,15 +57,15 @@ For detailed explanations, please refer to __the specification__.
    %% comment text
    bar.
 
+   The answer is:
+   ?? 997
+   (visible when selected).
+
    This block
    \\ is
    \\ line-broken
    \\ several times.
    \\ The following is an image.
-
-   The answer is:
-   ?? 997
-   (visible when selected).
 
    && ../../static/image/tmd-v1.png
 
