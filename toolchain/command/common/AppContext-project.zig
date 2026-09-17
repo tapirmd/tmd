@@ -9,11 +9,11 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         var pa: util.PathAllocator = .{};
         const path = try util.resolvePathFromAbsDirPathAlloc(".", dirOrConfigPath, true, pa.allocator());
         //defer ctx.allocator.free(path);
-        break :blk try util.resolveRealPathAlloc(path, false, ctx.arenaAllocator);
+        break :blk try util.resolveRealPathAlloc(ctx.io, path, false, ctx.arenaAllocator);
     };
 
     const isDir = blk: {
-        const stat = std.fs.cwd().statFile(path) catch |err| {
+        const stat = std.Io.Dir.cwd().statFile(ctx.io, path, .{}) catch |err| {
             if (err == error.IsDir) // for Windows
                 break :blk true;
 
@@ -34,16 +34,16 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
     };
 
     const projectDir, const configPath = if (isDir) blk: {
-        const configPath = util.resolveRealPath2Alloc(path, "tmd.project", false, ctx.arenaAllocator) catch {
+        const configPath = util.resolveRealPath2Alloc(ctx.io, path, "tmd.project", false, ctx.arenaAllocator) catch {
             break :blk .{ path, path };
         };
         break :blk .{ path, configPath };
     } else blk: {
-        const filename = std.fs.path.basename(path);
-        const extension = std.fs.path.extension(path);
+        const filename = std.Io.Dir.path.basename(path);
+        const extension = std.Io.Dir.path.extension(path);
         //try ctx.stderr.print("filename: {s}, extension: {s}\n", .{filename, extension});
         //try ctx.stderr.flush();
-        if (std.mem.startsWith(u8, filename, "tmd.project") and extension.len + 3 == filename.len) break :blk .{ std.fs.path.dirname(path).?, path };
+        if (std.mem.startsWith(u8, filename, "tmd.project") and extension.len + 3 == filename.len) break :blk .{ std.Io.Dir.path.dirname(path).?, path };
         try ctx.stderr.print("Project config file ({s}) is invalid. It should start with 'tmd.project' and its base name should be 'tmd'.\n", .{filename});
         try ctx.stderr.flush();
         return .invalid;

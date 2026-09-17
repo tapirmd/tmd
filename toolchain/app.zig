@@ -33,21 +33,16 @@ const Command = union(enum) {
     help: Helper, // must be the last one
 };
 
-pub fn main() !void {
-    var gpa: std.heap.GeneralPurposeAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
-    const gpaAllocator = gpa.allocator();
-
-    const args = try std.process.argsAlloc(gpaAllocator);
-    defer std.process.argsFree(gpaAllocator, args);
-
+pub fn main(init: std.process.Init) !void {
     var stdout_buffer: [1024]u8 = undefined;
-    var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
+    var stdout_writer = std.Io.File.stdout().writer(init.io, &stdout_buffer);
     const stdout = &stdout_writer.interface;
+
     var stderr_buffer: [1024]u8 = undefined;
-    var stderr_writer = std.fs.File.stdout().writer(&stderr_buffer);
+    var stderr_writer = std.Io.File.stdout().writer(init.io, &stderr_buffer);
     const stderr = &stderr_writer.interface;
 
+    const args = try init.minimal.args.toSlice(init.arena.allocator());
     std.debug.assert(args.len > 0);
 
     if (args.len <= 1) {
@@ -62,13 +57,13 @@ pub fn main() !void {
     }
 
     if (std.meta.stringToEnum(std.meta.FieldEnum(Command), args[1])) |cmd| {
-        var appContext = AppContext.init(gpaAllocator, stdout, stderr);
+        var appContext = AppContext.init(init.io, init.gpa, stdout, stderr);
         defer appContext.deinit();
         try appContext.initMore();
 
         switch (cmd) {
             inline else => |tag| {
-                const CommandType = std.meta.TagPayload(Command, tag);
+                const CommandType = @FieldType(Command, @tagName(tag));
                 try CommandType.process(&appContext, args[2..]);
             },
         }
@@ -82,7 +77,7 @@ pub fn main() !void {
     }
 }
 
-// Note: it doesn't flush/
+// Note: it doesn't flush.
 fn listCommands(w: *std.Io.Writer) !void {
     try w.print(
         \\
@@ -107,7 +102,7 @@ fn listCommands(w: *std.Io.Writer) !void {
 }
 
 const Helper = struct {
-    pub fn process(ctx: *AppContext, args: []const []u8) !void {
+    pub fn process(ctx: *AppContext, args: []const []const u8) !void {
         const unionTypeInfo = @typeInfo(Command).@"union";
 
         const command = switch (args.len) {
@@ -125,7 +120,7 @@ const Helper = struct {
         if (std.meta.stringToEnum(std.meta.FieldEnum(Command), command)) |cmd| {
             switch (cmd) {
                 inline else => |tag| {
-                    const CommandType = std.meta.TagPayload(Command, tag);
+                    const CommandType = @FieldType(Command, @tagName(tag));
                     try ctx.stdout.print(
                         \\{s}
                         \\
@@ -160,7 +155,7 @@ const Helper = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Run 'tmd' without arguments to list available commands.
         \\
         \\Please visit the following webpages to learn more:

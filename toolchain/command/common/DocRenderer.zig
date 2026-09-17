@@ -104,7 +104,7 @@ const TemplateFunctions = struct {
             .local => |absPath| {
                 const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
 
-                try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+                try gen.writeRelativeUrl(r.w, absPath, std.Io.Dir.path.sep, tmdDocInfo.sourceFilePath, std.Io.Dir.path.sep);
             },
         }
     }
@@ -307,7 +307,7 @@ fn getFilePath(r: *const DocRenderer, arg: *DocTemplate.Token.Command.Argument) 
     const filePath: config.FilePath = switch (tmd.checkFilePathType(assetPath)) {
         .remote => .{ .remote = assetPath },
         .local => blk: {
-            break :blk if (std.mem.startsWith(u8, assetPath, "@") and std.fs.path.extension(assetPath).len == 0)
+            break :blk if (std.mem.startsWith(u8, assetPath, "@") and std.Io.Dir.path.extension(assetPath).len == 0)
                 .{ .builtin = assetPath }
             else
                 .{ .local = try util.resolvePathFromFilePathAlloc(relativeToPath, assetPath, true, r.ctx.arenaAllocator) };
@@ -335,7 +335,7 @@ fn getTmdDocInfoFromFilePathArg(r: *const DocRenderer, arg: *DocTemplate.Token.C
         .remote => return error.InvalidTmdFilePath,
         .local => blk: {
             const filePath = try util.resolvePathFromFilePathAlloc(relativeToPath, assetPath, true, r.ctx.arenaAllocator);
-            const tmdContent = try util.readFile(null, filePath, .{ .alloc = .{ .allocator = r.ctx.arenaAllocator, .maxFileSize = maxEmbeddingTmdFileSize } }, r.ctx.stderr);
+            const tmdContent = try util.readFile(r.ctx.io, null, filePath, .{ .alloc = .{ .allocator = r.ctx.arenaAllocator, .maxFileSize = maxEmbeddingTmdFileSize } }, r.ctx.stderr);
             const tmdDoc = try r.ctx.arenaAllocator.create(tmd.Doc);
             tmdDoc.* = try tmd.Doc.parse(tmdContent, r.ctx.arenaAllocator);
             break :blk .{
@@ -376,7 +376,7 @@ fn writeFaviconAssetInHead(r: *const DocRenderer, faviconFilePath: config.FilePa
 
             const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
 
-            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+            try gen.writeRelativeUrl(r.w, absPath, std.Io.Dir.path.sep, tmdDocInfo.sourceFilePath, std.Io.Dir.path.sep);
 
             try r.w.writeAll(
                 \\">
@@ -400,7 +400,7 @@ fn writeFaviconAssetInHead(r: *const DocRenderer, faviconFilePath: config.FilePa
 
 fn writeCssAssetInHead(r: *const DocRenderer, cssFilePath: config.FilePath) !void {
     switch (cssFilePath) {
-        .builtin => |_| {
+        .builtin => {
             try r.w.writeAll(
                 \\<style>
                 \\
@@ -420,7 +420,7 @@ fn writeCssAssetInHead(r: *const DocRenderer, cssFilePath: config.FilePath) !voi
 
             const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
 
-            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+            try gen.writeRelativeUrl(r.w, absPath, std.Io.Dir.path.sep, tmdDocInfo.sourceFilePath, std.Io.Dir.path.sep);
 
             try r.w.writeAll(
                 \\" rel="stylesheet">
@@ -444,7 +444,7 @@ fn writeCssAssetInHead(r: *const DocRenderer, cssFilePath: config.FilePath) !voi
 
 fn writeJsAssetInHead(r: *const DocRenderer, jsFilePath: config.FilePath) !void {
     switch (jsFilePath) {
-        .builtin => |_| {
+        .builtin => {
             try r.w.writeAll(
                 \\<script>
                 \\
@@ -464,7 +464,7 @@ fn writeJsAssetInHead(r: *const DocRenderer, jsFilePath: config.FilePath) !void 
 
             const tmdDocInfo = if (r.tmdDocInfo) |info| info else return error.CannotGenerateUrlForLocalFileWithoutTmdDoc;
 
-            try gen.writeRelativeUrl(r.w, absPath, std.fs.path.sep, tmdDocInfo.sourceFilePath, std.fs.path.sep);
+            try gen.writeRelativeUrl(r.w, absPath, std.Io.Dir.path.sep, tmdDocInfo.sourceFilePath, std.Io.Dir.path.sep);
 
             try r.w.writeAll(
                 \\"></script>

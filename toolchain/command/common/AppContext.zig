@@ -7,6 +7,7 @@ const Project = @import("Project.zig");
 
 const AppContext = @This();
 
+io: std.Io,
 allocator: std.mem.Allocator,
 stdout: *std.Io.Writer,
 stderr: *std.Io.Writer,
@@ -22,8 +23,9 @@ _dirPathToConfigAndRootMap: std.StringHashMap(struct { configEx: *ConfigEx, root
 _templateFunctions: std.StringHashMap(*const anyopaque) = undefined,
 _cachedContents: std.HashMap(ContentCacheKey, []const u8, ContentCacheKey.HashMapContext, 33) = undefined,
 
-pub fn init(allocator: std.mem.Allocator, stdout: *std.Io.Writer, stderr: *std.Io.Writer) AppContext {
+pub fn init(io: std.Io, allocator: std.mem.Allocator, stdout: *std.Io.Writer, stderr: *std.Io.Writer) AppContext {
     const ctx = AppContext{
+        .io = io,
         .allocator = allocator,
         .stdout = stdout,
         .stderr = stderr,
@@ -93,7 +95,7 @@ pub fn isValidArticlePathName(name: []const u8, isDir: bool) bool {
 pub fn isValidArticlePath(path: []const u8) bool {
     var start: usize = 0;
     while (start < path.len) {
-        if (std.mem.indexOfScalarPos(u8, path, start, std.fs.path.sep)) |end| {
+        if (std.mem.indexOfScalarPos(u8, path, start, std.Io.Dir.path.sep)) |end| {
             if (!isValidArticlePathName(path[start..end], true)) return false;
             start = end + 1;
         } else return isValidArticlePathName(path[start..], false);

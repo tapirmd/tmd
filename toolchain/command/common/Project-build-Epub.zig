@@ -4,16 +4,11 @@ const builtin = @import("builtin");
 const tmd = @import("tmd");
 const list = @import("list");
 
-const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
 const Config = @import("Config.zig");
 const gen = @import("gen.zig");
 const util = @import("util.zig");
 const Zip = @import("Zip.zig");
-
-const miniz = @cImport({
-    @cInclude("miniz.h");
-});
 
 const bufferSize = Project.maxTmdFileSize * 8;
 
@@ -61,7 +56,7 @@ pub fn build(builder: *@This()) !void {
     try builder.writeRemainingFilesInEpub();
 
     const epubData = try builder.zip.finalize();
-    try util.writeFile(null, builder.session.buildOutputPath, epubData);
+    try util.writeFile(builder.session.appContext.io, null, builder.session.buildOutputPath, epubData);
 }
 
 fn writeEpubMimeTypeFile(builder: *@This()) !void {
@@ -153,7 +148,7 @@ fn writeRemainingFilesInEpub(builder: *@This()) !void {
         );
 
         const T = struct {
-            w: *std.io.Writer,
+            w: *std.Io.Writer,
             s: @TypeOf(session),
             relToPath: []const u8,
             lastDepth: usize = 0,
@@ -272,7 +267,7 @@ fn writeRemainingFilesInEpub(builder: *@This()) !void {
             const info = tmd.getExtensionInfo(ext);
             std.debug.assert(info.isImage);
 
-            const extra = if (index != session.coverImageIndex) "" else 
+            const extra = if (index != session.coverImageIndex) "" else
                 \\ properties="cover-image"
             ;
             try wa.writer.print(
@@ -358,7 +353,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     }
 
                     const relPath = sourceAbsPath[project.path.len + 1 ..];
-                    const ext = std.fs.path.extension(relPath);
+                    const ext = std.Io.Dir.path.extension(relPath);
                     const targetPath = try util.buildEpubFilePath(contentFolderName ++ "/xhtml/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
@@ -376,7 +371,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
         //        return error.FileOutOfProject;
         //    }
         //    const relPath = sourceAbsPath[project.path.len + 1 ..];
-        //    const ext = std.fs.path.extension(relPath);
+        //    const ext = std.Io.Dir.path.extension(relPath);
         //    const targetPath = util.buildEpubFilePath("html/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
         //
         //    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
@@ -402,9 +397,9 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(builder.session.appContext.io, null, sourceAbsPath, .{ .alloc = .{ .allocator = session.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
 
-                    const targetPath = try util.buildEpubFilePathWithContentHashBase64(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                    const targetPath = try util.buildEpubFilePathWithContentHashBase64(folderName, std.Io.Dir.path.basename(sourceAbsPath), content, session.arenaAllocator);
                     if (session.targetFileContents.get(targetPath) == null) {
                         try builder.zip.addFile(targetPath, content, compressIt);
                         try session.targetFileContents.put(targetPath, content);

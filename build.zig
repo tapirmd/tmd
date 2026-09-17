@@ -145,12 +145,20 @@ pub fn build(b: *std.Build) !void {
 
     // toolchain dependencies
 
-    toolchainCommand.root_module.addIncludePath(b.path("dependencies/miniz"));
+    const miniz_c = b.addTranslateC(.{
+        .root_source_file = b.path("dependencies/miniz/miniz.h"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+    miniz_c.addIncludePath(b.path("dependencies/miniz"));
+
+    toolchainCommand.root_module.addImport("miniz", miniz_c.createModule());
+    //toolchainCommand.root_module.addIncludePath(b.path("dependencies/miniz"));
     toolchainCommand.root_module.addCSourceFiles(.{
         .root = b.path("dependencies/miniz"),
         .files = &.{"miniz.c"},
     });
-    toolchainCommand.linkLibC();
 
     // run toolchain cmd
 
@@ -229,18 +237,20 @@ pub fn build(b: *std.Build) !void {
             const needle = "<wasm-file-as-base64-string>";
 
             const theBuild = step.owner;
-            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir("", .{});
-            defer dir.close();
-            const oldContent = try dir.readFileAlloc(theBuild.allocator, "tmd-with-wasm-template.js", 1 << 19);
+            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir(theBuild.graph.io, "", .{});
+            defer dir.close(theBuild.graph.io);
+            const oldContent = try dir.readFileAlloc(theBuild.graph.io, "tmd-with-wasm-template.js", theBuild.allocator, .limited(1 << 19));
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
+                const libDir = try std.Io.Dir.openDirAbsolute(theBuild.graph.io, theBuild.lib_dir, .{});
                 const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
-                const wasmContent = try libDir.readFileAlloc(theBuild.allocator, wasmFileName, 1 << 19);
-                const file = try libDir.createFile(self.dest_sub_path, .{ .truncate = true });
-                defer file.close();
+                const wasmContent = try libDir.readFileAlloc(theBuild.graph.io, wasmFileName, theBuild.allocator, .limited(1 << 19));
+                const file = try libDir.createFile(theBuild.graph.io, self.dest_sub_path, .{ .truncate = true });
+                defer file.close(
+                    theBuild.graph.io,
+                );
 
                 var buffer: [4096]u8 = undefined;
-                var writer = file.writer(&buffer);
+                var writer = file.writer(theBuild.graph.io, &buffer);
                 const w = &writer.interface;
                 try w.writeAll(oldContent[0..k]);
                 try std.base64.standard.Encoder.encodeWriter(w, wasmContent);
@@ -298,22 +308,22 @@ pub fn build(b: *std.Build) !void {
 
             const jsLibFileName = self.jsLibInstallArtifact.dest_sub_path;
             const theBuild = step.owner;
-            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir("", .{});
-            defer dir.close();
-            var outputDir = try dir.openDir("@tmd-build", .{});
-            defer outputDir.close();
-            var outputPagesDir = try outputDir.openDir("pages", .{});
-            defer outputPagesDir.close();
-            const playPagePath = try std.fs.path.join(theBuild.allocator, &.{ "versions", "latest", "play.html" });
-            const oldContent = try outputPagesDir.readFileAlloc(theBuild.allocator, playPagePath, 1 << 19);
+            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir(theBuild.graph.io, "", .{});
+            defer dir.close(theBuild.graph.io);
+            var outputDir = try dir.openDir(theBuild.graph.io, "@tmd-build", .{});
+            defer outputDir.close(theBuild.graph.io);
+            var outputPagesDir = try outputDir.openDir(theBuild.graph.io, "pages", .{});
+            defer outputPagesDir.close(theBuild.graph.io);
+            const playPagePath = try std.Io.Dir.path.join(theBuild.allocator, &.{ "versions", "latest", "play.html" });
+            const oldContent = try outputPagesDir.readFileAlloc(theBuild.graph.io, playPagePath, theBuild.allocator, .limited(1 << 19));
             if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.fs.openDirAbsolute(theBuild.lib_dir, .{});
-                const jsLibContent = try libDir.readFileAlloc(theBuild.allocator, jsLibFileName, 1 << 19);
-                const file = try outputPagesDir.createFile(playPagePath, .{ .truncate = true });
-                defer file.close();
+                const libDir = try std.Io.Dir.openDirAbsolute(theBuild.graph.io, theBuild.lib_dir, .{});
+                const jsLibContent = try libDir.readFileAlloc(theBuild.graph.io, jsLibFileName, theBuild.allocator, .limited(1 << 19));
+                const file = try outputPagesDir.createFile(theBuild.graph.io, playPagePath, .{ .truncate = true });
+                defer file.close(theBuild.graph.io);
 
                 var buffer: [4096]u8 = undefined;
-                var writer = file.writer(&buffer);
+                var writer = file.writer(theBuild.graph.io, &buffer);
                 const w = &writer.interface;
                 try w.writeAll(oldContent[0..k]);
                 try w.writeAll(jsLibContent);
@@ -390,7 +400,7 @@ const RequireOptimizeMode_ReleaseSmall = struct {
 };
 
 fn retrieveVersionFromZon(b: *std.Build) ![]const u8 {
-    const zonContent = try std.fs.cwd().readFileAlloc(b.allocator, "build.zig.zon", 1 << 16);
+    const zonContent = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, "build.zig.zon", b.allocator, .limited(1 << 16));
     defer b.allocator.free(zonContent);
 
     const needle =

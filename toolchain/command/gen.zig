@@ -22,7 +22,7 @@ pub const Generator = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'gen' command generates HTML snippets for the
         \\specified input .tmd files and .tmd files in the
         \\specified directories.
@@ -43,9 +43,9 @@ pub const Generator = struct {
     //       Sort args, short dir paths < longer dir paths < file paths.
     fn genHtmlSnippets(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
         var n: usize = 0;
-        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
+        var fi: FileIterator = .init(paths, ctx.io, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
-            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+            if (!std.mem.eql(u8, std.Io.Dir.path.extension(entry.filePath), ".tmd")) continue;
 
             //std.debug.print("> [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
 
@@ -70,7 +70,7 @@ pub const FullPageGenerator = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'gen-full-page' command generates fill HTML pages
         \\for the specified input .tmd files and .tmd files in
         \\the specified directories.
@@ -87,9 +87,9 @@ pub const FullPageGenerator = struct {
     }
 
     fn genFullPages(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
+        var fi: FileIterator = .init(paths, ctx.io, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
-            if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
+            if (!std.mem.eql(u8, std.Io.Dir.path.extension(entry.filePath), ".tmd")) continue;
 
             //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
 
@@ -107,24 +107,24 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     // determine input and output filenames
 
-    const absFilePath = try entry.dir.realpathAlloc(ctx.allocator, entry.filePath);
+    const absFilePath = try entry.dir.realPathFileAlloc(ctx.io, entry.filePath, ctx.allocator);
     defer ctx.allocator.free(absFilePath);
 
     const tmdExt = ".tmd";
-    const ext = std.fs.path.extension(absFilePath);
+    const ext = std.Io.Dir.path.extension(absFilePath);
     const base = if (std.ascii.eqlIgnoreCase(ext, tmdExt)) absFilePath[0 .. absFilePath.len - tmdExt.len] else absFilePath;
     const outputFilename = try std.mem.concat(ctx.allocator, u8, &.{ base, ".html" });
     defer ctx.allocator.free(outputFilename);
 
     // get config
 
-    const dirPath = std.fs.path.dirname(absFilePath) orelse unreachable;
+    const dirPath = std.Io.Dir.path.dirname(absFilePath) orelse unreachable;
 
     const configEx, _, _ = try ctx.getDirectoryConfigAndRoot(dirPath);
 
     // load file
 
-    const tmdContent = try util.readFile(null, absFilePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
+    const tmdContent = try util.readFile(ctx.io, null, absFilePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
     remainingBuffer = remainingBuffer[tmdContent.len..];
 
     // parse file
@@ -171,7 +171,7 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     // write file
 
-    try util.writeFile(null, outputFilename, htmlContent);
+    try util.writeFile(ctx.io, null, outputFilename, htmlContent);
 
     if (false) {
         try ctx.stdout.print(

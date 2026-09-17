@@ -25,7 +25,7 @@ pub const RelativePathWriter = struct {
         }
     }
 
-    pub fn asGenBacklback(self: *RelativePathWriter, a: ?std.mem.Allocator, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
+    pub fn asGenetator(self: *RelativePathWriter, a: ?std.mem.Allocator, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
         self.* = .{
             .allocatorToFreePath = a,
             .path = path,
@@ -47,7 +47,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
             return;
         };
 
-        var buffer: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validatedPath = try util.validatePathToPosixPathIntoBuffer(path, buffer[0..]);
 
         const n, const s = util.relativePath(relativeTo, validatedPath, '/');
@@ -56,7 +56,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
         return;
     } else if (pathSep) |sep| {
         if (sep == '/') {
-            var buffer: [std.fs.max_path_bytes]u8 = undefined;
+            var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
             const validatedRelativeTo = try util.validatePathToPosixPathIntoBuffer(relativeTo, buffer[0..]);
 
             const n, const s = util.relativePath(validatedRelativeTo, path, '/');
@@ -66,7 +66,7 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
         }
 
         const n, const s = util.relativePath(relativeTo, path, '\\');
-        var buffer: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validated = try util.validatePathToPosixPathIntoBuffer(s, buffer[0..]);
 
         for (0..n) |_| try w.writeAll("../");
@@ -74,10 +74,10 @@ pub fn writeRelativeUrl(w: *std.Io.Writer, path: []const u8, pathSep: ?u8, relat
         return;
     }
 
-    var buffer1: [std.fs.max_path_bytes]u8 = undefined;
+    var buffer1: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const validatedPath = try util.validatePathToPosixPathIntoBuffer(path, buffer1[0..]);
 
-    var buffer2: [std.fs.max_path_bytes]u8 = undefined;
+    var buffer2: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const validatedRelativeTo = try util.validatePathToPosixPathIntoBuffer(relativeTo, buffer2[0..]);
 
     const n, const s = util.relativePath(validatedRelativeTo, validatedPath, '/');
@@ -89,6 +89,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
     doc: *const tmd.Doc,
     custom: *const tmd.BlockType.Custom,
     shellArgs: [][]const u8,
+    io: std.Io,
 
     //
 
@@ -103,28 +104,30 @@ pub const ShellCommandCustomBlockGenerator = struct {
 
         self.shellArgs[self.shellArgs.len - 1] = "gen-html";
 
-        try writeShellCommandOutput(w, self.shellArgs, data);
+        try writeShellCommandOutput(self.io, w, self.shellArgs, data);
     }
 
-    pub fn asGenBacklback(self: *ShellCommandCustomBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, shellArgs: [][]const u8) tmd.Generator {
-        self.* = .{ .doc = doc, .custom = custom, .shellArgs = shellArgs };
-        return .init(self);
-    }
+    //pub fn asGenetator(self: *ShellCommandCustomBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, shellArgs: [][]const u8, io: std.Io) tmd.Generator {
+    //    self.* = .{ .doc = doc, .custom = custom, .shellArgs = shellArgs,.io = io };
+    //    return .init(self);
+    //}
 };
 
 // by grok3
-fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u8, stdinText: []const u8) !void {
+fn writeShellCommandOutput(io: std.Io, w: *std.Io.Writer, commandWithArgs: []const []const u8, stdinText: []const u8) !void {
     // ToDo: ..., use an alternative allocator?
     const allocator = std.heap.page_allocator;
 
-    var child = std.process.Child.init(commandWithArgs, allocator);
-    child.stdin_behavior = .Pipe;
-    child.stdout_behavior = .Pipe;
-    try child.spawn();
+    var child = try std.process.spawn(io, .{
+        .argv = commandWithArgs,
+        .stdin = .pipe,
+        .stdout = .pipe,
+        .stderr = .pipe,
+    });
 
     if (child.stdin) |stdin_file| {
         var buffer: [4096]u8 = undefined;
-        var stdout_writer = stdin_file.writer(&buffer);
+        var stdout_writer = stdin_file.writer(io, &buffer);
         const stdin = &stdout_writer.interface;
 
         if (stdinText.len > 0) {
@@ -132,7 +135,7 @@ fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u
             try stdin.flush();
         }
 
-        stdin_file.close();
+        stdin_file.close(io); // ToDo: recheck: need it?
         child.stdin = null; // Prevent double-close
     }
 
@@ -142,26 +145,33 @@ fn writeShellCommandOutput(w: *std.Io.Writer, commandWithArgs: []const []const u
 
     if (child.stdout) |stdout_file| {
         var buffer: [4096]u8 = undefined;
-        var stdout_reader = stdout_file.reader(&buffer);
+        var stdout_reader = stdout_file.reader(io, &buffer);
         const reader = &stdout_reader.interface;
 
         _ = try reader.streamRemaining(&wa.writer);
         //try wa.writer.flush(); // no-op
-    } else {
-        return error.NoStdout;
+    }
+
+    if (child.stderr) |stderr_file| {
+        var buffer: [4096]u8 = undefined;
+        var stdout_reader = stderr_file.reader(io, &buffer);
+        const reader = &stdout_reader.interface;
+
+        _ = try reader.streamRemaining(&wa.writer);
+        //try wa.writer.flush(); // no-op
     }
 
     const output = std.mem.trim(u8, wa.written(), " \t\r\n");
     try w.writeAll(output);
 
-    _ = try child.wait();
+    _ = try child.wait(io);
 }
 
 pub const ExternalBlockGenerator = struct {
     builtinHtmlBlockGenerator: tmd.HtmlBlockGenerator,
     shellCustomBlockGenerator: ShellCommandCustomBlockGenerator,
 
-    pub fn asGenBacklback(self: *ExternalBlockGenerator, generator: union(enum) {
+    pub fn asGenetator(self: *ExternalBlockGenerator, generator: union(enum) {
         builtinHtmlBlockGenerator: tmd.HtmlBlockGenerator,
         shellCustomBlockGenerator: ShellCommandCustomBlockGenerator,
     }) tmd.Generator {
@@ -177,14 +187,14 @@ pub const ExternalBlockGenerator = struct {
         }
     }
 
-    pub fn makeGenerator(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) ?tmd.Generator {
+    pub fn makeGenerator(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, io: std.Io) ?tmd.Generator {
         const generators = (configEx.basic.@"custom-block-generators" orelse return null)._parsed;
         const attrs = custom.attributes();
         const generator = generators.getPtr(attrs.contentType) orelse return null;
         switch (generator.*) {
             .builtin => |app| {
                 if (std.mem.eql(u8, app, "html")) {
-                    return self.asGenBacklback(.{
+                    return self.asGenetator(.{
                         .builtinHtmlBlockGenerator = .{
                             .doc = doc,
                             .custom = custom,
@@ -197,11 +207,12 @@ pub const ExternalBlockGenerator = struct {
                 std.debug.assert(external.argsCount > 0 and external.argsCount + 1 < external.argsArray.len);
                 const shellCommand = external.argsArray[0 .. external.argsCount + 1];
 
-                return self.asGenBacklback(.{
+                return self.asGenetator(.{
                     .shellCustomBlockGenerator = .{
                         .doc = doc,
                         .custom = custom,
                         .shellArgs = shellCommand,
+                        .io = io,
                     },
                 });
             },
@@ -237,7 +248,7 @@ pub const BlockGeneratorCallbackOwner = struct {
 
     pub fn getCustomBlockGenerator(callbackContext: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
-        return self.mutableData.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom);
+        return self.mutableData.externalBlockGenerator.makeGenerator(self.configEx, self.tmdDoc, custom, self.appContext.io);
     }
 
     fn getLinkUrlGenerator(callbackContext: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !??tmd.Generator {
@@ -255,7 +266,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         var pa2: util.PathAllocator = .{};
-                        const realPath = try util.resolveRealPathAlloc(filePath, false, pa2.allocator());
+                        const realPath = try util.resolveRealPathAlloc(self.appContext.io, filePath, false, pa2.allocator());
 
                         isCurrentPage.* = util.eqlFilePathsWithoutExtension(realPath, self.currentPageSourceFilePath);
 
@@ -265,7 +276,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                     .txt, .html, .htm, .xhtml, .css, .js, .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
-                        const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
+                        const absPath = try util.resolveRealPathAlloc(self.appContext.io, filePath, false, self.appContext.allocator);
                         break :blk .{ self.appContext.allocator, absPath, "" };
                     },
                 } else if (url.base.len == 0) { // should be always?
@@ -279,12 +290,12 @@ pub const BlockGeneratorCallbackOwner = struct {
 
         // ToDo: standalone-html build needs different handling.
 
-        return self.mutableData.relativePathWriter.asGenBacklback(
+        return self.mutableData.relativePathWriter.asGenetator(
             a,
             targetPath,
-            std.fs.path.sep,
+            std.Io.Dir.path.sep,
             self.currentPageSourceFilePath,
-            std.fs.path.sep,
+            std.Io.Dir.path.sep,
             fragment,
         );
     }
@@ -299,7 +310,7 @@ pub const BlockGeneratorCallbackOwner = struct {
                     .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
-                        const absPath = try util.resolveRealPathAlloc(filePath, false, self.appContext.allocator);
+                        const absPath = try util.resolveRealPathAlloc(self.appContext.io, filePath, false, self.appContext.allocator);
                         break :blk absPath;
                     },
                     else => {},
@@ -310,12 +321,12 @@ pub const BlockGeneratorCallbackOwner = struct {
             else => return null,
         };
 
-        return self.mutableData.relativePathWriter.asGenBacklback(
+        return self.mutableData.relativePathWriter.asGenetator(
             self.appContext.allocator,
             targetPath,
-            std.fs.path.sep,
+            std.Io.Dir.path.sep,
             self.currentPageSourceFilePath,
-            std.fs.path.sep,
+            std.Io.Dir.path.sep,
             "",
         );
     }

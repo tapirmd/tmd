@@ -19,7 +19,7 @@ pub const Vetter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Without any argument specified, the current directory
         \\will be used. 
         ;
@@ -41,7 +41,7 @@ pub const ProjectVetter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Without any argument specified, the current directory
         \\will be used. 
         ;

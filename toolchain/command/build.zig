@@ -18,7 +18,7 @@ pub const StaticWebsiteBuilder = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Without any argument specified, the current directory
         \\will be used. 
         ;
@@ -39,7 +39,7 @@ pub const EpubBuilder = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Without any argument specified, the current directory
         \\will be used. 
         ;
@@ -60,7 +60,7 @@ pub const StandaloneHtmlBuilder = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\Without any argument specified, the current directory
         \\will be used. 
         ;

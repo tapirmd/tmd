@@ -12,7 +12,7 @@ pub const Runner = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'run' command only accepts at most one argument.
         \\Without any argument specified, the current directory
         \\will be used.

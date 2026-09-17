@@ -18,7 +18,7 @@ pub const AstDumper = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'dump-ast' command only accepts exact one argument,
         \\which should be a TapirMD doc.
         ;
@@ -50,7 +50,7 @@ pub const AstDumper = struct {
 
         // load file
 
-        const tmdContent = try util.readFile(null, filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
+        const tmdContent = try util.readFile(ctx.io, null, filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         // parse file

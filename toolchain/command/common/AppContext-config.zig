@@ -43,7 +43,7 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
 
             const workspaceConfigEx = blk: {
                 var pa: util.PathAllocator = .{};
-                const workspaceFilePath = util.resolveRealPath2Alloc(absDirPath, "tmd.workspace", false, pa.allocator()) catch |err| {
+                const workspaceFilePath = util.resolveRealPath2Alloc(ctx.io, absDirPath, "tmd.workspace", false, pa.allocator()) catch |err| {
                     if (err != error.FileNotFound) return err;
                     break :blk null;
                 };
@@ -53,7 +53,7 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
 
             const projectConfigEx = blk: {
                 var pa: util.PathAllocator = .{};
-                const projectFilePath = util.resolveRealPath2Alloc(absDirPath, "tmd.project", false, pa.allocator()) catch |err| {
+                const projectFilePath = util.resolveRealPath2Alloc(ctx.io, absDirPath, "tmd.project", false, pa.allocator()) catch |err| {
                     if (err != error.FileNotFound) return err;
                     break :blk null;
                 };
@@ -63,14 +63,14 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
 
             const values = if (workspaceConfigEx) |workspaceEx| blk: {
                 ctx.mergeTmdConfig(&workspaceEx.basic, &ctx._defaultConfigEx.basic);
-                const rootPath = std.fs.path.dirname(workspaceEx.path).?;
+                const rootPath = std.Io.Dir.path.dirname(workspaceEx.path).?;
                 if (projectConfigEx) |projectEx| {
                     ctx.mergeTmdConfig(&projectEx.basic, &workspaceEx.basic);
                     break :blk .{ projectEx, rootPath, workspaceEx };
                 }
 
                 break :blk .{ workspaceEx, rootPath, workspaceEx };
-            } else if (std.fs.path.dirname(absDirPath)) |parentDir| blk: {
+            } else if (std.Io.Dir.path.dirname(absDirPath)) |parentDir| blk: {
                 if (try confirmDirectoryConfigAndRoot(ctx, parentDir, false)) |info| {
                     if (projectConfigEx) |projectEx| {
                         ctx.mergeTmdConfig(&projectEx.basic, &info.rootConfigEx.basic);
@@ -144,7 +144,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     //var configEx = ctx._configPathToExMap.getPtr(configFilePath).?;
     {
-        const fileContent = try util.readFile(null, configFilePath, .{ .alloc = .{ .allocator = ctx.allocator, .maxFileSize = Config.maxConfigFileSize } }, ctx.stderr);
+        const fileContent = try util.readFile(ctx.io, null, configFilePath, .{ .alloc = .{ .allocator = ctx.allocator, .maxFileSize = Config.maxConfigFileSize } }, ctx.stderr);
         defer ctx.allocator.free(fileContent);
 
         try ctx.parseAndFillConfig(&configEx.basic, fileContent);
@@ -276,7 +276,7 @@ fn parseFilePath(ctx: *AppContext, configEx: *ConfigEx, path: []const u8) !Confi
     switch (tmd.checkFilePathType(path)) {
         .remote => return .{ .remote = path },
         .local => {
-            if (std.mem.startsWith(u8, path, "@") and std.fs.path.extension(path).len == 0)
+            if (std.mem.startsWith(u8, path, "@") and std.Io.Dir.path.extension(path).len == 0)
                 return .{ .builtin = path };
 
             const absPath = try util.resolvePathFromFilePathAlloc(configEx.path, path, true, ctx.arenaAllocator);
@@ -344,7 +344,7 @@ fn parseConfigOptions(ctx: *AppContext, configEx: *ConfigEx) !void {
             .data => |data| .{ data, configEx.path },
             .path => |path| blk: {
                 const absPath = try util.resolvePathFromFilePathAlloc(configEx.path, path, true, ctx.arenaAllocator);
-                const data = try util.readFile(null, absPath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = DocTemplate.maxTemplateSize } }, ctx.stderr);
+                const data = try util.readFile(ctx.io, null, absPath, .{ .alloc = .{ .allocator = ctx.arenaAllocator, .maxFileSize = DocTemplate.maxTemplateSize } }, ctx.stderr);
                 break :blk .{ data, absPath };
             },
             ._parsed => break :handle,

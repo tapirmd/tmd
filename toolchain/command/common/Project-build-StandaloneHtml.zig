@@ -4,7 +4,6 @@ const builtin = @import("builtin");
 const tmd = @import("tmd");
 const list = @import("list");
 
-const AppContext = @import("AppContext.zig");
 const DocRenderer = @import("DocRenderer.zig");
 const Project = @import("Project.zig");
 const Config = @import("Config.zig");
@@ -82,7 +81,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(builder.session.appContext.io, null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                     defer session.appContext.allocator.free(content);
 
                     const ext = tmd.extension(sourceAbsPath) orelse unreachable;
@@ -113,7 +112,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(builder.session.appContext.io, null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.arenaAllocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                     //defer session.appContext.allocator.free(content);
 
                     // ToDo: why buildHashString?

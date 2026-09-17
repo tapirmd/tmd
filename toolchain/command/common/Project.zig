@@ -32,7 +32,7 @@ configEx: *AppContext.ConfigEx,
 workspacePath: []const u8,
 
 pub fn dirname(project: *const Project) []const u8 {
-    const basename = std.fs.path.basename(project.path);
+    const basename = std.Io.Dir.path.basename(project.path);
     return if (basename.len > 0) basename else "untitled";
 }
 
@@ -167,16 +167,16 @@ pub fn BuildSession(BuilderType: type) type {
         fn confirmBuildOutputPath(session: *@This(), buildNameSuffix: []const u8) !void {
             const project = session.project;
 
-            var buffer: [std.fs.max_path_bytes]u8 = undefined;
+            var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
             var w: std.Io.Writer = .fixed(&buffer);
 
             try w.writeAll(project.workspacePath);
-            try w.writeByte(std.fs.path.sep);
+            try w.writeByte(std.Io.Dir.path.sep);
             try w.writeAll(AppContext.buildOutputDirname);
-            try w.writeByte(std.fs.path.sep);
+            try w.writeByte(std.Io.Dir.path.sep);
             if (project.path.len != project.workspacePath.len) {
                 try w.writeAll("@projects");
-                try w.writeByte(std.fs.path.sep);
+                try w.writeByte(std.Io.Dir.path.sep);
             }
             try w.writeAll(project.dirname());
             if (session.projectVersion.len > 0) {
@@ -198,14 +198,14 @@ pub fn BuildSession(BuilderType: type) type {
                 while (element) |e| {
                     const path = e.value;
 
-                    if (!std.mem.eql(u8, std.fs.path.extension(path), ".tmd")) {
+                    if (!std.mem.eql(u8, std.Io.Dir.path.extension(path), ".tmd")) {
                         try session.appContext.stderr.print("Navigation file must be a .tmd extension: {s}\n", .{path});
                         try session.appContext.stderr.flush();
                         return error.BadNavigationFile;
                     }
 
                     var pa: util.PathAllocator = .{};
-                    const absPath = util.resolveRealPath2Alloc(session.project.path, path, true, pa.allocator()) catch |err| {
+                    const absPath = util.resolveRealPath2Alloc(session.appContext.io, session.project.path, path, true, pa.allocator()) catch |err| {
                         if (err == error.FileNotFound) {
                             try session.appContext.stderr.print("Navigation file is not found: {s}\n", .{path});
                             try session.appContext.stderr.flush();
@@ -225,7 +225,7 @@ pub fn BuildSession(BuilderType: type) type {
                     element = e.next;
                 }
             } else {
-                var dirEntries: DirEntries = try .collectFromRootDir(session.project.path, session.arenaAllocator, AppContext.isValidArticlePathName);
+                var dirEntries: DirEntries = try .collectFromRootDir(session.project.path, session.appContext.io, session.arenaAllocator, AppContext.isValidArticlePathName);
                 dirEntries.sort();
 
                 const T = struct {
@@ -248,7 +248,7 @@ pub fn BuildSession(BuilderType: type) type {
         fn collectKnownImages(session: *@This()) !void {
             if (session.project.coverImagePath()) |path| {
                 var pa: util.PathAllocator = .{};
-                const absPath = try util.resolveRealPath2Alloc(session.project.path, path, true, pa.allocator());
+                const absPath = try util.resolveRealPath2Alloc(session.appContext.io, session.project.path, path, true, pa.allocator());
                 const index = session.imageFiles.items.len;
                 _ = try session.tryToRegisterFile(.{ .local = absPath }, .images);
                 std.debug.assert(index + 1 == session.imageFiles.items.len);
@@ -440,7 +440,7 @@ pub fn BuildSession(BuilderType: type) type {
                 const tmdDoc, const renderBuffer = blk: {
                     var remainingBuffer = buffer;
 
-                    const tmdContent = try util.readFile(null, absPath, .{ .buffer = remainingBuffer[0..Project.maxTmdFileSize] }, session.appContext.stderr);
+                    const tmdContent = try util.readFile(session.appContext.io, null, absPath, .{ .buffer = remainingBuffer[0..Project.maxTmdFileSize] }, session.appContext.stderr);
                     remainingBuffer = remainingBuffer[tmdContent.len..];
 
                     var fba = std.heap.FixedBufferAllocator.init(remainingBuffer);
@@ -562,12 +562,14 @@ pub fn BuildSession(BuilderType: type) type {
             session: *BuildSessionType,
             tmdDocInfo: DocRenderer.TmdDocInfo,
             mutableData: *MutableData,
+            io: std.Io,
 
-            fn init(bs: *BuildSessionType, tmdDocInfo: DocRenderer.TmdDocInfo, mutableData: *MutableData) TmdGenCustomHandler {
+            fn init(bs: *BuildSessionType, tmdDocInfo: DocRenderer.TmdDocInfo, mutableData: *MutableData, io: std.Io) TmdGenCustomHandler {
                 return .{
                     .session = bs,
                     .tmdDocInfo = tmdDocInfo,
                     .mutableData = mutableData,
+                    .io = io,
                 };
             }
 
@@ -584,7 +586,7 @@ pub fn BuildSession(BuilderType: type) type {
 
             fn getCustomBlockGenerator(ctx: *const anyopaque, custom: *const tmd.BlockType.Custom) !?tmd.Generator {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
-                return handler.mutableData.externalBlockGenerator.makeGenerator(handler.session.project.configEx, handler.tmdDocInfo.doc, custom);
+                return handler.mutableData.externalBlockGenerator.makeGenerator(handler.session.project.configEx, handler.tmdDocInfo.doc, custom, handler.io);
             }
 
             fn getLinkUrlGenerator(ctx: *const anyopaque, link: *const tmd.Link, isCurrentPage: *?bool) !??tmd.Generator {
@@ -629,7 +631,7 @@ pub fn BuildSession(BuilderType: type) type {
 
                 // ToDo: standalone-html build needs different handling.
 
-                return handler.mutableData.relativePathWriter.asGenBacklback(
+                return handler.mutableData.relativePathWriter.asGenetator(
                     null,
                     targetPath,
                     targetPathSep,
@@ -659,7 +661,7 @@ pub fn BuildSession(BuilderType: type) type {
                     else => return null,
                 };
 
-                return handler.mutableData.relativePathWriter.asGenBacklback(
+                return handler.mutableData.relativePathWriter.asGenetator(
                     null,
                     targetPath,
                     targetPathSep,
@@ -670,9 +672,9 @@ pub fn BuildSession(BuilderType: type) type {
             }
         };
 
-        fn renderTmdDoc(session: *@This(), w: *std.io.Writer, tmdDocInfo: DocRenderer.TmdDocInfo) !void {
+        fn renderTmdDoc(session: *@This(), w: *std.Io.Writer, tmdDocInfo: DocRenderer.TmdDocInfo) !void {
             var mutableData: TmdGenCustomHandler.MutableData = undefined;
-            var tmdGenCustomHandler: TmdGenCustomHandler = .init(session, tmdDocInfo, &mutableData);
+            var tmdGenCustomHandler: TmdGenCustomHandler = .init(session, tmdDocInfo, &mutableData, session.appContext.io);
             const genOptions = tmdGenCustomHandler.makeTmdGenOptions();
             try tmdDocInfo.doc.writeHTML(w, genOptions, session.appContext.allocator);
         }

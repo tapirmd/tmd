@@ -146,7 +146,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
                                     token.typeName(),
                                 });
                             },
-                            inline .lineTypeMark, .containerMark => |_| {
+                            inline .lineTypeMark, .containerMark => {
                                 std.debug.print("|{}-{}: {s}", .{
                                     token.start() - line.start(.none) + 1,
                                     token.end() - line.start(.none) + 1,

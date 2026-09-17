@@ -4,7 +4,6 @@ const builtin = @import("builtin");
 const tmd = @import("tmd");
 const list = @import("list");
 
-const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
 const Config = @import("Config.zig");
 const gen = @import("gen.zig");
@@ -18,10 +17,10 @@ const BuildSession = Project.BuildSession(@This());
 
 session: *BuildSession,
 genBuffer: []u8,
-buildOutputPath: std.fs.Dir = undefined,
+buildOutputPath: std.Io.Dir = undefined,
 
 pub fn targetPathSep() u8 {
-    return std.fs.path.sep;
+    return std.Io.Dir.path.sep;
 }
 
 pub fn buildNameSuffix() []const u8 {
@@ -29,16 +28,16 @@ pub fn buildNameSuffix() []const u8 {
 }
 
 pub fn init(session: *BuildSession) !@This() {
-    try std.fs.cwd().deleteTree(session.buildOutputPath);
+    try std.Io.Dir.cwd().deleteTree(session.appContext.io, session.buildOutputPath);
     return .{
         .session = session,
         .genBuffer = try session.arenaAllocator.alloc(u8, bufferSize),
-        .buildOutputPath = try std.fs.cwd().makeOpenPath(session.buildOutputPath, .{}),
+        .buildOutputPath = try std.Io.Dir.cwd().createDirPathOpen(session.appContext.io, session.buildOutputPath, .{}),
     };
 }
 
 pub fn deinit(builder: *@This()) void {
-    builder.buildOutputPath.close();
+    builder.buildOutputPath.close(builder.session.appContext.io);
 }
 
 pub fn init2(builder: *@This()) !void {
@@ -63,7 +62,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     }
 
                     const relPath = sourceAbsPath[project.path.len + 1 ..];
-                    const ext = std.fs.path.extension(relPath);
+                    const ext = std.Io.Dir.path.extension(relPath);
                     const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ relPath[0 .. relPath.len - ext.len], ".html" });
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
@@ -82,10 +81,10 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
         //    }
         //
         //    const relPath = sourceAbsPath[project.path.len + 1 ..];
-        //    return try std.fs.path.join(session.arenaAllocator, &.{ "@html", relPath });
+        //    return try std.Io.Dir.path.join(session.arenaAllocator, &.{ "@html", relPath });
         //},
         inline .images, .css, .js => |tag| {
-            const folderName = "@assets" ++ &[1]u8{std.fs.path.sep} ++ @tagName(tag) ++ &[1]u8{std.fs.path.sep};
+            const folderName = "@assets" ++ &[1]u8{std.Io.Dir.path.sep} ++ @tagName(tag) ++ &[1]u8{std.Io.Dir.path.sep};
 
             switch (filePath) {
                 .builtin => |name| {
@@ -94,19 +93,19 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const targetPath = try util.buildAssetFilePath(folderName, name, info.content, session.arenaAllocator);
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
-                    try util.writeFile(builder.buildOutputPath, targetPath, info.content);
+                    try util.writeFile(builder.session.appContext.io, builder.buildOutputPath, targetPath, info.content);
 
                     if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
                     try session.targetFileContents.put(targetPath, "");
                     return .{ targetPath, true };
                 },
                 .local => |sourceAbsPath| {
-                    const content = try util.readFile(null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
+                    const content = try util.readFile(builder.session.appContext.io, null, sourceAbsPath, .{ .alloc = .{ .allocator = session.appContext.allocator, .maxFileSize = maxAssetFileSize } }, session.appContext.stderr);
                     defer session.appContext.allocator.free(content);
 
-                    const targetPath = try util.buildAssetFilePath(folderName, std.fs.path.basename(sourceAbsPath), content, session.arenaAllocator);
+                    const targetPath = try util.buildAssetFilePath(folderName, std.Io.Dir.path.basename(sourceAbsPath), content, session.arenaAllocator);
                     if (session.targetFileContents.get(targetPath) == null) {
-                        try util.writeFile(builder.buildOutputPath, targetPath, content);
+                        try util.writeFile(builder.session.appContext.io, builder.buildOutputPath, targetPath, content);
                         try session.targetFileContents.put(targetPath, "");
                         return .{ targetPath, true };
                     }
@@ -124,7 +123,7 @@ fn renderArticles(builder: *@This()) !void {
 }
 
 pub fn makeCachedArticleContent(builder: *@This(), targetFilePath: []const u8, htmlContent: []const u8) ![]const u8 {
-    try util.writeFile(builder.buildOutputPath, targetFilePath, htmlContent);
+    try util.writeFile(builder.session.appContext.io, builder.buildOutputPath, targetFilePath, htmlContent);
 
     //const htmlContent2 = try session.arenaAllocator.dupe(u8, htmlContent);
     //return htmlContent2;

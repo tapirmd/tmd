@@ -42,7 +42,7 @@ pub const HtmlBlockGenerator = struct {
         }
     }
 
-    pub fn asGenBacklback(self: *HtmlBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) tmd.Generator {
+    pub fn asGenetator(self: *HtmlBlockGenerator, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom) tmd.Generator {
         self.* = .{ .doc = doc, .custom = custom };
         return .init(self);
     }

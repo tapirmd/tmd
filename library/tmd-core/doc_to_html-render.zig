@@ -1294,7 +1294,7 @@ pub const TmdRender = struct {
                                                 );
 
                                                 if (v.isTmdFile()) {
-                                                    const ext = std.fs.path.extension(url.base);
+                                                    const ext = std.Io.Dir.path.extension(url.base);
                                                     const baseWithoutExt = url.base[0 .. url.base.len - ext.len];
 
                                                     try fns.writeUrlAttributeValue(w, baseWithoutExt, true);

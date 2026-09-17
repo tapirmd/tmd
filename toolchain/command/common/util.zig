@@ -4,7 +4,8 @@ const builtin = @import("builtin");
 const tmd = @import("tmd");
 
 pub fn readFile(
-    inputDir: ?std.fs.Dir,
+    io: std.Io,
+    inputDir: ?std.Io.Dir,
     filePath: []const u8,
     manner: union(enum) {
         buffer: []u8,
@@ -15,17 +16,17 @@ pub fn readFile(
     },
     stderr: *std.Io.Writer,
 ) ![]u8 {
-    const dir = inputDir orelse std.fs.cwd();
-    const file = dir.openFile(filePath, .{}) catch |err| {
+    const dir = inputDir orelse std.Io.Dir.cwd();
+    const file = dir.openFile(io, filePath, .{}) catch |err| {
         if (err == error.FileNotFound) {
             try stderr.print("File ({s}) is not found.\n", .{filePath});
             try stderr.flush();
         }
         return err;
     };
-    defer file.close();
+    defer file.close(io);
 
-    const stat = try file.stat();
+    const stat = try file.stat(io);
 
     const peekBuffer = switch (manner) {
         .buffer => |buffer| blk: {
@@ -48,7 +49,7 @@ pub fn readFile(
         },
     };
 
-    var file_reader = file.reader(peekBuffer);
+    var file_reader = file.reader(io, peekBuffer);
     const content = try file_reader.interface.peek(stat.size);
     if (content.len != stat.size) {
         try stderr.print("[{s}] read size not match ({} != {}).\n", .{ filePath, content.len, stat.size });
@@ -59,27 +60,32 @@ pub fn readFile(
     return content;
 }
 
-pub fn writeFile(inputDir: ?std.fs.Dir, filePath: []const u8, fileContent: []const u8) !void {
-    const dir = inputDir orelse std.fs.cwd();
+pub fn writeFile(
+    io: std.Io,
+    inputDir: ?std.Io.Dir,
+    filePath: []const u8,
+    fileContent: []const u8,
+) !void {
+    const dir = inputDir orelse std.Io.Dir.cwd();
 
-    if (std.fs.path.dirname(filePath)) |dirpath| try dir.makePath(dirpath);
+    if (std.Io.Dir.path.dirname(filePath)) |dirpath| try dir.createDirPath(io, dirpath);
 
-    var file = try dir.createFile(filePath, .{});
-    defer file.close();
+    var file = try dir.createFile(io, filePath, .{});
+    defer file.close(io);
 
     // tricky !!
-    //var file_writer = file.writer(@constCast(fileContent));
+    //var file_writer = file.writer(io, @constCast(fileContent));
     //file_writer.interface.end = fileContent.len;
     //try file_writer.interface.flush();
 
     // see: https://ziggit.dev/t/is-the-constcast-used-correctly-and-safely-with-the-0-15-new-io-design/12734
-    var file_writer = file.writer(&.{});
+    var file_writer = file.writer(io, &.{});
     try file_writer.interface.writeAll(fileContent);
 }
 
 pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
     if (filePath.len > dir.len and std.mem.startsWith(u8, filePath, dir)) {
-        if (filePath[dir.len] == std.fs.path.sep) return true;
+        if (filePath[dir.len] == std.Io.Dir.path.sep) return true;
     }
     return false;
 }
@@ -89,73 +95,73 @@ pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
 // If pathToResolve is relative, then it is relative to dirPath.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPath2Alloc(dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
-    var dir = try std.fs.cwd().openDir(dirPath, .{});
-    defer dir.close();
+pub fn resolveRealPath2Alloc(io: std.Io, dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
+    var dir = try std.Io.Dir.cwd().openDir(io, dirPath, .{});
+    defer dir.close(io);
 
     if (needValidatePath) {
-        var buffer: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);
 
-        return try dir.realpathAlloc(allocator, validPathToResolve);
+        return try dir.realPathFileAlloc(io, validPathToResolve, allocator);
     }
 
-    return try dir.realpathAlloc(allocator, pathToResolve);
+    return try dir.realPathFileAlloc(io, pathToResolve, allocator);
 }
 
 // If pathToResolve is relative, then it is relative to cwd.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPathAlloc(pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPathAlloc(io: std.Io, pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
     if (needValidate) {
-        var buffer: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);
-        return try std.fs.realpathAlloc(allocator, validPathToResolve);
+        return try std.Io.Dir.cwd().realPathFileAlloc(io, validPathToResolve, allocator);
     }
 
-    return try std.fs.realpathAlloc(allocator, pathToResolve);
+    return try std.Io.Dir.cwd().realPathFileAlloc(io, pathToResolve, allocator);
 }
 
 // absFilePath should be already validated.
 // This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
 pub fn resolvePathFromFilePathAlloc(absFilePath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
-    //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
+    //var buffer1: [std.Io.Dir.max_path_bytes]u8 = undefined;
     //const validFilePath = try validatePathIntoBuffer(absFilePath, buffer1[0..]);
-    //const absDirPath = std.fs.path.dirname(validFilePath) orelse return error.NotFilePath;
-    const absDirPath = std.fs.path.dirname(absFilePath) orelse return error.NotFilePath;
+    //const absDirPath = std.Io.Dir.path.dirname(validFilePath) orelse return error.NotFilePath;
+    const absDirPath = std.Io.Dir.path.dirname(absFilePath) orelse return error.NotFilePath;
 
     if (needValidatePath) {
-        var buffer2: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer2: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer2[0..]);
-        return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
+        return try std.Io.Dir.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
     }
 
-    return try std.fs.path.resolve(allocator, &.{ absDirPath, pathToResolve });
+    return try std.Io.Dir.path.resolve(allocator, &.{ absDirPath, pathToResolve });
 }
 
 // absDirPath should be already validated.
 // This function doesn't error if the resolved path doesn't exist.
 // The result might be not an absolute path.
 pub fn resolvePathFromAbsDirPathAlloc(absDirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]const u8 {
-    //var buffer1: [std.fs.max_path_bytes]u8 = undefined;
+    //var buffer1: [std.Io.Dir.max_path_bytes]u8 = undefined;
     //const validDirPath = try validatePathIntoBuffer(absDirPath, buffer1[0..]);
 
     if (needValidatePath) {
-        var buffer2: [std.fs.max_path_bytes]u8 = undefined;
+        var buffer2: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer2[0..]);
-        return try std.fs.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
+        return try std.Io.Dir.path.resolve(allocator, &.{ absDirPath, validPathToResolve });
     }
 
-    return try std.fs.path.resolve(allocator, &.{ absDirPath, pathToResolve });
+    return try std.Io.Dir.path.resolve(allocator, &.{ absDirPath, pathToResolve });
 }
 
 pub fn validatePathIntoBuffer(pathToValidate: []const u8, buffer: []u8) ![]const u8 {
-    return _validatePathIntoBuffer(pathToValidate, buffer, std.fs.path.sep);
+    return _validatePathIntoBuffer(pathToValidate, buffer, std.Io.Dir.path.sep);
 }
 
 pub fn validatePathToPosixPathIntoBuffer(pathToValidate: []const u8, buffer: []u8) ![]const u8 {
-    return _validatePathIntoBuffer(pathToValidate, buffer, std.fs.path.sep_posix);
+    return _validatePathIntoBuffer(pathToValidate, buffer, std.Io.Dir.path.sep_posix);
 }
 
 fn _validatePathIntoBuffer(pathToValidate: []const u8, buffer: []u8, comptime sep: u8) ![]const u8 {
@@ -220,10 +226,10 @@ test _validatePathIntoBuffer {
 
 // validatedPath uses OS specified seperator.
 pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Allocator) []const u8 {
-    if (std.fs.path.sep == std.fs.path.sep_posix) return validatedPath;
+    if (std.Io.Dir.path.sep == std.Io.Dir.path.sep_posix) return validatedPath;
 
     const dup = try allocator.dupe(u8, validatedPath);
-    std.mem.replaceScalar(u8, dup, std.fs.path.sep, std.fs.path.sep_posix);
+    std.mem.replaceScalar(u8, dup, std.Io.Dir.path.sep, std.Io.Dir.path.sep_posix);
     return dup;
 }
 
@@ -231,8 +237,8 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
 // validatedPath uses OS specified seperator.
 pub fn buildEpubFilePath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
     const out = try std.mem.concatWithSentinel(allocator, u8, &.{ prefix, validatedPath, suffix }, 0);
-    if (std.fs.path.sep != std.fs.path.sep_posix) {
-        std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.fs.path.sep, std.fs.path.sep_posix);
+    if (std.Io.Dir.path.sep != std.Io.Dir.path.sep_posix) {
+        std.mem.replaceScalar(u8, out[prefix.len .. prefix.len + validatedPath.len], std.Io.Dir.path.sep, std.Io.Dir.path.sep_posix);
     }
     return out;
 }
@@ -253,7 +259,7 @@ pub fn buildEpubFilePathWithContentHashBase64(prefix: []const u8, fileBasename: 
 
     const sep = "-";
 
-    const ext = std.fs.path.extension(fileBasename);
+    const ext = std.Io.Dir.path.extension(fileBasename);
     const barename = fileBasename[0 .. fileBasename.len - ext.len];
 
     const n = prefix.len + barename.len + sep.len;
@@ -343,7 +349,7 @@ pub fn buildAssetFilePath(folderEndingWithSep: []const u8, fileBasename: []const
 
     const hashHexStr = hashHex(fileContent);
 
-    const ext = std.fs.path.extension(fileBasename);
+    const ext = std.Io.Dir.path.extension(fileBasename);
     const filename = fileBasename[0 .. fileBasename.len - ext.len];
 
     const out = try std.mem.concat(allocator, u8, &.{ folderEndingWithSep, filename, "-", hashHexStr[0..], ext });
@@ -537,16 +543,16 @@ pub fn ArrayBufferAllocator(comptime N: usize) type {
     };
 }
 
-pub const PathAllocator = ArrayBufferAllocator(std.fs.max_path_bytes);
+pub const PathAllocator = ArrayBufferAllocator(std.Io.Dir.max_path_bytes);
 
 pub fn eqlFilePathsWithoutExtension(a: []const u8, b: []const u8) bool {
-    const x = std.fs.path.extension(a);
-    const y = std.fs.path.extension(b);
+    const x = std.Io.Dir.path.extension(a);
+    const y = std.Io.Dir.path.extension(b);
     return std.mem.eql(u8, a[0 .. a.len - x.len], b[0 .. b.len - y.len]);
 }
 
 pub fn replaceExtension(path: []const u8, newExt: []const u8, allocator: std.mem.Allocator) ![]const u8 {
-    const ext = std.fs.path.extension(path);
+    const ext = std.Io.Dir.path.extension(path);
     return std.mem.concat(allocator, u8, &.{ path[0 .. path.len - ext.len], newExt });
 }
 

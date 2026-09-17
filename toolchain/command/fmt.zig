@@ -19,7 +19,7 @@ pub const Formatter = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'fmt' command formats all of the specified input
         \\.tmd files and .tmd files in the specified directories.
         \\Without any argument specified, the current directory
@@ -38,7 +38,7 @@ pub const Formatter = struct {
     //       Do it in common.TmdFiles.format() ?
     //       Sort args, short dir paths < longer dir paths < file paths.
     fn fmtTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
+        var fi: FileIterator = .init(paths, ctx.io, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
@@ -53,7 +53,7 @@ pub const Formatter = struct {
 
         // load file
 
-        const tmdContent = try util.readFile(entry.dir, entry.filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
+        const tmdContent = try util.readFile(ctx.io, entry.dir, entry.filePath, .{ .buffer = remainingBuffer[0..maxTmdFileSize] }, ctx.stderr);
         remainingBuffer = remainingBuffer[tmdContent.len..];
 
         // parse file
@@ -77,9 +77,9 @@ pub const Formatter = struct {
         const outputFilename: []const u8 = entry.filePath;
 
         if (!std.mem.eql(u8, tmdContent, newContent)) {
-            const tmdFile = try entry.dir.createFile(outputFilename, .{});
-            defer tmdFile.close();
-            try tmdFile.writeAll(newContent);
+            const tmdFile = try entry.dir.createFile(ctx.io, outputFilename, .{});
+            defer tmdFile.close(ctx.io);
+            try tmdFile.writeStreamingAll(ctx.io, newContent);
             try ctx.stdout.print(
                 \\{s}
                 \\
@@ -101,7 +101,7 @@ pub const FormatTester = struct {
     }
 
     pub fn completeDesc() []const u8 {
-        return 
+        return
         \\The 'fmt-test' command is used to test the correctness
         \\of the format functionality of the TapirMD core lib.
         \\Without any argument specified, the current directory
@@ -117,7 +117,7 @@ pub const FormatTester = struct {
     }
 
     fn fmtTestTmdFiles(paths: []const []const u8, buffer: []u8, ctx: *AppContext) !void {
-        var fi: FileIterator = .init(paths, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
+        var fi: FileIterator = .init(paths, ctx.io, ctx.allocator, ctx.stderr, &AppContext.excludeSpecialDir);
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
@@ -130,7 +130,7 @@ pub const FormatTester = struct {
     fn fmtTestFile(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
         // load file
 
-        const tmdContent = try util.readFile(entry.dir, entry.filePath, .{ .buffer = buffer[0..maxTmdFileSize] }, ctx.stderr);
+        const tmdContent = try util.readFile(ctx.io, entry.dir, entry.filePath, .{ .buffer = buffer[0..maxTmdFileSize] }, ctx.stderr);
         var remainingBuffer = buffer[tmdContent.len..];
 
         // parse file

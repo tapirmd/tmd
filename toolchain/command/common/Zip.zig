@@ -1,8 +1,6 @@
 const std = @import("std");
 
-const miniz = @cImport({
-    @cInclude("miniz.h");
-});
+const miniz = @import("miniz");
 
 const Zip = @This();
 

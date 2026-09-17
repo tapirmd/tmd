@@ -6,10 +6,10 @@ top: Entry = .{ .name = undefined, .children = &.{} },
 
 needFreeNames: bool,
 
-fn collectDir(dir: std.fs.Dir, dirEntry: *Entry, allocator: std.mem.Allocator, filter: fn ([]const u8, bool) bool) !void {
+fn collectDir(dir: std.Io.Dir, dirEntry: *Entry, io: std.Io, allocator: std.mem.Allocator, filter: fn ([]const u8, bool) bool) !void {
     var count: usize = 0;
     var iter = dir.iterate();
-    while (try iter.next()) |entry| {
+    while (try iter.next(io)) |entry| {
         switch (entry.kind) {
             .file => {
                 if (filter(entry.name, false)) count += 1;
@@ -28,9 +28,10 @@ fn collectDir(dir: std.fs.Dir, dirEntry: *Entry, allocator: std.mem.Allocator, f
         var hasFiles = false;
         const children = try allocator.alloc(Entry, count);
 
-        iter.reset();
+        //iter.reset(); // removed from Zig 0.16
+        iter = dir.iterate();
         var i: usize = 0;
-        while (try iter.next()) |e| {
+        while (try iter.next(io)) |e| {
             switch (e.kind) {
                 .file => if (filter(e.name, false)) {
                     children[i] = .{ .name = try allocator.dupe(u8, e.name) };
@@ -40,8 +41,9 @@ fn collectDir(dir: std.fs.Dir, dirEntry: *Entry, allocator: std.mem.Allocator, f
                 },
                 .directory => if (filter(e.name, true)) {
                     children[i] = .{ .name = try allocator.dupe(u8, e.name) };
-                    const subDir = try dir.openDir(e.name, .{ .iterate = true });
-                    try collectDir(subDir, &children[i], allocator, filter);
+                    const subDir = try dir.openDir(io, e.name, .{ .iterate = true });
+                    defer subDir.close(io);
+                    try collectDir(subDir, &children[i], io, allocator, filter);
                     hasFiles = hasFiles or children[i].isNonBlank;
                     i += 1;
                 },
@@ -55,15 +57,15 @@ fn collectDir(dir: std.fs.Dir, dirEntry: *Entry, allocator: std.mem.Allocator, f
     }
 }
 
-pub fn collectFromRootDir(absPath: []const u8, allocator: std.mem.Allocator, filter: fn ([]const u8, bool) bool) !DirEntries {
-    var dir = try std.fs.openDirAbsolute(absPath, .{ .iterate = true });
-    defer dir.close();
+pub fn collectFromRootDir(absPath: []const u8, io: std.Io, allocator: std.mem.Allocator, filter: fn ([]const u8, bool) bool) !DirEntries {
+    var dir = try std.Io.Dir.openDirAbsolute(io, absPath, .{ .iterate = true });
+    defer dir.close(io);
 
     var topEntry: Entry = .{
         .name = absPath,
     };
 
-    try collectDir(dir, &topEntry, allocator, filter);
+    try collectDir(dir, &topEntry, io, allocator, filter);
 
     return .{
         .top = topEntry,
@@ -103,7 +105,7 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
     while (absPathIterator.next()) |absPath| {
         if (!std.mem.startsWith(u8, absPath, rootPath)) unreachable;
         std.debug.assert(absPath.len > rootPath.len);
-        if (absPath[rootPath.len] != std.fs.path.sep) unreachable;
+        if (absPath[rootPath.len] != std.Io.Dir.path.sep) unreachable;
 
         const relPath = absPath[rootPath.len + 1 ..];
         var remaining = relPath;
@@ -113,7 +115,7 @@ pub fn collectFromFilepaths(rootPath: []const u8, absPathIterator: anytype, loca
             defer isDirectory = true;
 
             const entryPath = remaining;
-            const name = if (std.mem.lastIndexOfScalar(u8, remaining, std.fs.path.sep)) |index| blk: {
+            const name = if (std.mem.lastIndexOfScalar(u8, remaining, std.Io.Dir.path.sep)) |index| blk: {
                 std.debug.assert(index > 0);
                 defer remaining = remaining[0..index];
                 break :blk remaining[index + 1 ..];
@@ -255,7 +257,7 @@ fn iterateDirEntry(dirEntry: Entry, buffer: []u8, k: usize, handler: anytype, de
                     try handler.onEntry(buffer[0..i], child.name, true, depth);
                     handled = true;
                 }
-                buffer[i] = std.fs.path.sep;
+                buffer[i] = std.Io.Dir.path.sep;
                 if (cc.len > 0) try iterateDirEntry(child, buffer, i + 1, handler, if (handled) depth + 1 else depth);
             } else {
                 try handler.onEntry(buffer[0..i], child.name, false, depth);
@@ -266,10 +268,10 @@ fn iterateDirEntry(dirEntry: Entry, buffer: []u8, k: usize, handler: anytype, de
 }
 
 pub fn iterate(de: *DirEntries, handler: anytype) !void {
-    var buffer: [std.fs.max_path_bytes]u8 = undefined;
+    var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
     const k: usize = if (de.top.name.len > 0 and de.top.name[0] != '.') blk: {
         @memcpy(buffer[0..de.top.name.len], de.top.name);
-        buffer[de.top.name.len] = std.fs.path.sep;
+        buffer[de.top.name.len] = std.Io.Dir.path.sep;
         break :blk de.top.name.len + 1;
     } else 0;
 

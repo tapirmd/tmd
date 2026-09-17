@@ -101,7 +101,7 @@ pub fn writeFile(ctx: *AppContext, w: *std.Io.Writer, filePath: config.FilePath,
         .local => |absPath| blk: {
             const needFree = !cacheIt or contentOp != null;
             const a = if (needFree) ctx.allocator else ctx.arenaAllocator;
-            const content = try util.readFile(null, absPath, .{ .alloc = .{ .allocator = a, .maxFileSize = maxFileSize } }, ctx.stderr);
+            const content = try util.readFile(ctx.io, null, absPath, .{ .alloc = .{ .allocator = a, .maxFileSize = maxFileSize } }, ctx.stderr);
             break :blk .{ content, if (needFree) ctx.allocator else null };
         },
         .remote => |url| {

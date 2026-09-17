@@ -839,7 +839,7 @@ pub const BlockType = union(enum) {
 
         pub fn endPlayloadRange(self: @This()) ?Range {
             return switch (self.endLine.lineType) {
-                .codeBlockEnd => |_| self.endLine.playloadRange(),
+                .codeBlockEnd => self.endLine.playloadRange(),
                 else => null,
             };
         }
@@ -884,7 +884,7 @@ pub const BlockType = union(enum) {
 
         pub fn endPlayloadRange(self: @This()) ?Range {
             return switch (self.endLine.lineType) {
-                .customBlockEnd => |_| self.endLine.playloadRange(),
+                .customBlockEnd => self.endLine.playloadRange(),
                 else => null,
             };
         }
@@ -1267,7 +1267,6 @@ fn inlineTokensBetweenLines(startLine: *const Line, endLine: *const Line) Inline
 //     evenBackticks: ...,
 
 pub const Token = union(enum) {
-    // Same results as using std.meta.TagPayload(Token, .XXX)
     pub const PlainText = @FieldType(Token, "plainText");
     pub const EvenBackticks = @FieldType(Token, "evenBackticks");
     pub const SpanMark = @FieldType(Token, "spanMark");
