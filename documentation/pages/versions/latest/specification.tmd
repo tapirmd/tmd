@@ -208,11 +208,11 @@ which begins with
       +  is followed by a line-end blank token.
 
 The character in the leading mark token is
--  `#` or `#.` for table blocks,
--  `>` or `>.` for quotation blocks,
--  `!` or `!.` for callout blocks,
--  `?` or `?.` for reveal blocks,
--  `.` or `..` for raw blocks.
+-  `#`, for table blocks,
+-  `>`, for quotation blocks,
+-  `!`, for callout blocks,
+-  `?`, for reveal blocks,
+-  `.`, for raw blocks.
 
 If the leading mark token of a non-item predefined container block contains
 only one character, then during line-by-line parsing, the container block

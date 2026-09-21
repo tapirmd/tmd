@@ -442,9 +442,9 @@ fn parse(parser: *DocParser) !void {
                     try blockArranger.stackListItemBlock(listItemBlock, markTypeIndex, listBlock);
                 },
                 '#', '>', '!', '?', '.' => |mark| handle: {
-                    if (lineScanner.peekNext() == '.') {
-                        lineScanner.advance(1);
-                    }
+                    //if (lineScanner.peekNext() == '.') {
+                    //    lineScanner.advance(1);
+                    //}
 
                     lineScanner.advance(1); // ToDo: merged into the last one.
                     const markEnd = lineScanner.cursor;
@@ -491,6 +491,7 @@ fn parse(parser: *DocParser) !void {
                     }
 
                     const markLen = markEnd - lineStartIgnoreLeadingBlanks;
+                    std.debug.assert(markLen == 1);
                     (try parser.createTokenForLine(line)).* = .{
                         .containerMark = .{
                             .start = @intCast(lineStartIgnoreLeadingBlanks),
@@ -501,7 +502,8 @@ fn parse(parser: *DocParser) !void {
                         },
                     };
 
-                    try blockArranger.stackContainerBlock(containerBlock, markLen == 2);
+                    //try blockArranger.stackContainerBlock(containerBlock, markLen == 2);
+                    try blockArranger.stackContainerBlock(containerBlock);
                 },
                 else => {},
             }

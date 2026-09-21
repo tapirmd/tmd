@@ -1,11 +1,11 @@
 
 ### TapirMD Frequently Asked Questions
 
-?. ### How to apply drop-cap style to a paragraph?
-
+?  ### How to apply drop-cap style to a paragraph?
+   ;;; ``
    In TapirMD, if a usual block starts with a bare media line,
    then the first letter in the usual block should be a drop cap.
-
+   ;;;
    Here is an example:
    {
    #  ;;; Source
@@ -25,8 +25,8 @@
       }
    }
 
-?. ### How to make an image clickable so that clicking it opens the image itself?
-
+?  ### How to make an image clickable so that clicking it opens the image itself?
+   ;;; ``
    An example:
    {
    #  ;;; Source
@@ -44,8 +44,8 @@
       }
    }
 
-?. ### How do I create a link that displays as an image?
-
+?  ### How do I create a link that displays as an image?
+   ;;; ``
    An example:
    {
    #  ;;; Source
@@ -67,5 +67,5 @@
 
 
 
-.
+
 
