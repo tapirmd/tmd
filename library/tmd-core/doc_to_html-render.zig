@@ -415,13 +415,10 @@ pub const TmdRender = struct {
             .table => {
                 try self.renderTableBlock(w, block);
             },
-            .quotation => {
+            .grid => {
                 const tag = "div";
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
-                    const classes = "tmd-quotation-large";
-                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-
                     {
                         const headerTag = "div";
                         const headerClasses = "tmd-usual";
@@ -430,6 +427,9 @@ pub const TmdRender = struct {
                         try self.writeUsualContentBlockLines(w, headerBlock);
                         try fns.writeCloseTag(w, headerTag, true);
                     }
+
+                    const classes = "tmd-grid";
+                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
                     break :blk headerBlock.nextSibling();
                 } else blk: {
@@ -991,9 +991,10 @@ pub const TmdRender = struct {
         //std.debug.print("language: {s}\n", .{@tagName(attrs.language)});
         //std.debug.print("==========\n", .{});
 
+        try w.writeAll("<div class=\"tmd-code-wrapper\">\n");
+
         const tag = "pre";
         const classes = "tmd-code";
-
         try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
         if (attrs.language.len > 0) {
@@ -1046,6 +1047,7 @@ pub const TmdRender = struct {
         }
 
         try fns.writeCloseTag(w, tag, true);
+        try w.writeAll("</div>\n"); // tmd-code-wrapper
     }
 
     fn renderTmdCode(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, trimBoundaryLines: bool) anyerror!void {
@@ -1058,7 +1060,7 @@ pub const TmdRender = struct {
             },
 
             // built-in containers
-            .list, .item, .table, .quotation, .callout, .reveal, .raw => {
+            .list, .item, .table, .grid, .callout, .reveal, .raw => {
                 try self.renderTmdCodeForBlockChildren(w, block);
             },
 

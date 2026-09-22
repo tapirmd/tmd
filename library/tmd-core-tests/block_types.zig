@@ -65,7 +65,7 @@ test "block types" {
         \\   plain
         \\ * list 2
         \\
-        \\ > quotation
+        \\ | quotation
         \\ ? ### why?
         \\   why?
         \\   ;;; because ...
@@ -81,5 +81,5 @@ test "block types" {
         \\   ;;; cell (2,1)
         \\   ;;; cell (2,2)
         \\
-    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .blank, .item, .usual, .raw, .usual, .list, .item, .usual, .blank, .quotation, .usual, .reveal, .header, .usual, .callout, .usual, .base, .usual, .table, .usual, .usual, .seperator, .usual, .usual }));
+    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .blank, .item, .usual, .raw, .usual, .list, .item, .usual, .blank, .grid, .usual, .reveal, .header, .usual, .callout, .usual, .base, .usual, .table, .usual, .usual, .seperator, .usual, .usual }));
 }

@@ -441,7 +441,7 @@ fn parse(parser: *DocParser) !void {
 
                     try blockArranger.stackListItemBlock(listItemBlock, markTypeIndex, listBlock);
                 },
-                '#', '>', '!', '?', '.' => |mark| handle: {
+                '#', '|', '!', '?', '.' => |mark| handle: {
                     //if (lineScanner.peekNext() == '.') {
                     //    lineScanner.advance(1);
                     //}
@@ -467,9 +467,9 @@ fn parse(parser: *DocParser) !void {
                                 .table = .{},
                             };
                         },
-                        '>' => {
+                        '|' => {
                             containerBlock.blockType = .{
-                                .quotation = .{},
+                                .grid = .{},
                             };
                         },
                         '!' => {

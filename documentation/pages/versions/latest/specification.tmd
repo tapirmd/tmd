@@ -122,7 +122,7 @@ TapirMD supports a variety of block types, categorized into three groups:
    {
    -  (list) item blocks
    -  table blocks
-   -  quotation blocks
+   -  quotation/grid blocks
    -  callout blocks
    -  reveal blocks
    -  raw blocks
@@ -209,7 +209,7 @@ which begins with
 
 The character in the leading mark token is
 -  `#`, for table blocks,
--  `>`, for quotation blocks,
+-  `|`, for quotation/grid blocks,
 -  `!`, for callout blocks,
 -  `?`, for reveal blocks,
 -  `.`, for raw blocks.
@@ -1123,7 +1123,7 @@ is treated as an ordered list in HTML output.
 
 
 If the mark of a list begins with `*`, `+`, `-` or `~`,
-and the first non-attribute child block of one item blocks
+and the first non-attribute child block of an item block
 in the list is a first-level header block, then the list
 is treated as a //**tab panel**// in HTML output.
 
@@ -1287,26 +1287,26 @@ The vertical text alignment of table cells is always middle.
       ''' << #column-major-table-examples
    }
 
-@@@ #quotation-semantics
-###===== Quotation block semantics
+@@@ #quotation-and-grid-semantics
+###===== Quotation and grid block semantics
 
-A quotation block can have two different appearances,
-depending on whether the first non-attribute child block
-of the quotation block is a first-level header block.
-These appearances are determined by the TapirMD renderer implementation.
+Quotation and grid blocks start with the same mark: `|`.
+If the first non-attribute child block of a container block starting with `|`
+is a first-level header block, then the container block
+is a grid container block, otherwise, it is a quoration block.
 
 ?  ### (a quotation block example)
    {
    *  ### Render Result
       @@@ #quotation-examples
       {
-      >  "Success is not final, failure is not fatal: It is the courage to continue that counts."
+      |  "Success is not final, failure is not fatal: It is the courage to continue that counts."
          {
          ;;; -- Winston Churchill
          @@@
          }
          {
-         >  "It is never too late to be what you might have been."
+         |  "It is never too late to be what you might have been."
             ;;; George Eliot
             @@@
          }
@@ -1317,12 +1317,19 @@ These appearances are determined by the TapirMD renderer implementation.
       ''' << #quotation-examples
    }
 
-?  ### (another quotation block example)
+?  ### (a grid block example)
    {
    *  ### Render Result
       @@@ #quotation-examples-2
       {
-      >  ### The best way to predict the future is to invent it.
+      |  ### The following is a grid container:
+         ;;; Grid card 1
+         {
+         Grid card 2
+         }
+         '''
+Grid card 3
+         '''
       }
 
    *  ### TapirMD Source

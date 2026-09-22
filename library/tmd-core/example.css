@@ -133,6 +133,20 @@ code, pre {
   padding: 0.3em 2em;
 }
 
+.tmd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 1.5rem;
+  margin: 6px;
+}
+
+.tmd-grid  > * {
+  padding: 1.25rem;
+  border-radius: 3px;
+  overflow-x: auto;
+  border: 1px solid;
+}
+
 .tmd-quotation-large > .tmd-footer {
   color: #966a23;
   font-style: italic;
@@ -229,6 +243,10 @@ ol.tmd-footnotes > li::marker {
   border: solid 1px #c7923c;
   border-radius: 6px;
   padding: 3px 6px;
+  overflow-x: auto;
+  white-space: pre;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 header.tmd-with-subtitle {
@@ -302,7 +320,13 @@ header.tmd-with-subtitle h1 {
 }
 
 .tmd-invisible {
-  visibility: hidden;
+  color: transparent;
+  user-select: text;
+}
+
+.tmd-invisible::selection {
+  background-color: Highlight;
+  color: transparent;
 }
 
 .tmd-marked {

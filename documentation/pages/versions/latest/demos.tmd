@@ -10,13 +10,10 @@ For detailed explanations, please refer to __the specification__.
 
 @@@ #section-demo-1
 ###========================
-    Demo 1 (span styles)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-1
-
-*  ### Render Result
+    Demo 1 (text styles)
+|  ###
+   '''
+   ''' << #demo-1
    @@@ #demo-1
    {
    **bold text** and ^**dimmed text**.
@@ -26,35 +23,37 @@ For detailed explanations, please refer to __the specification__.
    ::smaller text:: and ^::larger text::.
 
    ~~deleted text~~ and invisible text:
-   ^~~invisible text~~ (non-selectable, still occupy space).
+   ^~~unimportant_password~~ (always invisible
+   but selectable).
 
-   ||marked text|| and ^||marked text with mistake smell||.
+   ||marked text|| and ^||marked text
+   with mistake smell||.
 
    $$subscript$$ and ^$$superscript$$.
 
    This is __a self-defined link``https://go101.org__.
-   This is ^__another self-defined link``https://ziglang.org__
+   This is ^__another self-defined link``
+   https://ziglang.org__
    which will be opened in a new window.
    This is __a broken link__.
 
-   This is a code span: ` var z = foo::x || bar::y `.
+   This is a code span: ` var z = foo::x
+   || bar::y `.
    And this is a mono font text span:
    ^` var z = x$$ 2 $$ + y^$$ n $$`.
    }
 
+
 @@@ #section-demo-2
 ###========================
     Demo 2 (line leading marks)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-2
-
-*  ### Render Result
+|  ###
+   '''
+   ''' << #demo-2
    @@@ #demo-2
    {
-   A comment line is between the following two words: foo
-   %% comment text
+   The next line is not displayed. Foo
+   %% undisplayed text
    bar.
 
    The answer is:
@@ -76,26 +75,27 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-3
 ###========================
     Demo 3 (link definitions)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-3
-
-*  ### Render Result
+|  ###
+   '''
+   ''' << #demo-3
    @@@ #demo-3
    {
        === Go 101 website ` https://go101.org
 
-   Visit __Go 101 website__ (the link is defined above).
+   Visit __Go 101 website__ (the link
+   is defined above).
 
-   Go 1.22 broke backwards compatibility. More information
-   is on __`for` Loop Semantic Changes in Go 1.22:
-   Be Aware of the Impact__ (the link is defined below).
+   Go 1.22 broke backwards compatibility.
+   More information is on __`for` Loop
+   Semantic Changes in Go 1.22:
+   Be Aware of the Impact__
+   (the link is defined below).
 
        === for Loop ...
            https://go101.org/blog/2024-03-01-for-loop-semantic-changes-in-go-1.22.html
 
-   __No Safe Efficient Ways to Do Three-way String Comparisons in Go__
+   __No Safe Efficient Ways to Do
+   Three-way String Comparisons in Go__
    (the link is defined below).
 
        === ... in Go
@@ -105,13 +105,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-4
 ###========================
     Demo 4 (built-in containers)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-4
-
-*  ### Render Result
-   @@@ #demo-4
+|  ### Lists:
+   '''
+   ''' << #demo-4-a
+   @@@ #demo-4-a
    {
    *. This is a 1st-level list item (ordered)..
       {
@@ -127,39 +124,50 @@ For detailed explanations, please refer to __the specification__.
       :  ### Term 2
          ;;; Explanations of term 2.
 
-   .  %% Force ending of a list context.
-      %% If the next container block is not a list item block,
-      %% then this is unnecessary.
+         *  ### Tab 1
+            ;;; Content of tab 1.
+            {
 
-   *  ### Tab 1
-      ;;; Content of tab 1.
-      {
+            Another definition list:
+            :. ### Zig
+               ;;; A programming language optimized for performance
+               and featuring a robust metaprogramming system.
+            :. ### Go
+               ;;; A statically-typed programming language with
+               dynamic language flexibility and moderate performance.
+            }
+         *  ### Tab 2
+            ;;; Content of tab 2.
+            ;;;
+            && ../../static/image/tmd-v1.png
+   }
 
-      Another definition list:
-      :. ### Zig
-         ;;; A programming language optimized for performance
-         and featuring a robust metaprogramming system.
-      :. ### Go
-         ;;; A statically-typed programming language with
-         dynamic language flexibility and moderate performance.
-      }
-   *  ### Tab 2
-      ;;; Content of tab 2.
-      ;;;
-      && ../../static/image/tmd-v1.png
-
-
-   >  This is a quotation text.
+|  ### Quotations and grids:
+   '''
+   ''' << #demo-4-b
+   @@@ #demo-4-b
+   {
+   |  This is a quotation text.
       ;;; a footer
       @@@
 
-   >  ### This is a quotation block which font looks larger.
+   |  ### The following is a grid layout.
       {
-      footer line 1
-      \\ footer line 2
+      TapirMD is not compatible with Markdown.
       }
-      @@@
+      {
+      TapirMD is far more powerful than Markdown.
+      }
+      {
+      TapirMD's syntax is more consistent than Markdown.
+      }
+   }
 
+|  ### Callouts and reveal blocks:
+   '''
+   ''' << #demo-4-c
+   @@@ #demo-4-c
+   {
    !  This is a callout box without header.
 
    !  ### WARNING!
@@ -174,21 +182,23 @@ For detailed explanations, please refer to __the specification__.
       Because traditional markdown formats
       have many ambiguities and not powerful enough.
       }
-
-   Not in any container block.
    }
 
-
+|  ### Raw container blocks:
+   '''
+   ''' << #demo-4-d
+   @@@ #demo-4-d
+   {
+   .  This is in a raw container block,
+      which has no special styles.
+   }
 
 @@@ #section-demo-5
 ###========================
     Demo 5 (table)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-5
-
-*  ### Render Result
+|  ###
+   '''
+   ''' << #demo-5
    @@@ #demo-5
    {
    A table (row-major):
@@ -250,12 +260,9 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-6
 ###========================
     Demo 6 (atom blocks)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-6
-
-*  ### Render Result
+|  ###
+   '''
+   ''' << #demo-6
    @@@ #demo-6
    {
    ####### Header 2
@@ -291,15 +298,11 @@ pub fn main() void {
 @@@ #section-demo-7
 ###========================
     Demo 7 (line end spacing)
-
-*  ### TapirMD Source
+|  ###
    '''
    ''' << #demo-7
-
-*  ### Render Result
    @@@ #demo-7
    {
-
    hello
    world
 
@@ -328,12 +331,9 @@ pub fn main() void {
 @@@ #section-demo-8
 ###========================
     Demo 8 (character escaping)
-
-*  ### TapirMD Source
-   '''''
-   ''''' << #demo-8
-
-*  ### Render Result
+|  ###
+   '''
+   ''' << #demo-8
    @@@ #demo-8
    {
    *``* all marks /``/ are escaped *``* ^````.
@@ -348,6 +348,6 @@ pub fn main() void {
 
    `` ! This is not a **callout box**.
 
-   `` %% This is not a //comment line//.
+   `` %% This is not a //undisplayed line//.
    }
 
