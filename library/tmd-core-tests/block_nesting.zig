@@ -39,9 +39,9 @@ test "block nesting depths" {
         \\
         \\
     , &.{
-        3, 3, // <- 1st blank block
-        3, 3, 4, 3, // <- 2nd blank block
-        2, 3, 2, // <- 3rd blank block
+        3, 3, // <- 1st blank usual block
+        3, 3, 4, 4, // <- 2nd blank usual block
+        2, 3, 3, // <- 3rd blank block
         1, 2, 2, 2, 3, 1, // <- 4th blank block
     }));
 

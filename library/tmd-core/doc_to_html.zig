@@ -34,7 +34,7 @@ pub const HtmlBlockGenerator = struct {
         while (true) {
             std.debug.assert(line.lineType == .data);
 
-            try w.writeAll(self.doc.rangeData(line.range(.trimLineEnd)));
+            try w.writeAll(self.doc.bytesInRange(line.range(.trimLineEnd)));
             try w.writeAll("\n");
 
             if (line == endDataLine) break;

@@ -35,6 +35,9 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
         } else {
             std.debug.print(" (next sibling: <null>)", .{});
         }
+        if (block.explanationBlock) |explanation| {
+            std.debug.print(" (explanation: #{}", .{explanation.index});
+        }
         if (block.attributes) |attrs| {
             if (attrs.id.len > 0) {
                 std.debug.print(" (id={s})", .{attrs.id});

@@ -55,6 +55,8 @@ pub const bytesKindTable = blk: {
     table['\\'] = .{ .leadingSpanMark = .lineBreak };
     table['%'] = .{ .leadingSpanMark = .undisplayed };
     table['&'] = .{ .leadingSpanMark = .media };
+    table['>'] = .{ .leadingSpanMark = .media };
+    table['<'] = .{ .leadingSpanMark = .media };
     table['!'] = .{ .leadingSpanMark = .escape };
     table['?'] = .{ .leadingSpanMark = .spoiler };
 

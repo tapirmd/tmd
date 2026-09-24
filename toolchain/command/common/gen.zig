@@ -100,7 +100,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
 
         const startLineRange = startDataLine.range(.none);
         const endLineRange = endDataLine.range(.none);
-        const data = self.doc.rangeData(.{ .start = startLineRange.start, .end = endLineRange.end });
+        const data = self.doc.bytesInRange(.{ .start = startLineRange.start, .end = endLineRange.end });
 
         self.shellArgs[self.shellArgs.len - 1] = "gen-html";
 

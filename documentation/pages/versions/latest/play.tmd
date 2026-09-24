@@ -10,21 +10,7 @@ You can also learn TapirMD from the projects listed __here``users.tmd__.
 //(Note: This page needs JavaScript to function.)
 
 
-
-*  @@@ #effect-tab
-   ### Render effect
-   @@@ #render-effect
-   {
-   }
-
-*  @@@ #html-tab
-   ### HTML source
-   @@@ #result-html .tmd-auto-wrap
-   '''
-   '''
-
-
-
+{
 """ html
 <div id="edit-source-label-row">
   <label>TapirMD source:</label>
@@ -67,7 +53,25 @@ textarea:focus {
   color: white;
 }
 </style>
+"""
+}
+|  ###
+   {
 
+   *  @@@ #effect-tab
+      ### Render effect
+      @@@ #render-effect
+      {
+      }
+
+   *  @@@ #html-tab
+      ### HTML source
+      @@@ #result-html .tmd-auto-wrap
+      '''
+      '''
+   }
+
+""" html
 <script>
 let tmdLibInstance = undefined;
 
@@ -170,3 +174,4 @@ function formatTmd() {
 
 </script>
 """
+   

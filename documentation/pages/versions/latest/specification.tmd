@@ -1479,12 +1479,12 @@ The following punctuation characters are potential predefined-container-leading 
 They should be escaped when they appear at line beginning if they are used as general texts.
 '''
 =
-|
 @
 $
 %
 ^
 <
+>
 &
 _ (underscore)
 ; 

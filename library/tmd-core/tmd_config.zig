@@ -37,7 +37,7 @@ pub const Config = struct {
                 var token = iter.first() orelse break :blk "";
                 while (true) {
                     switch (token.*) {
-                        .plainText => break :blk config.doc.rangeData(token.range()),
+                        .plainText => break :blk config.doc.bytesInRange(token.range()),
                         // ToDo: .evenBackticks ?
                         else => {},
                     }
@@ -47,7 +47,7 @@ pub const Config = struct {
             inline .code, .custom => |c| blk: {
                 const startLine = c.startDataLine() orelse break :blk "";
                 const endLine = c.endDataLine() orelse unreachable;
-                break :blk config.doc.rangeData(.{ .start = startLine.start(.none), .end = endLine.end(.trimLineEnd) });
+                break :blk config.doc.bytesInRange(.{ .start = startLine.start(.none), .end = endLine.end(.trimLineEnd) });
             },
             else => "",
         };

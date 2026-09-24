@@ -121,7 +121,7 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
     //if (textToken.* != .invisibleText) return;
     if (textToken.* != .plainText) return;
     std.debug.assert(textToken.next() == null);
-    const attrText = parser.tmdDoc.rangeData(textToken.range());
+    const attrText = parser.tmdDoc.bytesInRange(textToken.range());
     const attrs = AttributeParser.parse_element_attributes(attrText);
 
     //if (forBulletContainer) {
@@ -300,7 +300,7 @@ fn parse(parser: *DocParser) !void {
 
                             //const playloadRange = line.playloadRange();
                             const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
-                            const playload = parser.tmdDoc.rangeData(playloadRange);
+                            const playload = parser.tmdDoc.bytesInRange(playloadRange);
                             const attrs = AttributeParser.parse_code_block_close_playload(playload);
                             if (!std.meta.eql(attrs, .{})) {
                                 var _contentStreamAttributesElement = try parser.tmdDoc._contentStreamAttributes.createElement(allocator, true);
@@ -421,7 +421,7 @@ fn parse(parser: *DocParser) !void {
                         listBlock.blockType = .{
                             .list = .{
                                 ._itemTypeIndex = markTypeIndex,
-                                .listType = tmd.listType(markStr), // if .bullets, might be adjusted to .tabs later
+                                .listType = tmd.listType(markStr), // if .bullets, might be adjusted to .panels later
                                 .secondMode = markStr.len == 2,
                                 .index = listCount,
                             },
@@ -593,7 +593,7 @@ fn parse(parser: *DocParser) !void {
 
                         //const playloadRange = baseBlock.blockType.base.openPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
-                        const playload = parser.tmdDoc.rangeData(playloadRange);
+                        const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_base_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _baseBlockAttibutesElement = try parser.tmdDoc._baseBlockAttibutes.createElement(allocator, true);
@@ -674,7 +674,7 @@ fn parse(parser: *DocParser) !void {
 
                         //const playloadRange = codeBlock.blockType.code.startPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
-                        const playload = parser.tmdDoc.rangeData(playloadRange);
+                        const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_code_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _codeBlockAttibutesElement = try parser.tmdDoc._codeBlockAttibutes.createElement(allocator, true);
@@ -704,7 +704,7 @@ fn parse(parser: *DocParser) !void {
 
                         //const playloadRange = customBlock.blockType.custom.startPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
-                        const playload = parser.tmdDoc.rangeData(playloadRange);
+                        const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_custom_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _customBlockAttibutesElement = try parser.tmdDoc._customBlockAttibutes.createElement(allocator, true);
@@ -805,6 +805,7 @@ fn parse(parser: *DocParser) !void {
                     };
                     if (isFirstLevel) {
                         try blockArranger.stackFirstLevelHeaderBlock(headerBlock, hasContainerMark);
+                        blockArranger.tryToSetExplanationBlock(headerBlock);
                     } else {
                         try blockArranger.stackAtomBlock(headerBlock, hasContainerMark);
                     }

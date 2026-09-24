@@ -163,8 +163,12 @@ pub const Doc = struct {
         return if (self.lines.head) |le| &le.value else null;
     }
 
-    pub fn rangeData(self: *const @This(), r: Range) []const u8 {
+    pub fn bytesInRange(self: *const @This(), r: Range) []const u8 {
         return self.data[r.start..r.end];
+    }
+
+    pub fn bytesAtPos(self: *const @This(), i: DocSize) u8 {
+        return self.data[i];
     }
 
     pub fn headerLevelNeedAdjusted(self: *const @This(), level: u8) bool {
@@ -232,7 +236,7 @@ pub fn listItemTypeIndex(itemMark: []const u8) ListItemTypeIndex {
     }
 }
 
-// When this function is called, .tabs is still unable to be determined.
+// When this function is called, .panels is still unable to be determined.
 pub fn listType(itemMark: []const u8) ListType {
     switch (itemMark.len) {
         1, 2 => return switch (itemMark[0]) {
@@ -399,6 +403,11 @@ pub const Block = struct {
     blockType: BlockType, // ToDo: renamed to "type".
 
     attributes: ?*ElementAttibutes = null,
+
+    // For an explanation block, if this value is itself,
+    // then it means the explanation explains none blocks.
+    // Such explanation blocks will not be rendered.
+    explanationBlock: ?*const Block = null,
 
     more: packed struct {
         // for .usual atom blocks only
@@ -622,7 +631,7 @@ pub const Block = struct {
 
 pub const ListType = enum {
     bullets,
-    tabs,
+    panels,
     definitions,
 };
 
@@ -631,29 +640,6 @@ pub const BlockType = union(enum) {
     // ToDo: others ..., when needed.
 
     // container block types
-
-    item: struct {
-        //isFirst: bool, // ToDo: can be saved
-        //isLast: bool, // ToDo: can be saved (need .list.lastItem)
-
-        list: *Block, // a .list
-        nextSibling: ?*Block = null, // for .list.lastBullet, it is .list's sibling.
-
-        const Container = void;
-
-        pub fn isFirst(self: *const @This()) bool {
-            return self.list.next().? == self.ownerBlock();
-        }
-
-        pub fn isLast(self: *const @This()) bool {
-            return self.list.blockType.list.lastBullet == self.ownerBlock();
-        }
-
-        pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
-            const bt: if (isConst(@TypeOf(self))) *const BlockType else *BlockType = @alignCast(@fieldParentPtr("item", self));
-            return bt.ownerBlock();
-        }
-    },
 
     list: struct { // lists are implicitly formed.
         _lastItemConfirmed: bool = false, // for debug
@@ -678,6 +664,29 @@ pub const BlockType = union(enum) {
         //    if (self._itemTypeIndex & 0b100 != 0) return .ordered;
         //    return .unordered;
         //}
+    },
+
+    item: struct {
+        //isFirst: bool, // ToDo: can be saved
+        //isLast: bool, // ToDo: can be saved (need .list.lastItem)
+
+        list: *Block, // a .list
+        nextSibling: ?*Block = null, // for .list.lastBullet, it is .list's sibling.
+
+        const Container = void;
+
+        pub fn isFirst(self: *const @This()) bool {
+            return self.list.next().? == self.ownerBlock();
+        }
+
+        pub fn isLast(self: *const @This()) bool {
+            return self.list.blockType.list.lastBullet == self.ownerBlock();
+        }
+
+        pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
+            const bt: if (isConst(@TypeOf(self))) *const BlockType else *BlockType = @alignCast(@fieldParentPtr("item", self));
+            return bt.ownerBlock();
+        }
     },
 
     table: struct {

@@ -11,9 +11,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-1
 ###========================
     Demo 1 (text styles)
+
+'''
+''' << #demo-1
 |  ###
-   '''
-   ''' << #demo-1
    @@@ #demo-1
    {
    **bold text** and ^**dimmed text**.
@@ -47,9 +48,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-2
 ###========================
     Demo 2 (line leading marks)
+
+'''
+''' << #demo-2
 |  ###
-   '''
-   ''' << #demo-2
    @@@ #demo-2
    {
    The next line is not displayed. Foo
@@ -70,14 +72,26 @@ For detailed explanations, please refer to __the specification__.
 
    Line-height image: ``
    && ../../static/image/tmd-v1.png
+
+   Here are two images floating at both sides.
+   The texts will wrap around them.
+   >> ../../static/image/tmd-v1.png
+   The texts will wrap around them.
+   The texts will wrap around them.
+   The texts will wrap around them.
+   The texts will wrap around them.
+   << ../../static/image/tmd-v1.png
+   The texts will wrap around them.
+   The texts will wrap around them.
    }
 
 @@@ #section-demo-3
 ###========================
     Demo 3 (link definitions)
+
+'''
+''' << #demo-3
 |  ###
-   '''
-   ''' << #demo-3
    @@@ #demo-3
    {
        === Go 101 website ` https://go101.org
@@ -105,9 +119,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-4
 ###========================
     Demo 4 (built-in containers)
+
+'''
+''' << #demo-4-a
 |  ### Lists:
-   '''
-   ''' << #demo-4-a
    @@@ #demo-4-a
    {
    *. This is a 1st-level list item (ordered)..
@@ -142,30 +157,23 @@ For detailed explanations, please refer to __the specification__.
             && ../../static/image/tmd-v1.png
    }
 
-|  ### Quotations and grids:
-   '''
-   ''' << #demo-4-b
+'''
+''' << #demo-4-b
+|  ###
    @@@ #demo-4-b
    {
    |  This is a quotation text.
       ;;; a footer
       @@@
 
-   |  ### The following is a grid layout.
-      {
-      TapirMD is not compatible with Markdown.
-      }
-      {
-      TapirMD is far more powerful than Markdown.
-      }
-      {
-      TapirMD's syntax is more consistent than Markdown.
-      }
+   This content is explained in the friend block.
+   |  ### 
+      ;;; Some expplanations.
    }
 
-|  ### Callouts and reveal blocks:
-   '''
-   ''' << #demo-4-c
+'''
+''' << #demo-4-c
+|  ###
    @@@ #demo-4-c
    {
    !  This is a callout box without header.
@@ -184,9 +192,9 @@ For detailed explanations, please refer to __the specification__.
       }
    }
 
-|  ### Raw container blocks:
-   '''
-   ''' << #demo-4-d
+'''
+''' << #demo-4-d
+|  ###
    @@@ #demo-4-d
    {
    .  This is in a raw container block,
@@ -196,9 +204,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-5
 ###========================
     Demo 5 (table)
+
+'''
+''' << #demo-5
 |  ###
-   '''
-   ''' << #demo-5
    @@@ #demo-5
    {
    A table (row-major):
@@ -260,9 +269,10 @@ For detailed explanations, please refer to __the specification__.
 @@@ #section-demo-6
 ###========================
     Demo 6 (atom blocks)
+
+'''
+''' << #demo-6
 |  ###
-   '''
-   ''' << #demo-6
    @@@ #demo-6
    {
    ####### Header 2
@@ -298,9 +308,10 @@ pub fn main() void {
 @@@ #section-demo-7
 ###========================
     Demo 7 (line end spacing)
+
+'''
+''' << #demo-7
 |  ###
-   '''
-   ''' << #demo-7
    @@@ #demo-7
    {
    hello
@@ -331,9 +342,10 @@ pub fn main() void {
 @@@ #section-demo-8
 ###========================
     Demo 8 (character escaping)
+
+'''
+''' << #demo-8
 |  ###
-   '''
-   ''' << #demo-8
    @@@ #demo-8
    {
    *``* all marks /``/ are escaped *``* ^````.

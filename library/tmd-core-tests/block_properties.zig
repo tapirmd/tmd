@@ -121,7 +121,8 @@ test "block attributes" {
         \\ + item 2
     , struct {
         fn check(doc: *const tmd.Doc) !void {
-            try std.testing.expect(try BlockTypeChecker.check(doc, "foo", .blank));
+            //try std.testing.expect(try BlockTypeChecker.check(doc, "foo", .blank));
+            try std.testing.expect(try BlockTypeChecker.check(doc, "foo", .usual)); // now it is a usual
             try std.testing.expect(doc.blockByID("list").?.next().?.next().?.footerAttibutes() == null);
         }
     }.check));
@@ -136,10 +137,17 @@ test "block attributes" {
         \\ * item 2
     , struct {
         fn check(doc: *const tmd.Doc) !void {
-            try std.testing.expect(try BlockTypeChecker.check(doc, "footer", .attributes));
-            try std.testing.expect(doc.blockByID("foo").?.footerAttibutes() != null);
-            try std.testing.expect(doc.blockByID("list").?.nextSibling().?.blockType == .blank);
-            try std.testing.expect(doc.blockByID("list").?.nextSibling().?.footerAttibutes() == null);
+            //try std.testing.expect(try BlockTypeChecker.check(doc, "footer", .attributes));
+            //try std.testing.expect(doc.blockByID("foo").?.footerAttibutes() != null);
+            //try std.testing.expect(doc.blockByID("list").?.nextSibling().?.blockType == .blank);
+            //try std.testing.expect(doc.blockByID("list").?.nextSibling().?.footerAttibutes() == null);
+
+            // Now the blank is a usual now.
+            try std.testing.expect(try BlockTypeChecker.check(doc, "footer", .usual));
+            try std.testing.expect(doc.blockByID("foo").?.footerAttibutes() == null);
+            try std.testing.expect(doc.blockByID("list").?.nextSibling() == null);
+            try std.testing.expect(doc.blockByID("footer").?.blockType == .usual);
+            try std.testing.expect(doc.blockByID("footer").?.prev().?.blockType == .attributes);
         }
     }.check));
 

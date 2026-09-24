@@ -19,7 +19,7 @@ const UnchangeWriter = struct {
     tmdDoc: *const tmd.Doc,
 
     fn data(uw: *const UnchangeWriter, start: tmd.DocSize, end: tmd.DocSize) []const u8 {
-        return uw.tmdDoc.rangeData(.{ .start = start, .end = end });
+        return uw.tmdDoc.bytesInRange(.{ .start = start, .end = end });
     }
 
     fn writeAll(uw: *const UnchangeWriter, writer: *std.Io.Writer) !void {
@@ -120,7 +120,7 @@ const FormatWriter = struct {
     const spaces: *const [tmd.MaxBlockNestingDepth * indentUnit]u8 = &@splat(' ');
 
     fn data(fw: *const FormatWriter, start: tmd.DocSize, end: tmd.DocSize) []const u8 {
-        return fw.tmdDoc.rangeData(.{ .start = start, .end = end });
+        return fw.tmdDoc.bytesInRange(.{ .start = start, .end = end });
     }
 
     fn indentSpaces(fw: *const FormatWriter) []const u8 {

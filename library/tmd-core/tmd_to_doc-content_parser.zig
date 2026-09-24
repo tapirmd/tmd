@@ -761,7 +761,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
             const contentToken = self.lineSession.firstContentToken orelse break :handle;
             const asSpace = switch (contentToken.*) {
                 .plainText => blk: {
-                    const text = self.docParser.tmdDoc.rangeData(contentToken.range());
+                    const text = self.docParser.tmdDoc.bytesInRange(contentToken.range());
                     std.debug.assert(text.len > 0);
                     break :blk !(utf8.begins_with_CJK_rune(text) or LineScanner.begins_with_blank(text));
                 },
@@ -799,7 +799,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
 
             const shouldPend = switch (contentToken.*) {
                 .plainText => blk: {
-                    const text = self.docParser.tmdDoc.rangeData(contentToken.range());
+                    const text = self.docParser.tmdDoc.bytesInRange(contentToken.range());
                     std.debug.assert(text.len > 0);
                     break :blk !(utf8.ends_with_CJK_rune(text) or LineScanner.ends_with_blank(text));
                 },

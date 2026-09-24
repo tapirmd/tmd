@@ -239,6 +239,20 @@ pub const TmdRender = struct {
     }
 
     fn renderBlock(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block) anyerror!void {
+        if (block.explanationBlock) |explanation| {
+            if (explanation == block) return;
+
+            const tag = "div";
+            {
+                const classes = "tmd-explanation-container";
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+            }
+            {
+                const classes = "tmd-explained";
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+            }
+        }
+
         const footerTag = if (block.footerAttibutes()) |footerAttrs| blk: {
             const tag = "footer";
             const classes = "tmd-footer";
@@ -297,7 +311,7 @@ pub const TmdRender = struct {
                         try self.renderBlockChildren(w, block.firstChild());
                         try fns.writeCloseTag(w, tag, true);
                     },
-                    .tabs => {
+                    .panels => {
                         const tag = "div";
                         const classes = "tmd-tab";
 
@@ -357,7 +371,7 @@ pub const TmdRender = struct {
                         try self.renderBlockChildren(w, forDdBlock);
                         try fns.writeCloseTag(w, tag, true);
                     },
-                    .tabs => {
+                    .panels => {
                         std.debug.assert(self.currentTabListDepth >= 0 and self.currentTabListDepth < tmd.MaxBlockNestingDepth);
                         //self.tabListInfos[@intCast(self.currentTabListDepth)].nextItemOrderId += 1;
                         const tabInfo = &self.tabListInfos[@intCast(self.currentTabListDepth)];
@@ -420,32 +434,21 @@ pub const TmdRender = struct {
             .quotation => {
                 const tag = "div";
 
-                //const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
-                //    {
-                //        const headerTag = "div";
-                //        const headerClasses = "tmd-usual";
-                //
-                //        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
-                //        try self.writeUsualContentBlockLines(w, headerBlock);
-                //        try fns.writeCloseTag(w, headerTag, true);
-                //    }
-                //
-                //    const classes = "tmd-grid";
-                //    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-                //
-                //    break :blk headerBlock.nextSibling();
-                //} else blk: {
-                //    const classes = "tmd-quotation";
-                //    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-                //
-                //    break :blk block.firstChild();
-                //};
-                const classes = "tmd-quotation";
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-                const firstContentBlock = block.firstChild();
+                // When without second mode.
+                //const classes = "tmd-quotation";
+                //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
-                try self.renderBlockChildren(w, firstContentBlock);
+                // With second mode (explanation).
+                const isExplanation, const classes = if (block.specialHeaderChild(self.doc.data)) |_| blk: {
+                    if (block.explanationBlock == block) unreachable; // already handled at the start of the function
+
+                    break :blk .{ true, "tmd-explanation" };
+                } else .{ false, "tmd-quotation" };
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+
+                try self.renderBlockChildren(w, block.firstChild());
                 try fns.writeCloseTag(w, tag, true);
+                if (isExplanation) try fns.writeCloseTag(w, tag, true); // "tmd-explanation-container"
             },
             .callout => {
                 const tag = "div";
@@ -484,7 +487,7 @@ pub const TmdRender = struct {
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
                 const headerTag = "summary";
-                const headerClasses = "tmd-reveal-header tmd-usual";
+                const headerClasses = "tmd-reveal-header";
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
                     try self.writeUsualContentBlockLines(w, headerBlock);
@@ -626,6 +629,13 @@ pub const TmdRender = struct {
 
         if (footerTag.len > 0) {
             try fns.writeCloseTag(w, footerTag, true);
+        }
+
+        if (block.explanationBlock) |explanation| {
+            if (explanation == block) unreachable;
+
+            const tag = "div";
+            try fns.writeCloseTag(w, tag, true); // "tmd-explained";
         }
     }
 
@@ -1023,7 +1033,7 @@ pub const TmdRender = struct {
                     .codeBlockEnd => break,
                     .code => {
                         std.debug.assert(std.meta.eql(line.range(.trimLineEnd), line.range(.trimSpaces)));
-                        try fns.writeHtmlContentText(w, self.doc.rangeData(line.range(.trimLineEnd)));
+                        try fns.writeHtmlContentText(w, self.doc.bytesInRange(line.range(.trimLineEnd)));
                     },
                     else => unreachable,
                 }
@@ -1101,7 +1111,7 @@ pub const TmdRender = struct {
 
         const start = line.start(.none);
         const end = line.end(.trimLineEnd);
-        try fns.writeHtmlContentText(w, self.doc.rangeData(.{ .start = start, .end = end }));
+        try fns.writeHtmlContentText(w, self.doc.bytesInRange(.{ .start = start, .end = end }));
         try w.writeAll("\n");
     }
 
@@ -1190,7 +1200,7 @@ pub const TmdRender = struct {
                                 break :blk;
                             }
                         }
-                        const text = self.doc.rangeData(token.range());
+                        const text = self.doc.bytesInRange(token.range());
                         try fns.writeHtmlContentText(w, text);
                     },
                     .evenBackticks => |m| {
@@ -1245,7 +1255,7 @@ pub const TmdRender = struct {
                                             //std.debug.assert(url.sourceContentToken != null);
 
                                             //const t = url.sourceContentToken.?;
-                                            //const linkURL = tmd.trimBlanks(self.doc.rangeData(t.range()));
+                                            //const linkURL = tmd.trimBlanks(self.doc.bytesInRange(t.range()));
 
                                             //const footnote_id = linkURL[1..];
                                             const footnote_id = url.fragment[1..];
@@ -1387,20 +1397,30 @@ pub const TmdRender = struct {
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
 
                                 if (renderIt) writeMedia: {
+                                    try w.writeAll("<img");
+
+                                    const char = self.doc.bytesAtPos(token.start());
+                                    switch (char) {
+                                        '>' => try w.writeAll(" class=\"tmd-float-right\""),
+                                        '<' => try w.writeAll(" class=\"tmd-float-left\""),
+                                        '&' => {},
+                                        else => unreachable,
+                                    }
+
                                     const link = linkInfoToken.linkInfo.link;
                                     const url = link.url orelse unreachable;
                                     if (try self.getMediaUrlGenerator(link)) |callback| {
                                         const generator = callback orelse break :writeMedia;
-                                        try w.writeAll("<img src=\"");
+                                        try w.writeAll(" src=\"");
                                         try generator.gen(w);
                                     } else switch (url.manner) {
                                         .absolute => {
-                                            try w.writeAll("<img src=\"");
+                                            try w.writeAll(" src=\"");
                                             try fns.writeUrlAttributeValue(w, url.base, false);
                                         },
                                         .relative => |rm| {
                                             if (!rm.isImageFile()) break :writeMedia;
-                                            try w.writeAll("<img src=\"");
+                                            try w.writeAll(" src=\"");
                                             try fns.writeUrlAttributeValue(w, url.base, true);
 
                                             // ToDo: size info is in url.fragment
@@ -1747,8 +1767,8 @@ pub const TmdRender = struct {
             try w.print("<li id=\"fn{s}:{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ self.options.identSuffix, footnote.id });
             const missing_flag = if (footnote.block) |block| blk: {
                 switch (block.blockType) {
-                    // .item can't have ID now.
                     //.item => try self.renderBlockChildren(w, block),
+                    // .item can't have ID now.
                     .item => unreachable,
                     else => try self.renderBlock(w, block),
                 }
