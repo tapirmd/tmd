@@ -33,9 +33,7 @@ code, pre {
   margin-left: 0px;
   margin-right: 2px;
   cursor: pointer;
-  border-top: solid 1px #c7923c;
-  border-left: solid 1px #c7923c;
-  border-right: solid 1px #c7923c;
+  border: solid 1px #c7923c;
 }
 
 .tmd-tab-radio {
@@ -61,6 +59,7 @@ code, pre {
   font-weight: bold;
   background: #fddaa1;
   margin-bottom: -1px;
+  border-bottom: none;
   z-index: 1;
 }
 

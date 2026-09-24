@@ -385,17 +385,19 @@ pub const TmdRender = struct {
                             try w.writeAll(">\n");
 
                             if (listItem.list.blockType.list.secondMode) {
-                                try w.print("{d}. ", .{tabInfo.nextItemOrderId});
+                                try w.print("{d}", .{tabInfo.nextItemOrderId});
+                                //break :blk headerBlock;
+                                break :blk block.firstChild();
+                            } else {
+                                try self.writeUsualContentBlockLines(w, headerBlock);
+                                break :blk headerBlock.nextSibling();
                             }
-                            try self.writeUsualContentBlockLines(w, headerBlock);
-
-                            break :blk headerBlock.nextSibling();
                         } else blk: {
                             try fns.writeBlockAttributes(w, headerClasses, null, self.options.identSuffix);
                             try w.writeAll(">\n");
 
                             if (listItem.list.blockType.list.secondMode) {
-                                try w.print("{d}. ", .{tabInfo.nextItemOrderId});
+                                try w.print("{d}", .{tabInfo.nextItemOrderId});
                             }
 
                             break :blk block.firstChild();
