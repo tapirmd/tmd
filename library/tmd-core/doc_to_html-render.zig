@@ -679,12 +679,15 @@ pub const TmdRender = struct {
         while (true) {
             check: {
                 switch (child.blockType) {
-                    //.blank => unreachable,
-                    .blank => break :check, // possible for #. led blocks now.
-                    .attributes => break :check,
-                    .seperator => break :check,
+                    .attributes, .linkdef, .seperator => break :check,
                     .base => |base| if (base.attributes().undisplayed) break :check,
-                    else => std.debug.assert(child.isAtom()),
+                    .header, .usual, .code, .custom => std.debug.assert(child.isAtom()),
+                    .blank => unreachable,
+                    //.blank => break :check, // possible for #. led blocks. (Now impossible again)
+                    else => {
+                        std.debug.assert(!child.isAtom());
+                        unreachable;
+                    },
                 }
 
                 numCells += 1;
@@ -715,7 +718,7 @@ pub const TmdRender = struct {
             handle: {
                 const rowSpan: u32, const colSpan: u32 = switch (child.blockType) {
                     .blank => break :handle,
-                    .attributes => break :handle,
+                    .attributes, .linkdef => break :handle,
                     .seperator => {
                         toChangeRow = true;
                         break :handle;
