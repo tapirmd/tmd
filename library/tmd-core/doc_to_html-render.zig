@@ -415,29 +415,32 @@ pub const TmdRender = struct {
             .table => {
                 try self.renderTableBlock(w, block);
             },
-            .grid => {
+            .quotation => {
                 const tag = "div";
 
-                const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
-                    {
-                        const headerTag = "div";
-                        const headerClasses = "tmd-usual";
-
-                        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
-                        try self.writeUsualContentBlockLines(w, headerBlock);
-                        try fns.writeCloseTag(w, headerTag, true);
-                    }
-
-                    const classes = "tmd-grid";
-                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-
-                    break :blk headerBlock.nextSibling();
-                } else blk: {
-                    const classes = "tmd-quotation";
-                    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-
-                    break :blk block.firstChild();
-                };
+                //const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
+                //    {
+                //        const headerTag = "div";
+                //        const headerClasses = "tmd-usual";
+                //
+                //        try fns.writeOpenTag(w, tag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
+                //        try self.writeUsualContentBlockLines(w, headerBlock);
+                //        try fns.writeCloseTag(w, headerTag, true);
+                //    }
+                //
+                //    const classes = "tmd-grid";
+                //    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+                //
+                //    break :blk headerBlock.nextSibling();
+                //} else blk: {
+                //    const classes = "tmd-quotation";
+                //    try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+                //
+                //    break :blk block.firstChild();
+                //};
+                const classes = "tmd-quotation";
+                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+                const firstContentBlock = block.firstChild();
 
                 try self.renderBlockChildren(w, firstContentBlock);
                 try fns.writeCloseTag(w, tag, true);
@@ -1060,7 +1063,7 @@ pub const TmdRender = struct {
             },
 
             // built-in containers
-            .list, .item, .table, .grid, .callout, .reveal, .raw => {
+            .list, .item, .table, .quotation, .callout, .reveal, .raw => {
                 try self.renderTmdCodeForBlockChildren(w, block);
             },
 

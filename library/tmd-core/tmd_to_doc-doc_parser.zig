@@ -469,7 +469,7 @@ fn parse(parser: *DocParser) !void {
                         },
                         '|' => {
                             containerBlock.blockType = .{
-                                .grid = .{},
+                                .quotation = .{},
                             };
                         },
                         '!' => {

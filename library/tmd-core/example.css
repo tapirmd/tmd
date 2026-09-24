@@ -133,20 +133,6 @@ code, pre {
   padding: 0.3em 2em;
 }
 
-.tmd-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
-  gap: 1.5rem;
-  margin: 6px;
-}
-
-.tmd-grid  > * {
-  padding: 1.25rem;
-  border-radius: 3px;
-  overflow-x: auto;
-  border: 1px solid;
-}
-
 .tmd-quotation-large > .tmd-footer {
   color: #966a23;
   font-style: italic;
