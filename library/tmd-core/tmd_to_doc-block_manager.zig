@@ -32,7 +32,7 @@ pub fn tryToSetExplanationBlock(self: *BlockArranger, firstLevelHeaderBlock: *co
     const baseContext = &self.openingBaseBlocks[self.baseCount_1];
     const block = self.stackedBlocks[baseContext.nestingDepth + 1];
     std.debug.assert(block.nestingDepth == baseContext.nestingDepth + 1);
-    
+
     if (block.blockType != .quotation) return;
     if (builtin.mode == .Debug) if (block.next()) |s| {
         switch (s.blockType) {
@@ -178,7 +178,7 @@ fn stackAsChildOfBase(self: *BlockArranger, block: *tmd.Block) !void {
     block.nestingDepth = self.count_1;
     self.stackedBlocks[self.count_1] = block;
 
-    switch(block.blockType) {
+    switch (block.blockType) {
         .attributes, .linkdef, .quotation => {},
         .item => unreachable,
         else => self.openingBaseBlocks[self.baseCount_1].explainableBlock = block,
@@ -445,7 +445,7 @@ pub fn stackAtomBlock(self: *BlockArranger, block: *tmd.Block, firstInContainer:
     self.stackedBlocks[self.count_1] = block;
 
     if (block.nestingDepth == self.openingBaseBlocks[self.baseCount_1].nestingDepth + 1) {
-        switch(block.blockType) {
+        switch (block.blockType) {
             .attributes, .linkdef => {},
             else => self.openingBaseBlocks[self.baseCount_1].explainableBlock = block,
         }

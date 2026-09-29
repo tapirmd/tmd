@@ -245,7 +245,7 @@ pub const TmdRender = struct {
             const tag = "div";
             {
                 const classes = "tmd-explanation-container";
-                try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
+                try fns.writeOpenTag(w, tag, classes, null, self.options.identSuffix, true);
             }
             {
                 const classes = "tmd-explained";

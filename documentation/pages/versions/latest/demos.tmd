@@ -134,9 +134,9 @@ For detailed explanations, please refer to __the specification__.
 
    *. This is another 1st-level list item (ordered).
       The following is a definition list:
-      :  ### Term 1
+      =  ### Term 1
          ;;; Explanations of term 1.
-      :  ### Term 2
+      =  ### Term 2
          ;;; Explanations of term 2.
 
          *  ### Tab 1
@@ -144,10 +144,10 @@ For detailed explanations, please refer to __the specification__.
             {
 
             Another definition list:
-            :. ### Zig
+            =. ### Zig
                ;;; A programming language optimized for performance
                and featuring a robust metaprogramming system.
-            :. ### Go
+            =. ### Go
                ;;; A statically-typed programming language with
                dynamic language flexibility and moderate performance.
             }
@@ -167,7 +167,7 @@ For detailed explanations, please refer to __the specification__.
       @@@
 
    This content is explained in the friend block.
-   |  ### 
+   |  ###
       ;;; Some expplanations.
    }
 

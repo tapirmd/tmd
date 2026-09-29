@@ -218,8 +218,7 @@ pub fn listItemTypeIndex(itemMark: []const u8) ListItemTypeIndex {
                 '-' => 1,
                 '*' => 2,
                 '~' => 3,
-                ':' => 4,
-                '=' => 5,
+                '=' => 4,
                 else => unreachable,
             };
 
@@ -241,7 +240,7 @@ pub fn listType(itemMark: []const u8) ListType {
     switch (itemMark.len) {
         1, 2 => return switch (itemMark[0]) {
             '+', '-', '*', '~' => .bullets,
-            ':' => .definitions,
+            '=' => .definitions,
             else => unreachable,
         },
         else => unreachable,

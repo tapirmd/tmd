@@ -382,7 +382,7 @@ fn parse(parser: *DocParser) !void {
             const lineStartIgnoreLeadingBlanks = lineScanner.cursor;
             // try to parse leading container mark.
             switch (lineScanner.peekCursor()) {
-                '*', '+', '-', '~', ':' => |mark| handle: {
+                '*', '+', '-', '~', '=' => |mark| handle: {
                     if (lineScanner.peekNext() == '.') {
                         lineScanner.advance(1);
                     } else if (mark == '-' and lineScanner.peekNext() == '-') {

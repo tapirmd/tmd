@@ -1047,20 +1047,20 @@ For an item block in a definition list,
    *  ### Render Result
       @@@ #definition-list-examples
       {
-      A definition list with the `:` mark:
-      :  ### Term 1
+      A definition list with the `=` mark:
+      =  ### Term 1
          ;;; Descriptions of term 1.
-      :  ### Term 2
+      =  ### Term 2
          ;;; Descriptions of term 2.
 
-      A definition list with the `:.` mark:
-      :. ### Term 1
+      A definition list with the `=.` mark:
+      =. ### Term 1
          ;;; Descriptions of term 1.
-      :. ### Term 2
+      =. ### Term 2
          ;;; Descriptions of term 2.
 
       @@@
-      :  This is an indented block.
+      =  This is an indented block.
          It is actually a definition item block without title.
       }
 
