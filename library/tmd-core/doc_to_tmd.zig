@@ -33,7 +33,7 @@ const UnchangeWriter = struct {
 
             const lineEndPos = line.end(.trimLineEnd);
 
-            switch (line.lineType) {
+            switch (line.type) {
                 .code, .data => {
                     std.debug.assert(line.prefixBlankEnd == lineStartAt);
                     std.debug.assert(line.suffixBlankStart == lineEndPos);
@@ -137,14 +137,14 @@ const FormatWriter = struct {
         std.debug.assert(!parent.isAtom());
 
         var child = parent.firstChild() orelse {
-            std.debug.assert(parent.blockType == .base or parent.blockType == .root);
+            std.debug.assert(parent.type == .base or parent.type == .root);
             return;
         };
 
         // Write the leading chars of the first line.
         const indentationWritten = parent.isContainer();
         const changeIndentation = if (indentationWritten) blk: {
-            switch (child.blockType) {
+            switch (child.type) {
                 .item => break :blk false,
                 .base => |base| {
                     try fw.writeContainerMark(w, base.openLine);
@@ -157,9 +157,9 @@ const FormatWriter = struct {
                 },
             }
         } else blk: {
-            std.debug.assert(parent.blockType == .root or parent.blockType == .base);
+            std.debug.assert(parent.type == .root or parent.type == .base);
 
-            break :blk parent.blockType == .base and child.blockType == .attributes and child.nextSibling() == null;
+            break :blk parent.type == .base and child.type == .attributes and child.nextSibling() == null;
         };
 
         if (changeIndentation) fw.currentIndentLen += indentUnit;
@@ -167,7 +167,7 @@ const FormatWriter = struct {
             if (changeIndentation) fw.currentIndentLen -= indentUnit;
         }
 
-        const tryToIndentUsualLines = parent.blockType == .table;
+        const tryToIndentUsualLines = parent.type == .table;
 
         try fw.writeBlock(w, child, indentationWritten, tryToIndentUsualLines);
         while (true) {
@@ -179,15 +179,15 @@ const FormatWriter = struct {
     fn writeBlock(fw: *FormatWriter, w: *std.Io.Writer, block: *const tmd.Block, firstLineIndentationWritten: bool, tryToIndentUsualLines: bool) anyerror!void {
         if (block.isAtom()) {
             defer fw.needExtraIndentUnit = false;
-            fw.needExtraIndentUnit = !firstLineIndentationWritten and block.blockType == .linkdef;
+            fw.needExtraIndentUnit = !firstLineIndentationWritten and block.type == .linkdef;
 
             var line = block.startLine();
             try fw.writeLine(w, line, firstLineIndentationWritten);
 
             std.debug.assert(!fw.shouldIndentUsualLines);
             defer fw.shouldIndentUsualLines = false;
-            fw.shouldIndentUsualLines = block.blockType == .header or block.blockType == .linkdef or
-                tryToIndentUsualLines and block.blockType == .usual and line.lineTypeMarkToken() != null;
+            fw.shouldIndentUsualLines = block.type == .header or block.type == .linkdef or
+                tryToIndentUsualLines and block.type == .usual and line.lineTypeMarkToken() != null;
 
             const endLine = block.endLine();
             while (true) {
@@ -203,9 +203,9 @@ const FormatWriter = struct {
             return;
         }
 
-        std.debug.assert(block.blockType == .base);
+        std.debug.assert(block.type == .base);
         {
-            const base = block.blockType.base;
+            const base = block.type.base;
 
             try fw.writeLine(w, base.openLine, firstLineIndentationWritten);
             try fw.writeBlockChildren(w, block);
@@ -230,7 +230,7 @@ const FormatWriter = struct {
     }
 
     fn writeLine(fw: *FormatWriter, w: *std.Io.Writer, line: *const tmd.Line, indentationWritten: bool) !void {
-        switch (line.lineType) {
+        switch (line.type) {
             .blank => {},
             .data, .code => {
                 try w.writeAll(fw.data(line.start(.none), line.end(.trimLineEnd)));
@@ -241,7 +241,7 @@ const FormatWriter = struct {
                     if (fw.needExtraIndentUnit) {
                         try w.writeAll("    "); // 4 spaces
                     }
-                    if (fw.shouldIndentUsualLines and line.lineType == .usual) {
+                    if (fw.shouldIndentUsualLines and line.type == .usual) {
                         try w.writeAll("    "); // 4 spaces
                     }
                 }

@@ -96,7 +96,7 @@ pub fn on_new_atom_block(self: *ContentParser, atomBlock: *tmd.Block) !void {
     };
     self.bolockSessionValid = true;
 
-    if (atomBlock.blockType == .linkdef) {
+    if (atomBlock.type == .linkdef) {
         _ = try self.open_new_link(.{ .block = atomBlock }, true);
     }
 }
@@ -472,7 +472,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                     break :parse_tokens textEnd;
                 },
                 .media => {
-                    const link = if (self.blockSession.atomBlock.blockType == .linkdef) null else blk: {
+                    const link = if (self.blockSession.atomBlock.type == .linkdef) null else blk: {
                         const link = try self.open_new_link(.{ .media = undefined }, false); // will be modified below
 
                         // Media needs 2 tokens to store information.
@@ -619,7 +619,7 @@ fn _parse_line_tokens(self: *ContentParser, handleLineSpanMark: bool) !u32 {
                         const isLinkMark = switch (spanMarkType) {
                             .hyperlink => blk: {
                                 // .linkdef blocks don't contain .hyperlink spans.
-                                if (self.blockSession.atomBlock.blockType == .linkdef) break :create_mark_token;
+                                if (self.blockSession.atomBlock.type == .linkdef) break :create_mark_token;
                                 break :blk true;
                             },
                             .fontStyle => blk: {

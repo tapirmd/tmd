@@ -10,7 +10,7 @@ test "block types" {
             var block = doc.rootBlock();
             for (expectedBlockTypes) |expected| {
                 block = block.next() orelse return error.TooFewBlocks;
-                if (block.blockType != expected) return false;
+                if (block.type != expected) return false;
             }
 
             if (block.next() != null) return error.TooManyBlocks;

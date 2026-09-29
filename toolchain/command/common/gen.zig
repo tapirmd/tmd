@@ -96,7 +96,7 @@ pub const ShellCommandCustomBlockGenerator = struct {
     pub fn gen(self: *const ShellCommandCustomBlockGenerator, w: *std.Io.Writer) !void {
         const startDataLine = self.custom.startDataLine() orelse return;
         const endDataLine = self.custom.endDataLine().?;
-        std.debug.assert(endDataLine.lineType == .data);
+        std.debug.assert(endDataLine.type == .data);
 
         const startLineRange = startDataLine.range(.none);
         const endLineRange = endDataLine.range(.none);

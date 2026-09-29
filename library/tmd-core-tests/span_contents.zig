@@ -16,7 +16,7 @@ test "span contents" {
 
             var block = doc.rootBlock();
             const contentBlock = while (block.next()) |nextBlock| {
-                switch (nextBlock.blockType) {
+                switch (nextBlock.type) {
                     .usual, .header => break nextBlock,
                     else => block = nextBlock,
                 }

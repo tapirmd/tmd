@@ -43,17 +43,17 @@ fn createAndPushBlockElement(parser: *DocParser) !*tmd.Block {
 fn tryToAttributeBlock(parser: *DocParser, oldLastBlock: *tmd.Block) !void {
     // std.debug.assert(oldLastBlock != parser.lastBlock); // possible equal in the end
 
-    if (oldLastBlock.blockType != .attributes) {
+    if (oldLastBlock.type != .attributes) {
         if (parser.nextElementAttributes) |as| {
             var block = oldLastBlock;
             const attributesBlock = while (block.prev()) |prevBlock| {
-                switch (prevBlock.blockType) {
+                switch (prevBlock.type) {
                     .attributes => break prevBlock,
                     else => block = prevBlock,
                 }
             } else unreachable;
 
-            std.debug.assert(block.blockType != .attributes);
+            std.debug.assert(block.type != .attributes);
 
             if (attributesBlock.nextSibling() == block) {
                 try parser.setBlockAttributes(block, as);
@@ -70,7 +70,7 @@ fn tryToAttributeBlock(parser: *DocParser, oldLastBlock: *tmd.Block) !void {
 
 fn tryToAttributeTheLastBlock(parser: *DocParser) !void {
     std.debug.assert(parser.lastBlock == &parser.tmdDoc.blocks.tail.?.value);
-    switch (parser.lastBlock.blockType) {
+    switch (parser.lastBlock.type) {
         .attributes => if (parser.nextElementAttributes) |as| {
             try parser.setBlockAttributes(parser.lastBlock, as); // a footer attributes
         },
@@ -108,7 +108,7 @@ fn setBlockAttributes(parser: *DocParser, block: *tmd.Block, as: tmd.ElementAtti
 
 //fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line, forBulletContainer: bool) !void {
 fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
-    std.debug.assert(line.lineType == .attributes);
+    std.debug.assert(line.type == .attributes);
 
     var modified = false;
     // !!! Important for footer blocks.
@@ -127,9 +127,9 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
     //if (forBulletContainer) {
     //    std.debug.assert(parser.nextElementAttributes == null);
     //    const attributesElement = parser.tmdDoc.blocks.tail orelse unreachable;
-    //    std.debug.assert(attributesElement.value.blockType == .attributes);
+    //    std.debug.assert(attributesElement.value.type == .attributes);
     //    const bulletElement = attributesElement.prev orelse unreachable;
-    //    std.debug.assert(bulletElement.value.blockType == .item);
+    //    std.debug.assert(bulletElement.value.type == .item);
     //    return try parser.setBlockAttributes(&bulletElement.value, attrs);
     //}
 
@@ -155,17 +155,17 @@ fn onNewAttributesLine(parser: *DocParser, line: *const tmd.Line) !void {
 fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
     if (parser.tmdDoc.lines.tail) |lastLineElement| {
         std.debug.assert(!parser.tmdDoc.blocks.empty());
-        std.debug.assert(atomBlock.blockType != .root);
-        if (atomBlock.blockType != .base) handle: {
+        std.debug.assert(atomBlock.type != .root);
+        if (atomBlock.type != .base) handle: {
             atomBlock.setEndLine(&lastLineElement.value);
 
             if (parser.pendingTocHeaderBlock) |headerBlock| {
-                std.debug.assert(atomBlock.blockType == .header);
+                std.debug.assert(atomBlock.type == .header);
                 std.debug.assert(headerBlock == atomBlock);
 
-                if (headerBlock.blockType.header.isBare()) break :handle;
+                if (headerBlock.type.header.isBare()) break :handle;
 
-                const level = headerBlock.blockType.header.level(parser.tmdDoc.data);
+                const level = headerBlock.type.header.level(parser.tmdDoc.data);
 
                 if (parser.tmdDoc.tocHeaders.empty()) {
                     if (level == 1) {
@@ -185,7 +185,7 @@ fn setEndLineForAtomBlock(parser: *DocParser, atomBlock: *tmd.Block) !void {
                 element.value = headerBlock;
             }
         }
-    } else std.debug.assert(atomBlock.blockType == .root);
+    } else std.debug.assert(atomBlock.type == .root);
 
     parser.pendingTocHeaderBlock = null;
 }
@@ -255,7 +255,7 @@ fn parse(parser: *DocParser) !void {
 
         //std.debug.print("--- line#{}\n", .{lineScanner.cursorLineIndex});
 
-        line.lineType = .blank; // will be change below
+        line.type = .blank; // will be change below
 
         var suffixBlankStart: u32 = undefined;
         defer line.suffixBlankStart = @intCast(suffixBlankStart);
@@ -296,7 +296,7 @@ fn parse(parser: *DocParser) !void {
 
                     switch (boundedBlockStart.lineType) {
                         .codeBlockStart => {
-                            line.lineType = .codeBlockEnd;
+                            line.type = .codeBlockEnd;
 
                             //const playloadRange = line.playloadRange();
                             const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
@@ -305,7 +305,7 @@ fn parse(parser: *DocParser) !void {
                             if (!std.meta.eql(attrs, .{})) {
                                 var _contentStreamAttributesElement = try parser.tmdDoc._contentStreamAttributes.createElement(allocator, true);
                                 _contentStreamAttributesElement.value = attrs;
-                                //line.lineType.codeBlockEnd.streamAttrs = &_contentStreamAttributesElement.value;
+                                //line.type.codeBlockEnd.streamAttrs = &_contentStreamAttributesElement.value;
                                 (try parser.createTokenForLine(line)).* = .{
                                     .extra = .{
                                         .info = .{
@@ -316,7 +316,7 @@ fn parse(parser: *DocParser) !void {
                             }
                         },
                         .customBlockStart => {
-                            line.lineType = .customBlockEnd;
+                            line.type = .customBlockEnd;
                         },
                         else => unreachable,
                     }
@@ -331,11 +331,11 @@ fn parse(parser: *DocParser) !void {
                     boundedBlockStartInfo = null;
                 }
 
-                if (line.lineType == .blank) {
+                if (line.type == .blank) {
                     std.debug.assert(lineScanner.lineEnd != null);
                     std.debug.assert(boundedBlockStartInfo != null);
 
-                    line.lineType = switch (boundedBlockStart.lineType) {
+                    line.type = switch (boundedBlockStart.lineType) {
                         .codeBlockStart => .code,
                         .customBlockStart => .data,
                         else => unreachable,
@@ -345,8 +345,8 @@ fn parse(parser: *DocParser) !void {
                 } else {
                     std.debug.assert(boundedBlockStartInfo == null);
 
-                    std.debug.assert(line.lineType == .codeBlockEnd or
-                        line.lineType == .customBlockEnd);
+                    std.debug.assert(line.type == .codeBlockEnd or
+                        line.type == .customBlockEnd);
                 }
 
                 break :parse_line;
@@ -358,11 +358,11 @@ fn parse(parser: *DocParser) !void {
                 line.prefixBlankEnd = lineStart;
                 suffixBlankStart = lineStart;
 
-                line.lineType = .blank;
+                line.type = .blank;
 
-                if (currentAtomBlock.blockType != .blank) {
+                if (currentAtomBlock.type != .blank) {
                     const blankBlock = try parser.createAndPushBlockElement();
-                    blankBlock.blockType = .{
+                    blankBlock.type = .{
                         .blank = .{
                             .startLine = line,
                         },
@@ -418,7 +418,7 @@ fn parse(parser: *DocParser) !void {
                     const createNewList = blockArranger.shouldCreateNewList(markTypeIndex);
                     const listBlock: ?*tmd.Block = if (createNewList) blk: {
                         const listBlock = try parser.createAndPushBlockElement();
-                        listBlock.blockType = .{
+                        listBlock.type = .{
                             .list = .{
                                 ._itemTypeIndex = markTypeIndex,
                                 .listType = tmd.listType(markStr), // if .bullets, might be adjusted to .panels later
@@ -431,7 +431,7 @@ fn parse(parser: *DocParser) !void {
                     } else null;
 
                     const listItemBlock = try parser.createAndPushBlockElement();
-                    listItemBlock.blockType = .{
+                    listItemBlock.type = .{
                         .item = .{
                             //.isFirst = false, // will be modified eventually
                             //.isLast = false, // will be modified eventually
@@ -463,27 +463,27 @@ fn parse(parser: *DocParser) !void {
 
                     switch (mark) {
                         '#' => {
-                            containerBlock.blockType = .{
+                            containerBlock.type = .{
                                 .table = .{},
                             };
                         },
                         '|' => {
-                            containerBlock.blockType = .{
+                            containerBlock.type = .{
                                 .quotation = .{},
                             };
                         },
                         '!' => {
-                            containerBlock.blockType = .{
+                            containerBlock.type = .{
                                 .callout = .{},
                             };
                         },
                         '?' => {
-                            containerBlock.blockType = .{
+                            containerBlock.type = .{
                                 .reveal = .{},
                             };
                         },
                         '.' => {
-                            containerBlock.blockType = .{
+                            containerBlock.type = .{
                                 .raw = .{},
                             };
                         },
@@ -529,7 +529,7 @@ fn parse(parser: *DocParser) !void {
                         if (lineScanner.lineEnd == null) break :handle;
                     }
 
-                    line.lineType = .seperator;
+                    line.type = .seperator;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(leadingBlankEnd),
@@ -539,7 +539,7 @@ fn parse(parser: *DocParser) !void {
                     };
 
                     const lineBlock = try parser.createAndPushBlockElement();
-                    lineBlock.blockType = .{
+                    lineBlock.type = .{
                         .seperator = .{
                             .startLine = line,
                         },
@@ -582,23 +582,23 @@ fn parse(parser: *DocParser) !void {
                     }
 
                     if (isOpenMark) {
-                        line.lineType = .baseBlockOpen;
+                        line.type = .baseBlockOpen;
 
                         const baseBlock = try parser.createAndPushBlockElement();
-                        baseBlock.blockType = .{
+                        baseBlock.type = .{
                             .base = .{
                                 .openLine = line,
                             },
                         };
 
-                        //const playloadRange = baseBlock.blockType.base.openPlayloadRange();
+                        //const playloadRange = baseBlock.type.base.openPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
                         const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_base_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _baseBlockAttibutesElement = try parser.tmdDoc._baseBlockAttibutes.createElement(allocator, true);
                             _baseBlockAttibutesElement.value = attrs;
-                            //baseBlock.blockType.base.openLine.lineType.baseBlockOpen.attrs = &_baseBlockAttibutesElement.value;
+                            //baseBlock.type.base.openLine.type.baseBlockOpen.attrs = &_baseBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{
                                 .extra = .{
                                     .info = .{
@@ -614,10 +614,10 @@ fn parse(parser: *DocParser) !void {
                         currentAtomBlock = baseBlock;
                         atomBlockCount += 1;
                     } else {
-                        line.lineType = .baseBlockClose;
+                        line.type = .baseBlockClose;
 
                         const baseBlock = try blockArranger.closeCurrentBaseBlock();
-                        baseBlock.blockType.base.closeLine = line;
+                        baseBlock.type.base.closeLine = line;
 
                         try parser.setEndLineForAtomBlock(currentAtomBlock);
                         currentAtomBlock = baseBlock;
@@ -663,23 +663,23 @@ fn parse(parser: *DocParser) !void {
                     }
 
                     const atomBlock = if (mark == '\'') blk: {
-                        line.lineType = .codeBlockStart;
+                        line.type = .codeBlockStart;
 
                         const codeBlock = try parser.createAndPushBlockElement();
-                        codeBlock.blockType = .{
+                        codeBlock.type = .{
                             .code = .{
                                 .startLine = line,
                             },
                         };
 
-                        //const playloadRange = codeBlock.blockType.code.startPlayloadRange();
+                        //const playloadRange = codeBlock.type.code.startPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
                         const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_code_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _codeBlockAttibutesElement = try parser.tmdDoc._codeBlockAttibutes.createElement(allocator, true);
                             _codeBlockAttibutesElement.value = attrs;
-                            //codeBlock.blockType.code.startLine.lineType.codeBlockStart.attrs = &_codeBlockAttibutesElement.value;
+                            //codeBlock.type.code.startLine.type.codeBlockStart.attrs = &_codeBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{
                                 .extra = .{
                                     .info = .{
@@ -693,23 +693,23 @@ fn parse(parser: *DocParser) !void {
                     } else blk: {
                         std.debug.assert(mark == '"');
 
-                        line.lineType = .customBlockStart;
+                        line.type = .customBlockStart;
 
                         const customBlock = try parser.createAndPushBlockElement();
-                        customBlock.blockType = .{
+                        customBlock.type = .{
                             .custom = .{
                                 .startLine = line,
                             },
                         };
 
-                        //const playloadRange = customBlock.blockType.custom.startPlayloadRange();
+                        //const playloadRange = customBlock.type.custom.startPlayloadRange();
                         const playloadRange = tmd.Range{ .start = playloadStart, .end = suffixBlankStart };
                         const playload = parser.tmdDoc.bytesInRange(playloadRange);
                         const attrs = AttributeParser.parse_custom_block_open_playload(playload);
                         if (!std.meta.eql(attrs, .{})) {
                             var _customBlockAttibutesElement = try parser.tmdDoc._customBlockAttibutes.createElement(allocator, true);
                             _customBlockAttibutesElement.value = attrs;
-                            //customBlock.blockType.custom.startLine.lineType.customBlockStart.attrs = &_customBlockAttibutesElement.value;
+                            //customBlock.type.custom.startLine.type.customBlockStart.attrs = &_customBlockAttibutesElement.value;
                             (try parser.createTokenForLine(line)).* = .{
                                 .extra = .{
                                     .info = .{
@@ -731,7 +731,7 @@ fn parse(parser: *DocParser) !void {
                     };
 
                     boundedBlockStartInfo = .{
-                        .lineType = line.lineType,
+                        .lineType = line.type,
                         .markChar = mark,
                         .markLen = markLen,
                     };
@@ -788,7 +788,7 @@ fn parse(parser: *DocParser) !void {
                         break :blk lineScanner.cursor;
                     };
 
-                    line.lineType = .header;
+                    line.type = .header;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
@@ -798,7 +798,7 @@ fn parse(parser: *DocParser) !void {
                     };
 
                     const headerBlock = try parser.createAndPushBlockElement();
-                    headerBlock.blockType = .{
+                    headerBlock.type = .{
                         .header = .{
                             .startLine = line,
                         },
@@ -853,7 +853,7 @@ fn parse(parser: *DocParser) !void {
                         break :blk lineScanner.cursor;
                     };
 
-                    line.lineType = if (mark == ';') .usual else .linkdef;
+                    line.type = if (mark == ';') .usual else .linkdef;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
@@ -863,7 +863,7 @@ fn parse(parser: *DocParser) !void {
                     };
 
                     const newAtomBlock = try parser.createAndPushBlockElement();
-                    newAtomBlock.blockType = if (mark == ';') .{
+                    newAtomBlock.type = if (mark == ';') .{
                         .usual = .{
                             .startLine = line,
                         },
@@ -923,7 +923,7 @@ fn parse(parser: *DocParser) !void {
                         }
                     }
 
-                    line.lineType = .attributes;
+                    line.type = .attributes;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(contentStart),
@@ -932,13 +932,13 @@ fn parse(parser: *DocParser) !void {
                         },
                     };
 
-                    if (hasContainerMark or currentAtomBlock.blockType != .attributes) {
+                    if (hasContainerMark or currentAtomBlock.type != .attributes) {
                         // There might be some new blocks created in the current iteration.
                         const realOldLast = parser.lastBlock;
 
                         // ...
                         const attributesBlock = try parser.createAndPushBlockElement();
-                        attributesBlock.blockType = .{
+                        attributesBlock.type = .{
                             .attributes = .{
                                 .startLine = line,
                             },
@@ -977,14 +977,14 @@ fn parse(parser: *DocParser) !void {
             }
 
             // If line type is still not determined, then it is just a usual line.
-            if (line.lineType == .blank) {
-                line.lineType = .usual;
+            if (line.type == .blank) {
+                line.type = .usual;
 
                 if (hasContainerMark or
-                    currentAtomBlock.blockType != .usual and currentAtomBlock.blockType != .header and currentAtomBlock.blockType != .linkdef)
+                    currentAtomBlock.type != .usual and currentAtomBlock.type != .header and currentAtomBlock.type != .linkdef)
                 {
                     const usualBlock = try parser.createAndPushBlockElement();
-                    usualBlock.blockType = .{
+                    usualBlock.type = .{
                         .usual = .{
                             .startLine = line,
                         },

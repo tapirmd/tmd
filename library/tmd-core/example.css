@@ -372,9 +372,8 @@ header.tmd-with-subtitle h1 {
 }
 
 .tmd-code-span {
-  background: #f5cc8c;
+  background: #eebe70;
   padding: 1px 2px;
-  border-radius: 3px;
   white-space: break-spaces;
 }
 

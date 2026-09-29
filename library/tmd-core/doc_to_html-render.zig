@@ -261,7 +261,7 @@ pub const TmdRender = struct {
             break :blk tag;
         } else "";
 
-        handle: switch (block.blockType) {
+        handle: switch (block.type) {
             // base blocks
 
             .root => {
@@ -343,7 +343,7 @@ pub const TmdRender = struct {
             .item => |*listItem| {
                 std.debug.assert(block.attributes == null); // ToDo: support item attributes?
 
-                switch (listItem.list.blockType.list.listType) {
+                switch (listItem.list.type.list.listType) {
                     .bullets => {
                         const tag = "li";
                         const classes = "tmd-list-item";
@@ -398,7 +398,7 @@ pub const TmdRender = struct {
                             try fns.writeBlockAttributes(w, headerClasses, headerBlock.attributes, self.options.identSuffix);
                             try w.writeAll(">\n");
 
-                            if (listItem.list.blockType.list.secondMode) {
+                            if (listItem.list.type.list.secondMode) {
                                 try w.print("{d}", .{tabInfo.nextItemOrderId});
                                 //break :blk headerBlock;
                                 break :blk block.firstChild();
@@ -410,7 +410,7 @@ pub const TmdRender = struct {
                             try fns.writeBlockAttributes(w, headerClasses, null, self.options.identSuffix);
                             try w.writeAll(">\n");
 
-                            if (listItem.list.blockType.list.secondMode) {
+                            if (listItem.list.type.list.secondMode) {
                                 try w.print("{d}", .{tabInfo.nextItemOrderId});
                             }
 
@@ -444,7 +444,7 @@ pub const TmdRender = struct {
                     .{ null, "tmd-quotation" };
 
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-                if (firstLevelHeader) |header| if (!header.blockType.header.isBare()) try self.renderHeaderLevel(w, 1, header);
+                if (firstLevelHeader) |header| if (!header.type.header.isBare()) try self.renderHeaderLevel(w, 1, header);
                 const nextContentBlock = if (firstLevelHeader) |header| header.nextSibling() else block.firstChild();
                 try self.renderBlockChildren(w, nextContentBlock);
                 try fns.writeCloseTag(w, tag, true);
@@ -560,7 +560,7 @@ pub const TmdRender = struct {
                 }
             },
             .usual => |usual| {
-                //const usualLine = usual.startLine.lineType.usual;
+                //const usualLine = usual.startLine.type.usual;
                 //const writeBlank = usualLine.markLen > 0 and usualLine.tokens.empty();
                 const writeBlank = if (usual.startLine.firstTokenOf(.lineTypeMark_or_others)) |token|
                     token.* == .lineTypeMark and token.next() == null
@@ -623,7 +623,7 @@ pub const TmdRender = struct {
     fn renderHeaderLevel(self: *TmdRender, w: *std.Io.Writer, level: u8, block: *const tmd.Block) !void {
         const realLevel = if (block == self.doc.titleHeader) blk: {
             if (block.nextSibling()) |sibling| {
-                self.toRenderSubtitles = sibling.blockType == .usual;
+                self.toRenderSubtitles = sibling.type == .usual;
             }
             break :blk level;
         } else if (self.doc.headerLevelNeedAdjusted(level)) level + 1 else level;
@@ -694,7 +694,7 @@ pub const TmdRender = struct {
         var child = firstTableChild;
         while (true) {
             check: {
-                switch (child.blockType) {
+                switch (child.type) {
                     .attributes, .linkdef, .seperator => break :check,
                     .base => |base| if (base.attributes().undisplayed) break :check,
                     .header, .usual, .code, .custom => std.debug.assert(child.isAtom()),
@@ -732,7 +732,7 @@ pub const TmdRender = struct {
         child = firstNonLineChild orelse unreachable;
         while (true) {
             handle: {
-                const rowSpan: u32, const colSpan: u32 = switch (child.blockType) {
+                const rowSpan: u32, const colSpan: u32 = switch (child.type) {
                     .blank => break :handle,
                     .attributes, .linkdef => break :handle,
                     .seperator => {
@@ -856,7 +856,7 @@ pub const TmdRender = struct {
     // ToDo: write align
     fn renderTableCellBlock(self: *TmdRender, w: *std.Io.Writer, tableCellBlock: *const tmd.Block, spans: TableCell.Spans) !void {
         var tdClass: []const u8 = "";
-        switch (tableCellBlock.blockType) {
+        switch (tableCellBlock.type) {
             .header => |header| {
                 if (header.level(self.doc.data) == 1)
                     return try self.renderTableHeaderCellBlock(w, tableCellBlock, spans);
@@ -957,7 +957,7 @@ pub const TmdRender = struct {
 
     fn renderTableBlock(self: *TmdRender, w: *std.Io.Writer, tableBlock: *const tmd.Block) !void {
         const child = tableBlock.next() orelse unreachable;
-        const columnOriented = switch (child.blockType) {
+        const columnOriented = switch (child.type) {
             .usual => |usual| blk: {
                 if (usual.startLine != usual.endLine) break :blk false;
                 //break :blk if (usual.startLine.tokens()) |tokens| tokens.empty() else false;
@@ -997,7 +997,7 @@ pub const TmdRender = struct {
 
         //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
-        const callback = try self.getCustomBlockGenerator(&block.blockType.custom);
+        const callback = try self.getCustomBlockGenerator(&block.type.custom);
         try callback.gen(w);
 
         //try fns.writeCloseTag(w, tag, true);
@@ -1006,7 +1006,7 @@ pub const TmdRender = struct {
     //============================== code
 
     fn writeCodeBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, attrs: tmd.CodeBlockAttibutes) !void {
-        std.debug.assert(block.blockType == .code);
+        std.debug.assert(block.type == .code);
 
         //std.debug.print("\n==========\n", .{});
         //std.debug.print("undisplayed: {}\n", .{attrs.undisplayed});
@@ -1028,12 +1028,12 @@ pub const TmdRender = struct {
 
         const endLine = block.endLine();
         const startLine = block.startLine();
-        std.debug.assert(startLine.lineType == .codeBlockStart);
+        std.debug.assert(startLine.type == .codeBlockStart);
 
         if (startLine.next()) |firstLine| {
             var line = firstLine;
             while (true) {
-                switch (line.lineType) {
+                switch (line.type) {
                     .codeBlockEnd => break,
                     .code => {
                         std.debug.assert(std.meta.eql(line.range(.trimLineEnd), line.range(.trimSpaces)));
@@ -1052,7 +1052,7 @@ pub const TmdRender = struct {
         }
 
         blk: {
-            const streamAttrs = block.blockType.code.contentStreamAttributes();
+            const streamAttrs = block.type.code.contentStreamAttributes();
             const content = streamAttrs.content;
             if (content.len == 0) break :blk;
             if (std.mem.startsWith(u8, content, "./") or std.mem.startsWith(u8, content, "../")) {
@@ -1073,7 +1073,7 @@ pub const TmdRender = struct {
     }
 
     fn renderTmdCode(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, trimBoundaryLines: bool) anyerror!void {
-        switch (block.blockType) {
+        switch (block.type) {
             .root => unreachable,
             .base => |base| {
                 try self.renderTmdCodeOfLine(w, base.openLine, trimBoundaryLines);
@@ -1162,7 +1162,7 @@ pub const TmdRender = struct {
     };
 
     fn writeContentBlockLines(self: *TmdRender, w: *std.Io.Writer, block: *const tmd.Block, usage: contentUsage) !void {
-        const inHeader = block.blockType == .header;
+        const inHeader = block.type == .header;
         var tracker: MarkStatusesTracker = .{};
 
         const endLine = block.endLine();
@@ -1685,7 +1685,7 @@ pub const TmdRender = struct {
         while (listElement) |element| {
             defer listElement = element.next;
             const headerBlock = element.value;
-            const headerLevel = headerBlock.blockType.header.level(self.doc.data);
+            const headerLevel = headerBlock.type.header.level(self.doc.data);
             if (headerLevel > maxlevel) continue;
 
             defer lastLevel = headerLevel;
@@ -1770,7 +1770,7 @@ pub const TmdRender = struct {
 
             try w.print("<li id=\"fn{s}:{s}\" class=\"tmd-list-item tmd-footnote-item\">\n", .{ self.options.identSuffix, footnote.id });
             const missing_flag = if (footnote.block) |block| blk: {
-                switch (block.blockType) {
+                switch (block.type) {
                     //.item => try self.renderBlockChildren(w, block),
                     // .item can't have ID now.
                     .item => unreachable,

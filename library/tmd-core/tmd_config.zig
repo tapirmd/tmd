@@ -31,7 +31,7 @@ pub const Config = struct {
     pub fn stringValue(config: *const Config, key: []const u8) ?[]const u8 {
         const block = config.doc.blockByID(key) orelse return null;
 
-        return switch (block.blockType) {
+        return switch (block.type) {
             .header, .usual => blk: {
                 var iter = block.inlineTokens();
                 var token = iter.first() orelse break :blk "";

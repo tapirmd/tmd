@@ -14,12 +14,12 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
             }
         }
         std.debug.print("+{}: #{} {s}", .{ block.nestingDepth, block.index, block.typeName() });
-        switch (block.blockType) {
+        switch (block.type) {
             .list => |itemList| {
                 std.debug.print(" (index: {}, type: {s}, 2nd mode: {})", .{ itemList.index, itemList.typeName(), itemList.secondMode });
             },
             .item => |*listItem| {
-                std.debug.print(" (@list#{})", .{listItem.list.blockType.list.index});
+                std.debug.print(" (@list#{})", .{listItem.list.type.list.index});
                 if (listItem.isFirst() and listItem.isLast()) {
                     std.debug.print(" (first, last)", .{});
                 } else if (listItem.isFirst()) {
@@ -53,7 +53,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
             var line = block.startLine();
 
             // Just to check all possible types. Don't remove.
-            switch (line.lineType) {
+            switch (line.type) {
                 .blank, .usual, .header, .seperator, .attributes, .linkdef, .baseBlockOpen, .baseBlockClose, .codeBlockStart, .codeBlockEnd, .code, .customBlockStart, .customBlockEnd, .data => {},
             }
 

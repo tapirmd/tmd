@@ -129,7 +129,7 @@ pub const Doc = struct {
     // block is always the first block of the doc.
     pub fn rootBlock(doc: *const @This()) *const Block {
         return if (doc.blocks.head) |head| {
-            std.debug.assert(head.value.blockType == .root);
+            std.debug.assert(head.value.type == .root);
             return &head.value;
         } else unreachable;
     }
@@ -139,7 +139,7 @@ pub const Doc = struct {
             .id = id,
         };
         var b = Block{
-            .blockType = undefined,
+            .type = undefined,
             .attributes = &a,
         };
 
@@ -313,7 +313,7 @@ pub const Link = struct {
     const List = list.List(@This());
 
     pub const Owner = union(enum) {
-        block: *Block, // for link definition. (.blockType == .linkdef)
+        block: *Block, // for link definition. (.type == .linkdef)
         hyper: *Token, // for hyperlink. Token.LinkInfo.
         media: *Token, // for media. Token.LinkInfo.
     };
@@ -400,7 +400,7 @@ pub const Block = struct {
     index: u32 = undefined, // one basedd (for debug purpose only, ToDo: voidOr(u32))
     nestingDepth: u32 = 0, // ToDo: can be of BlockNestingDepthType and put in .more
 
-    blockType: BlockType, // ToDo: renamed to "type".
+    type: BlockType,
 
     attributes: ?*ElementAttibutes = null,
 
@@ -414,28 +414,28 @@ pub const Block = struct {
         hasNonMediaContentTokens: bool = false,
     } = .{},
 
-    pub const default: Block = .{ .blockType = undefined };
+    pub const default: Block = .{ .type = undefined };
 
     pub fn typeName(self: *const @This()) []const u8 {
-        return @tagName(self.blockType);
+        return @tagName(self.type);
     }
 
     // for atom blocks
 
     pub fn isContainer(self: *const @This()) bool {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |bt| @hasDecl(@TypeOf(bt), "Container"),
         };
     }
 
     pub fn isAtom(self: *const @This()) bool {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |bt| @hasDecl(@TypeOf(bt), "Atom"),
         };
     }
 
     pub fn startLine(self: *const @This()) *const Line {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |bt| {
                 if (@hasDecl(@TypeOf(bt), "Atom")) {
                     return bt.startLine;
@@ -446,7 +446,7 @@ pub const Block = struct {
     }
 
     pub fn setStartLine(self: *@This(), line: *Line) void {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |*bt| {
                 if (@hasDecl(@TypeOf(bt.*), "Atom")) {
                     bt.startLine = line;
@@ -458,7 +458,7 @@ pub const Block = struct {
     }
 
     pub fn endLine(self: *const @This()) *const Line {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |bt| {
                 if (@hasDecl(@TypeOf(bt), "Atom")) {
                     return bt.endLine;
@@ -469,7 +469,7 @@ pub const Block = struct {
     }
 
     pub fn setEndLine(self: *@This(), line: *Line) void {
-        return switch (self.blockType) {
+        return switch (self.type) {
             inline else => |*bt| {
                 if (@hasDecl(@TypeOf(bt.*), "Atom")) {
                     bt.endLine = line;
@@ -513,7 +513,7 @@ pub const Block = struct {
         if (self.isContainer()) return null;
 
         if (self.nextSibling()) |sibling| {
-            if (sibling.blockType == .attributes) {
+            if (sibling.type == .attributes) {
                 if (sibling.nextSibling() == null)
                     return sibling.attributes;
             }
@@ -545,7 +545,7 @@ pub const Block = struct {
     }
 
     pub fn firstChild(self: *const @This()) ?*const Block {
-        switch (self.blockType) {
+        switch (self.type) {
             .root, .base => if (self.next()) |nextBlock| {
                 if (nextBlock.nestingDepth > self.nestingDepth) return nextBlock;
             },
@@ -558,7 +558,7 @@ pub const Block = struct {
     }
 
     pub fn nextSibling(self: *const @This()) ?*const Block {
-        return switch (self.blockType) {
+        return switch (self.type) {
             .root => null,
             .base => |base| blk: {
                 const closeLine = base.closeLine orelse break :blk null;
@@ -568,9 +568,9 @@ pub const Block = struct {
             },
             .list => |itemList| blk: {
                 std.debug.assert(itemList._lastItemConfirmed);
-                break :blk itemList.lastBullet.blockType.item.nextSibling;
+                break :blk itemList.lastBullet.type.item.nextSibling;
             },
-            .item => |*item| if (item.ownerBlock() == item.list.blockType.list.lastBullet) null else item.nextSibling,
+            .item => |*item| if (item.ownerBlock() == item.list.type.list.lastBullet) null else item.nextSibling,
             inline .table, .quotation, .callout, .reveal, .raw => |container| blk: {
                 const nextBlock = container.nextSibling orelse break :blk null;
                 // ToDo: the assurence might be unnecessary.
@@ -578,7 +578,7 @@ pub const Block = struct {
             },
             inline else => blk: {
                 std.debug.assert(self.isAtom());
-                if (self.blockType.ownerBlock().next()) |nextBlock| {
+                if (self.type.ownerBlock().next()) |nextBlock| {
                     std.debug.assert(nextBlock.nestingDepth <= self.nestingDepth);
                     if (nextBlock.nestingDepth == self.nestingDepth)
                         break :blk nextBlock;
@@ -590,7 +590,7 @@ pub const Block = struct {
 
     // Note, for .base, it is a potential sibling.
     pub fn setNextSibling(self: *@This(), sibling: *Block) void {
-        return switch (self.blockType) {
+        return switch (self.type) {
             .root => unreachable,
             .base => |base| {
                 if (base.closeLine) |closeLine| {
@@ -599,7 +599,7 @@ pub const Block = struct {
             },
             .list => |itemList| {
                 std.debug.assert(itemList._lastItemConfirmed);
-                //itemList.lastBullet.blockType.item.nextSibling = sibling;
+                //itemList.lastBullet.type.item.nextSibling = sibling;
                 unreachable; // .list.nextSibling is always set through its .lastItem.
             },
             inline .item, .table, .quotation, .callout, .reveal, .raw => |*container| {
@@ -613,10 +613,10 @@ pub const Block = struct {
     }
 
     pub fn specialHeaderChild(self: *const @This(), tmdData: []const u8) ?*const Block {
-        std.debug.assert(self.isContainer() or self.blockType == .base);
+        std.debug.assert(self.isContainer() or self.type == .base);
         var child = self.firstChild() orelse return null;
         while (true) {
-            switch (child.blockType) {
+            switch (child.type) {
                 .attributes => {
                     child = child.nextSibling() orelse break;
                     continue;
@@ -680,7 +680,7 @@ pub const BlockType = union(enum) {
         }
 
         pub fn isLast(self: *const @This()) bool {
-            return self.list.blockType.list.lastBullet == self.ownerBlock();
+            return self.list.type.list.lastBullet == self.ownerBlock();
         }
 
         pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
@@ -831,7 +831,7 @@ pub const BlockType = union(enum) {
         }
 
         pub fn contentStreamAttributes(self: @This()) ContentStreamAttributes {
-            switch (self.endLine.lineType) {
+            switch (self.endLine.type) {
                 .codeBlockEnd => {
                     if (self.endLine.extraInfo()) |info| {
                         if (info.streamAttrs) |attrs| return attrs.*;
@@ -847,7 +847,7 @@ pub const BlockType = union(enum) {
         }
 
         pub fn endPlayloadRange(self: @This()) ?Range {
-            return switch (self.endLine.lineType) {
+            return switch (self.endLine.type) {
                 .codeBlockEnd => self.endLine.playloadRange(),
                 else => null,
             };
@@ -855,15 +855,15 @@ pub const BlockType = union(enum) {
 
         pub fn startDataLine(self: @This()) ?*const Line {
             if (self.startLine.next()) |nextLine| {
-                if (nextLine.lineType == .code) return nextLine;
+                if (nextLine.type == .code) return nextLine;
             }
             return null;
         }
 
         pub fn endDataLine(self: @This()) ?*const Line {
-            if (self.endLine.lineType == .code) return self.endLine;
+            if (self.endLine.type == .code) return self.endLine;
             if (self.endLine.prev()) |prevLine| {
-                if (prevLine.lineType == .code) return prevLine;
+                if (prevLine.type == .code) return prevLine;
             }
             return null;
         }
@@ -892,7 +892,7 @@ pub const BlockType = union(enum) {
         }
 
         pub fn endPlayloadRange(self: @This()) ?Range {
-            return switch (self.endLine.lineType) {
+            return switch (self.endLine.type) {
                 .customBlockEnd => self.endLine.playloadRange(),
                 else => null,
             };
@@ -900,22 +900,22 @@ pub const BlockType = union(enum) {
 
         pub fn startDataLine(self: @This()) ?*const Line {
             if (self.startLine.next()) |nextLine| {
-                if (nextLine.lineType == .data) return nextLine;
+                if (nextLine.type == .data) return nextLine;
             }
             return null;
         }
 
         pub fn endDataLine(self: @This()) ?*const Line {
-            if (self.endLine.lineType == .data) return self.endLine;
+            if (self.endLine.type == .data) return self.endLine;
             if (self.endLine.prev()) |prevLine| {
-                if (prevLine.lineType == .data) return prevLine;
+                if (prevLine.type == .data) return prevLine;
             }
             return null;
         }
     },
 
     pub fn ownerBlock(self: anytype) if (isConst(@TypeOf(self))) *const Block else *Block {
-        return @alignCast(@fieldParentPtr("blockType", self));
+        return @alignCast(@fieldParentPtr("type", self));
     }
 };
 
@@ -1026,12 +1026,12 @@ pub const Line = struct {
 
     treatEndAsSpace: bool = false,
 
-    lineType: Type = undefined, // ToDo: renamed to "type".
+    type: Type = undefined, // ToDo: renamed to "type".
 
     tokens: list.List(Token) = .{},
 
     pub fn typeName(self: @This()) []const u8 {
-        return @tagName(self.lineType);
+        return @tagName(self.type);
     }
 
     pub fn endTypeName(self: @This()) []const u8 {
@@ -1039,7 +1039,7 @@ pub const Line = struct {
     }
 
     pub fn isAttributes(self: @This()) bool {
-        return self.lineType == .attributes;
+        return self.type == .attributes;
     }
 
     const List = list.List(@This());
@@ -1171,7 +1171,7 @@ pub const Line = struct {
     //       get playload data for parsing.
     pub fn playloadRange(self: *const @This()) Range {
         std.debug.print("======= 000\n", .{});
-        switch (self.lineType) {
+        switch (self.type) {
             inline .baseBlockOpen,
             .baseBlockClose,
             .codeBlockStart,
@@ -1188,7 +1188,7 @@ pub const Line = struct {
     }
 
     pub fn isBoundary(self: *const @This()) bool {
-        return switch (self.lineType) {
+        return switch (self.type) {
             inline .baseBlockOpen, .baseBlockClose, .codeBlockStart, .codeBlockEnd, .customBlockStart, .customBlockEnd => true,
             else => false,
         };

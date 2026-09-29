@@ -9,13 +9,13 @@ const tmd = @import("tmd.zig");
 //       - std.debug.assert(!line.treatEndAsSpace);
 
 fn verifyNextSibling(block: *const tmd.Block, nextSibling: ?*const tmd.Block) void {
-    switch (block.blockType) {
+    switch (block.type) {
         .list => {
-            std.debug.assert(nextSibling.?.blockType == .item);
+            std.debug.assert(nextSibling.?.type == .item);
         },
         .item => |item| {
             if (nextSibling) |sibling| {
-                if (sibling.blockType == .item)
+                if (sibling.type == .item)
                     std.debug.assert(block.nextSibling() == sibling)
                 else
                     std.debug.assert(item.list.nextSibling() == sibling);

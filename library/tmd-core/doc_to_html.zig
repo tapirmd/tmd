@@ -29,10 +29,10 @@ pub const HtmlBlockGenerator = struct {
     pub fn gen(self: *const HtmlBlockGenerator, w: *std.Io.Writer) !void {
         var line = self.custom.startDataLine() orelse return;
         const endDataLine = self.custom.endDataLine().?;
-        std.debug.assert(endDataLine.lineType == .data);
+        std.debug.assert(endDataLine.type == .data);
 
         while (true) {
-            std.debug.assert(line.lineType == .data);
+            std.debug.assert(line.type == .data);
 
             try w.writeAll(self.doc.bytesInRange(line.range(.trimLineEnd)));
             try w.writeAll("\n");
