@@ -191,6 +191,7 @@ pub const Range = struct {
 
 // ToDo: u8 -> usize?
 pub const MaxHeaderLevel: u8 = 4;
+pub const HeaderLevel1 = 1;
 pub fn headerLevel(headeMark: []const u8) ?u8 {
     if (headeMark.len < 2) return null;
     if (headeMark[0] != '#' or headeMark[1] != '#') return null;

@@ -129,10 +129,10 @@ TapirMD supports a variety of block types, categorized into three groups:
    }
    ;;;
    Except item blocks, predefined container blocks can only directly nest
-   base or atom blocks
+   base and non-blank atom blocks,
    and must be directly nested within a base block.
    ;;;
-   Item blocks can directly nest base, any atom, and other item blocks.
+   Item blocks can directly nest base, non-blank atom atom, and other item blocks.
    More details of item blocks will be described below.
 
 *. base (container) blocks, including
@@ -153,9 +153,8 @@ TapirMD supports a variety of block types, categorized into three groups:
    while doc blocks encompass all document lines.
 
 Base blocks can be nested within one another.
-Every block, except for the root doc block, has a parent base block,
-the innermost base block containing the block.
-The parent base block is the innermost base block that contains the block.
+Every block, except for the root doc block, has an innermost base block containing that block.
+The innermost containing block is called the parent base block of that block.
 This parent base block may or may not be the block's direct parent.
 
 TapirMD supports list nesting within a parent base block.
@@ -200,41 +199,31 @@ Blank blocks should be rendered as bare `<p>` elements in the HTML output.
 
 During the line-by-line parsing process,
 a non-item predefined container block starts at a tokenized line that begins with:
-which begins with
 *  an opitional blank token followed by
 *  a //**predefined-container-leading mark token**// which
    -  begins with a one-character mark and
       +  ends with a perceivable blank character sequence or
       +  is followed by a line-end blank token.
 
-The character in the leading mark token is
--  `#`, for table blocks,
--  `|`, for quotation/grid blocks,
--  `!`, for callout blocks,
--  `?`, for reveal blocks,
--  `.`, for raw blocks.
+The presentation form of the non-item predefined container block
+depending on the predefined-container-leading mark token:
+-  If the token is `#`, then the block is a table block,
+-  If the token is `!`, then the block is a callout block,
+-  If the token is `?`, then the block is a reveal block,
+-  If the token is `|`, then the block is a quotation or explaination block,
+-  If the token is `.`, then the block is a raw block.
 
-If the leading mark token of a non-item predefined container block contains
-only one character, then during line-by-line parsing, the container block
-will end
-*  before a following predefined container block (of either item type or not), or
+A non-item predefined container bloc will end
+*  before a following another non-item predefined container block, or
 *  before its parent base block explicitly closes, or
 *  at the end of the containing document, or
 *  before a blank block.
 
-If the leading mark token of a non-item predefined container block contains
-two characters (the second is `.`), then the container block can contain direct
-child blank blocks which are between other non-blank direct child blocks.
-During line-by-line parsing, the container block will end
-*  before a following predefined container block (of either item type or not), or
-*  before its parent base block explicitly closes, or
-*  at the end of the containing document, or
-*  before a blank block which is followed by the above cases.
-
 A non-item predefined container block is always directly nested within its parent base block.
 
-A non-item predefined container block always contains at least one direct child
-and its first direct child is never a blank block.
+A non-item predefined container block always contains at least one direct child.
+If its starting line is a blank line by excluding its leading mark, then the line
+forms a usual block, instead of a blank block.
 
 @@@ #item-blocks
 ###===== Start and end of item predefined container blocks
@@ -252,53 +241,46 @@ which begins with
    -  ends with a perceivable blank character sequence, or
    -  is followed by a line-end blank token.
 
-The character or character sequence in the leading mark token may be
+Item predefined-container-leading mark tokens may be
 -  `*`, `+`, `-`, `~` for unordered lists, and
 -  `*.`, `+.`, `-.`, `~.` for ordered lists, and
--  `:`, `:.` for definition lists.
+-  `=`, `=.` for definition lists.
 
 A sequence of consecutive sibling item blocks form a list.
 All the item blocks in a list must share the same leading mark.
 The same leading mark is called the mark of the list.
 
-Note, the `.` in item predefined-container-leading mark tokens has different
-semantics from non-item predefined-container-leading mark tokens.
-An item predefined container block can never contain direct
-child blank blocks which are between other non-blank direct child blocks.
+We can think a list as an implicit base block which direct children are all item blocks.
 
 A list opens when the first item block starts and closes when its last item block ends.
+A block composed of consecutive blank lines between the items of the list are treated
+as a usual block, instead of a blank block.
 
-TapirMD supports list nesting within a parent base block.
+TapirMD supports list nesting.
 During line-by-line parsing,
 the parser tracks opening nested lists within each parent base block.
 Lists opened earlier have lower levels than those opened later.
-Lower-level lists nest inside higher-level lists.
+Higher-level lists are nested inside lower-level lists.
 
 When an item block starts,
-*  if it is found that its leading mark
+*  If it is found that its leading mark
    is the same as the mark of an opening list in its parent base block,
    then the item block is viewed as an item in the opening list.
    And the item block is viewed as the sibling block of
    the seen last item block in the opening list.
    ;;;
-   If the opening list is nesting inside higher-level lists,
+   If the opening list is nesting inside some higher-level lists,
    then all of those higher-level lists close.
-   ;;;
-   If the previous block of the item block is a blank block,
-   then the blank block will be viewed as a direct child of
-   the seen last item block in the opening list.
    ;;;
    The item block now is treated as the seen last item block in the opening list.
 
-*  if its leading mark is different from any marks of the opening lists
+*  If its leading mark is different from any marks of the opening lists
    within the parent base block,
    then a new list with a higher level opens and the item block
    is treated as the first and the seen last item block in the new opening list.
    ;;;
    If the new opening list is the only opening list tracked by the parser
    within the parent base block, then the list is called a first-level list.
-   The item blocks of a first-level list are all direct children of
-   the parent base block.
 
 All opening lists will close
 *  before a blank block followed by a non-item block, or
@@ -308,6 +290,9 @@ All opening lists will close
 
 When a list closes, its seen last item block ends.
 The item block is confirmed as the last item block of the list.
+
+Under the rules above, if a list is a direct child of a non-item predefined container,
+it must be the container's final child.
 
 @@@ #container-blocks
 ###===== About child blocks of base and predefined container blocks
@@ -584,13 +569,19 @@ Here is the list of all line-leading mark tokens supported now.
       It may become visible (or not) when selected.
    }
    ----------------
-   ### //media-embedding token
+   ### //media-embedding tokens
    ;;; ^`&&`
+       \\ ^`<<`
+       \\ ^`>>`
    {
    Within the containig line (called a //**media-embedding line**//),
    the text following the perceivable blank token is also mark-escaped.
    Currently, the text must be a valid image URI, whether relative or absolute.
-   Note: If the media-embedding line is not the only content in the containing block,
+
+   `<<` means floating the image at the left side, and `>>` means floating the image at the right side.
+
+   Note: If the media-embedding line starts with `&&` and
+   is not the only content in the containing block,
    the specified media should be displayed using these CSS properties: `
    height: 1em;
    vertical-align: middle;
@@ -618,7 +609,8 @@ Here is the list of all line-leading mark tokens supported now.
    ;;; ^`%%`
    {
    Within the containig line (called a //**undisplayed line**//),
-   the text following the perceivable blank token is mark-escaped.
+   the text following the perceivable blank token is mark-escaped
+   and is undisplayed in HTML output.
    }
 
 Line-leading mark tokens take higher precedence over all non-line-leading mark tokens.
@@ -1162,12 +1154,19 @@ of table blocks can be either base blocks or any atom blocks.
    ### More Explanation
    -----------
    ### attribute blocks
-   ;;; nothing
    { >< :2
+   ;;; nothing
+   }
+   { >< :3
    N/A
    }
    {
    Attribute blocks in table blocks have no table-specific semantics.
+   }
+   -----------
+   ### link-definition blocks
+   {
+   Link-definition blocks blocks in table blocks have no table-specific semantics.
    }
    -----------
    ### seperator blocks
@@ -1287,13 +1286,13 @@ The vertical text alignment of table cells is always middle.
       ''' << #column-major-table-examples
    }
 
-@@@ #quotation-and-grid-semantics
-###===== Quotation and grid block semantics
+@@@ #quotation-and-explanation-semantics
+###===== Quotation and explanation block semantics
 
-Quotation and grid blocks start with the same mark: `|`.
+Quotation and explanation blocks start with the same mark: `|`.
 If the first non-attribute child block of a container block starting with `|`
 is a first-level header block, then the container block
-is a grid container block, otherwise, it is a quoration block.
+is a explanation container block; otherwise, it is a quoration block.
 
 ?  ### (a quotation block example)
    {
@@ -1317,19 +1316,25 @@ is a grid container block, otherwise, it is a quoration block.
       ''' << #quotation-examples
    }
 
-?  ### (a grid block example)
+An explanation block provides explanations for the immediately preceding sibling block
+(unless it is an attribute block or a link-definition block).
+If no such valid sibling block is found, the explanation block is ignored from the HTML output.
+
+?  ### (an explanation block example)
    {
    *  ### Render Result
       @@@ #quotation-examples-2
       {
-      |  ### The following is a grid container:
-         ;;; Grid card 1
-         {
-         Grid card 2
-         }
-         '''
-Grid card 3
-         '''
+      ''' zig
+      const std = @import("std");
+
+      pub fn main() void {
+          std.debug.print("Hello, world!\n", .{});
+      }
+      '''
+      |  ###
+         ;;; The argument of the `@import` builtin funciton
+         must be a string literal.
       }
 
    *  ### TapirMD Source
@@ -1457,14 +1462,10 @@ then the first-level header block is rendered with a specific header style.
       avoid them being interpreted as a single, continuous list.
 
       *. foo
-
       *. bar
-
-      .  // terminate the above list
-
-      *. 123
-
-      *. xyz
+      .  %% terminate the above list
+         *. 123
+         *. xyz
       }
 
    *  ### TapirMD Source
@@ -1478,7 +1479,7 @@ then the first-level header block is rendered with a specific header style.
 The following punctuation characters are potential predefined-container-leading marks.
 They should be escaped when they appear at line beginning if they are used as general texts.
 '''
-=
+:
 @
 $
 %
@@ -1513,8 +1514,6 @@ They should be escaped in header and usual blocks if they are used as general te
 '''
 ,,
 ^^
-<<
->>
 @@
 ((
 ))

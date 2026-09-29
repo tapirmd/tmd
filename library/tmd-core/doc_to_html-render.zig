@@ -438,17 +438,17 @@ pub const TmdRender = struct {
                 //const classes = "tmd-quotation";
                 //try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
-                // With second mode (explanation).
-                const isExplanation, const classes = if (block.specialHeaderChild(self.doc.data)) |_| blk: {
-                    if (block.explanationBlock == block) unreachable; // already handled at the start of the function
+                const firstLevelHeader, const classes = if (block.specialHeaderChild(self.doc.data)) |headerBlock|
+                    .{ headerBlock, "tmd-explanation" }
+                else
+                    .{ null, "tmd-quotation" };
 
-                    break :blk .{ true, "tmd-explanation" };
-                } else .{ false, "tmd-quotation" };
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
-
-                try self.renderBlockChildren(w, block.firstChild());
+                if (firstLevelHeader) |header| if (!header.blockType.header.isBare()) try self.renderHeaderLevel(w, 1, header);
+                const nextContentBlock = if (firstLevelHeader) |header| header.nextSibling() else block.firstChild();
+                try self.renderBlockChildren(w, nextContentBlock);
                 try fns.writeCloseTag(w, tag, true);
-                if (isExplanation) try fns.writeCloseTag(w, tag, true); // "tmd-explanation-container"
+                if (firstLevelHeader != null) try fns.writeCloseTag(w, tag, true); // "tmd-explanation-container"
             },
             .callout => {
                 const tag = "div";
@@ -556,26 +556,7 @@ pub const TmdRender = struct {
                 if (header.isBare()) {
                     try self.writeTableOfContents(w, level);
                 } else {
-                    const realLevel = if (block == self.doc.titleHeader) blk: {
-                        if (block.nextSibling()) |sibling| {
-                            self.toRenderSubtitles = sibling.blockType == .usual;
-                        }
-                        break :blk level;
-                    } else if (self.doc.headerLevelNeedAdjusted(level)) level + 1 else level;
-
-                    if (self.toRenderSubtitles) {
-                        const headerTag = "header";
-                        const headerClasses = "tmd-with-subtitle";
-                        try fns.writeOpenTag(w, headerTag, headerClasses, null, self.options.identSuffix, true);
-                    }
-
-                    try w.print("<h{}", .{realLevel});
-                    try fns.writeBlockAttributes(w, tmdHeaderClass(realLevel), block.attributes, self.options.identSuffix);
-                    try w.writeAll(">\n");
-
-                    try self.writeUsualContentBlockLines(w, block);
-
-                    try w.print("</h{}>\n", .{realLevel});
+                    try self.renderHeaderLevel(w, level, block);
                 }
             },
             .usual => |usual| {
@@ -637,6 +618,29 @@ pub const TmdRender = struct {
             const tag = "div";
             try fns.writeCloseTag(w, tag, true); // "tmd-explained";
         }
+    }
+
+    fn renderHeaderLevel(self: *TmdRender, w: *std.Io.Writer, level: u8, block: *const tmd.Block) !void {
+        const realLevel = if (block == self.doc.titleHeader) blk: {
+            if (block.nextSibling()) |sibling| {
+                self.toRenderSubtitles = sibling.blockType == .usual;
+            }
+            break :blk level;
+        } else if (self.doc.headerLevelNeedAdjusted(level)) level + 1 else level;
+
+        if (self.toRenderSubtitles) {
+            const headerTag = "header";
+            const headerClasses = "tmd-with-subtitle";
+            try fns.writeOpenTag(w, headerTag, headerClasses, null, self.options.identSuffix, true);
+        }
+
+        try w.print("<h{}", .{realLevel});
+        try fns.writeBlockAttributes(w, tmdHeaderClass(realLevel), block.attributes, self.options.identSuffix);
+        try w.writeAll(">\n");
+
+        try self.writeUsualContentBlockLines(w, block);
+
+        try w.print("</h{}>\n", .{realLevel});
     }
 
     fn renderBlockChildren(self: *TmdRender, w: *std.Io.Writer, firstChild: ?*const tmd.Block) !void {
