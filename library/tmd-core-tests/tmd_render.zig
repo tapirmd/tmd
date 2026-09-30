@@ -18,6 +18,21 @@ test "tmd render" {
                 }
             }{ .expectedHtmlTags = expectedHtmlTags });
         }
+
+        fn check2(data: []const u8, expectedHtmlTags: []const []const u8) !bool {
+            return all.RenderChecker.check(data, struct {
+                expectedHtmlTags: []const []const u8,
+
+                pub fn checkFn(self: @This(), html: []const u8) !void {
+                    for (self.expectedHtmlTags) |expected| {
+                        if (std.mem.indexOf(u8, html, expected) != null) {
+                            //std.debug.print("<<<{s}\n>>>\n", .{html});
+                            return error.UnexpectedTagFound;
+                        }
+                    }
+                }
+            }{ .expectedHtmlTags = expectedHtmlTags });
+        }
     };
 
     try std.testing.expect(try HtmlGenChecker.check(
@@ -30,4 +45,19 @@ test "tmd render" {
         \\   && foo.png
         \\
     , &.{"<img"}));
+
+    try std.testing.expect(try HtmlGenChecker.check2(
+        \\__ foo`https://go101.com
+        \\
+    , &.{"<code"}));
+
+    try std.testing.expect(try HtmlGenChecker.check2(
+        \\__ foo`https://go101.com`
+        \\
+    , &.{"<code"}));
+
+    try std.testing.expect(try HtmlGenChecker.check2(
+        \\__ foo`https://go101.com`__
+        \\
+    , &.{"<code"}));
 }

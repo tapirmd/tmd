@@ -1132,13 +1132,24 @@ pub const TmdRender = struct {
         marksStack: MarkStatus.List = .{},
 
         currentLinkInfo: ?*tmd.Token.LinkInfo = null,
+        currentsLinkTextDone: bool = undefined, // valid only when currentLinkInfo != null
         // These are only valid when currentLinkInfo != null.
         linkFootnote: ?*Footnote = undefined,
         brokenLinkConfirmed: bool = undefined,
 
         fn onLinkInfo(self: *@This(), linkInfo: *tmd.Token.LinkInfo) void {
             self.currentLinkInfo = linkInfo;
+            self.currentsLinkTextDone = false;
             self.brokenLinkConfirmed = false;
+        }
+
+        // To avoid blank spans caused by not renderring URL-definition content tokens.
+        // ToDo: not a perfect implemntation now.
+        //       A perfect implementation:
+        //       * Add an `delayOpeningAfterLink` field to MarkStatus.
+        //         Still push not-rendered SpanMark.
+        fn notRenderCodeSpan(self: *const @This()) bool {
+            return self.currentLinkInfo != null and self.currentsLinkTextDone;
         }
     };
 
@@ -1182,6 +1193,11 @@ pub const TmdRender = struct {
                         if (tracker.currentLinkInfo) |linkInfo| {
                             const link = linkInfo.link;
                             const url = link.url orelse unreachable;
+
+                            defer {
+                                if (plainText.nextInLink == url.sourceContentToken) tracker.currentsLinkTextDone = true;
+                            }
+
                             if (token != link.firstContentToken) {
                                 std.debug.assert(url.manner != .footnote);
 
@@ -1220,6 +1236,13 @@ pub const TmdRender = struct {
                             } else for (1..m.more.pairCount) |_| {
                                 //try w.writeAll("&nbsp;");
                                 try w.writeAll("&#160;"); // better in epub
+                            }
+
+                            if (tracker.currentLinkInfo) |linkInfo| {
+                                const link = linkInfo.link;
+                                const url = link.url orelse unreachable;
+
+                                if (m.nextInLink == url.sourceContentToken) tracker.currentsLinkTextDone = true;
                             }
                         }
                     },
@@ -1356,11 +1379,17 @@ pub const TmdRender = struct {
 
                                 element = linkInfoElement.next; // skip the media specification text token
                                 continue;
-                            } else {
+                            } else blk: {
+                                if (m.markType == .code and tracker.notRenderCodeSpan()) break :blk;
+
                                 tracker.marksStack.pushTail(markElement);
                                 try writeOpenMark(w, markElement.value.mark.?, usage);
                             }
-                        } else try closeMark(w, m, &tracker, usage);
+                        } else blk: {
+                            if (m.markType == .code and tracker.notRenderCodeSpan()) break :blk;
+
+                            try closeMark(w, m, &tracker, usage);
+                        }
                     },
                     .leadingSpanMark => |m| {
                         switch (m.more.markType) {

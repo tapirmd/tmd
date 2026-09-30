@@ -797,7 +797,6 @@ pub const BlockType = union(enum) {
         // traits:
         const Atom = void;
 
-        // An empty header is used to insert toc.
         pub fn isBare(self: @This()) bool {
             //return self.startLine == self.endLine and self.startLine.tokens().?.empty();
             return self.startLine == self.endLine and self.startLine.firstTokenOf(.others) == null;
