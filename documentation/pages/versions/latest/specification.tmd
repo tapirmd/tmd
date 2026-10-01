@@ -1483,6 +1483,8 @@ They should be escaped when they appear at line beginning if they are used as ge
 @
 $
 %
+/
+\
 ^
 <
 >

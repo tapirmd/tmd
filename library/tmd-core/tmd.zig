@@ -854,15 +854,18 @@ pub const BlockType = union(enum) {
 
         pub fn startDataLine(self: @This()) ?*const Line {
             if (self.startLine.next()) |nextLine| {
-                if (nextLine.type == .code) return nextLine;
+                //if (nextLine.type == .code) return nextLine;
+                if (nextLine.type == .data) return nextLine;
             }
             return null;
         }
 
         pub fn endDataLine(self: @This()) ?*const Line {
-            if (self.endLine.type == .code) return self.endLine;
+            //if (self.endLine.type == .code) return self.endLine;
+            if (self.endLine.type == .data) return self.endLine;
             if (self.endLine.prev()) |prevLine| {
-                if (prevLine.type == .code) return prevLine;
+                //if (prevLine.type == .code) return prevLine;
+                if (prevLine.type == .data) return prevLine;
             }
             return null;
         }
@@ -972,11 +975,13 @@ pub const Line = struct {
 
         codeBlockStart,
         codeBlockEnd,
-        code,
+        //code, // merged into .data now
 
         customBlockStart,
         customBlockEnd,
         data,
+
+        //pub const code: @This() = .data;
     };
 
     pub const EndType = enum(u2) {

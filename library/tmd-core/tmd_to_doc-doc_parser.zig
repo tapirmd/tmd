@@ -336,7 +336,8 @@ fn parse(parser: *DocParser) !void {
                     std.debug.assert(boundedBlockStartInfo != null);
 
                     line.type = switch (boundedBlockStart.lineType) {
-                        .codeBlockStart => .code,
+                        //.codeBlockStart => .code,
+                        .codeBlockStart => .data,
                         .customBlockStart => .data,
                         else => unreachable,
                     };

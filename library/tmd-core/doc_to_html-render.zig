@@ -1035,7 +1035,8 @@ pub const TmdRender = struct {
             while (true) {
                 switch (line.type) {
                     .codeBlockEnd => break,
-                    .code => {
+                    //.code => {
+                    .data => {
                         std.debug.assert(std.meta.eql(line.range(.trimLineEnd), line.range(.trimSpaces)));
                         try fns.writeHtmlContentText(w, self.doc.bytesInRange(line.range(.trimLineEnd)));
                     },

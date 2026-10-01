@@ -34,7 +34,8 @@ const UnchangeWriter = struct {
             const lineEndPos = line.end(.trimLineEnd);
 
             switch (line.type) {
-                .code, .data => {
+                //.code,.data => {
+                .data => {
                     std.debug.assert(line.prefixBlankEnd == lineStartAt);
                     std.debug.assert(line.suffixBlankStart == lineEndPos);
                     try writer.writeAll(uw.data(lineStartAt, lineEndPos));
@@ -232,7 +233,8 @@ const FormatWriter = struct {
     fn writeLine(fw: *FormatWriter, w: *std.Io.Writer, line: *const tmd.Line, indentationWritten: bool) !void {
         switch (line.type) {
             .blank => {},
-            .data, .code => {
+            //.data, .code => {
+            .data => {
                 try w.writeAll(fw.data(line.start(.none), line.end(.trimLineEnd)));
             },
             else => {
