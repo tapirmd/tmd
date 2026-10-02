@@ -480,14 +480,14 @@ pub const TmdRender = struct {
 
                 try fns.writeCloseTag(w, tag, true);
             },
-            .reveal => {
+            .foldable => {
                 const tag = "details";
-                const classes = "tmd-reveal";
+                const classes = "tmd-foldable";
 
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
                 const headerTag = "summary";
-                const headerClasses = "tmd-reveal-header";
+                const headerClasses = "tmd-foldable-header";
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
                     try self.writeUsualContentBlockLines(w, headerBlock);
@@ -502,7 +502,7 @@ pub const TmdRender = struct {
 
                 {
                     const contentTag = "div";
-                    const contentClasses = "tmd-reveal-content";
+                    const contentClasses = "tmd-foldable-content";
 
                     try fns.writeOpenTag(w, contentTag, contentClasses, null, self.options.identSuffix, true);
                     try self.renderBlockChildren(w, firstContentBlock);
@@ -511,16 +511,16 @@ pub const TmdRender = struct {
 
                 try fns.writeCloseTag(w, tag, true);
             },
-            .raw => {
+            .vanilla => {
                 const tag = "div";
-                const classes = "tmd-raw";
+                const classes = "tmd-vanilla";
 
                 try fns.writeOpenTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
 
                 const firstContentBlock = if (block.specialHeaderChild(self.doc.data)) |headerBlock| blk: {
                     {
                         const headerTag = "div";
-                        const headerClasses = "tmd-raw-header";
+                        const headerClasses = "tmd-vanilla-header";
 
                         try fns.writeOpenTag(w, headerTag, headerClasses, headerBlock.attributes, self.options.identSuffix, true);
                         try self.writeUsualContentBlockLines(w, headerBlock);
@@ -1083,7 +1083,7 @@ pub const TmdRender = struct {
             },
 
             // built-in containers
-            .list, .item, .table, .quotation, .callout, .reveal, .raw => {
+            .list, .item, .table, .quotation, .callout, .foldable, .vanilla => {
                 try self.renderTmdCodeForBlockChildren(w, block);
             },
 

@@ -122,10 +122,10 @@ For detailed explanations, please refer to __the specification__.
 
 '''
 ''' << #demo-4-a
-|  ### Lists:
+|  ###
    @@@ #demo-4-a
    {
-   *. This is a 1st-level list item (ordered)..
+   *. This is a 1st-level list item (ordered).
       {
       -  This is a 2nd-level list item
       -  This is another 2nd-level list item.
@@ -183,7 +183,7 @@ For detailed explanations, please refer to __the specification__.
       This is a callout box with header.
       }
 
-   ?  This is a reveal box without summary.
+   ?  This is a foldable box without summary.
 
    ?  ### Why TapirMD?
       {
@@ -197,7 +197,7 @@ For detailed explanations, please refer to __the specification__.
 |  ###
    @@@ #demo-4-d
    {
-   .  This is in a raw container block,
+   .  This is in a vanilla container block,
       which has no special styles.
    }
 

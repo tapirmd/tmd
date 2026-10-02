@@ -54,10 +54,20 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
 
             // Just to check all possible types. Don't remove.
             switch (line.type) {
-                .blank, .usual, .header, .seperator, .attributes, .linkdef,
-                .baseBlockOpen, .baseBlockClose,
-                .codeBlockStart, .codeBlockEnd, // .code,
-                .customBlockStart, .customBlockEnd, .data => {},
+                .blank,
+                .usual,
+                .header,
+                .seperator,
+                .attributes,
+                .linkdef,
+                .baseBlockOpen,
+                .baseBlockClose,
+                .codeBlockStart,
+                .codeBlockEnd, // .code,
+                .customBlockStart,
+                .customBlockEnd,
+                .data,
+                => {},
             }
 
             const end = block.endLine();

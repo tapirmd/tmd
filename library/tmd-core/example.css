@@ -176,26 +176,26 @@ code, pre {
   padding: 5px;
 }
 
-.tmd-reveal {
+.tmd-foldable {
   padding-left: 6px;
 }
 
-.tmd-reveal-content {
+.tmd-foldable-content {
   margin-left: 18px;
 }
 
-.tmd-reveal-header {
+.tmd-foldable-header {
   display: list-item;
 }
 
-.tmd-reveal[open] .tmd-reveal-header {
+.tmd-foldable[open] .tmd-foldable-header {
   font-weight: bold;
 }
 
-.tmd-raw {
+.tmd-vanilla {
 }
 
-.tmd-raw-header {
+.tmd-vanilla-header {
   font-style: italic;
   background: #e5b05b;
   padding: 0px 6px 6px;

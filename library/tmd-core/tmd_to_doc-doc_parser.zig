@@ -480,12 +480,12 @@ fn parse(parser: *DocParser) !void {
                         },
                         '?' => {
                             containerBlock.type = .{
-                                .reveal = .{},
+                                .foldable = .{},
                             };
                         },
                         '.' => {
                             containerBlock.type = .{
-                                .raw = .{},
+                                .vanilla = .{},
                             };
                         },
                         else => unreachable,
