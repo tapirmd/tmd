@@ -197,7 +197,9 @@ fn generateHTML() ![]const u8 {
 
     const optionsConfig = (try tmd.Doc.parse(optionsContent, fbaAllocator)).asConfig();
 
-    const enabledCustomApps = optionsConfig.stringValue("enabledCustomApps") orelse "";
+    // Disable custom app support temporarily for several versions.
+    //const enabledCustomApps = optionsConfig.stringValue("enabledCustomApps") orelse "";
+
     const identSuffix = optionsConfig.stringValue("identSuffix") orelse "";
     const autoIdentSuffix = optionsConfig.stringValue("autoIdentSuffix") orelse "";
     const renderRoot = blk: {
@@ -206,17 +208,18 @@ fn generateHTML() ![]const u8 {
         break :blk v[0] != 'f' and v[0] != 'F' and v[0] != 'n' and v[0] != 'N';
     };
 
-    const supportHTML = blk: {
-        var iter = std.mem.splitAny(u8, enabledCustomApps, ";,");
-        var item = iter.first();
-        while (true) {
-            if (std.mem.eql(u8, item, "html")) break :blk true;
-            if (item.len > 0) {
-                return error.UnknownApp;
-            }
-            if (iter.next()) |next| item = next else break :blk false;
-        }
-    };
+    const supportHTML = false;
+    //blk: {
+    //    var iter = std.mem.splitAny(u8, enabledCustomApps, ";,");
+    //    var item = iter.first();
+    //    while (true) {
+    //        if (std.mem.eql(u8, item, "html")) break :blk true;
+    //        if (item.len > 0) {
+    //            return error.UnknownApp;
+    //        }
+    //        if (iter.next()) |next| item = next else break :blk false;
+    //    }
+    //};
 
     // render file
 

@@ -92,16 +92,18 @@ class TmdLib {
 	}
 
 	generateHtml(options) {
-		const enabledCustomApps = options?.enabledCustomApps ?? "";
+        // Disable custom app support temporarily for several versions.
+		//const enabledCustomApps = options?.enabledCustomApps ?? "";
+        //
+        //@@@ #enabledCustomApps
+        //'''
+        //${enabledCustomApps}
+        //'''
+
 		const identSuffix = options?.identSuffix ?? "";
 		const autoIdentSuffix = options?.autoIdentSuffix ?? "";
 		const renderRoot = options?.renderRoot ?? true;
 		this.#writeTextData(this.#optionsDataOffset, `
-@@@ #enabledCustomApps
-'''
-${enabledCustomApps}
-'''
-
 @@@ #identSuffix
 '''
 ${identSuffix}
