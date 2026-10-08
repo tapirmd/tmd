@@ -15,8 +15,8 @@ pub fn build(b: *std.Build) !void {
 
     const listLibModule = b.addModule("list", .{
         .root_source_file = b.path("library/list/list.zig"),
-        .target = target,
-        .optimize = optimize,
+        //.target = target,
+        //.optimize = optimize,
     });
 
     const listLibTest = b.addTest(.{
@@ -32,8 +32,8 @@ pub fn build(b: *std.Build) !void {
 
     const treeLibModule = b.addModule("tree", .{
         .root_source_file = b.path("library/tree/tree.zig"),
-        .target = target,
-        .optimize = optimize,
+        //.target = target,
+        //.optimize = optimize,
     });
 
     const treeLibTest = b.addTest(.{
@@ -61,31 +61,14 @@ pub fn build(b: *std.Build) !void {
 
     // tmd module
 
-    const TmdLibModule = struct {
-        fn create(
-            bd: *std.Build,
-            createOrAdd: enum { add, create },
-            stepOptions: *std.Build.Step.Options,
-            tgt: std.Build.ResolvedTarget,
-            opt: std.builtin.OptimizeMode,
-            listMod: *std.Build.Module,
-            treeMod: *std.Build.Module,
-        ) *std.Build.Module {
-            const modOptions: std.Build.Module.CreateOptions = .{
-                .root_source_file = bd.path("library/tmd-core/tmd.zig"),
-                .target = tgt,
-                .optimize = opt,
-            };
-            const m = if (createOrAdd == .create) bd.createModule(modOptions) else bd.addModule("tmd", modOptions);
-            m.addImport("list", listMod);
-            m.addImport("tree", treeMod);
-            m.addOptions("compile_options", stepOptions); // @import("compile_options");
-            return m;
-        }
-    };
-
-    const tmdLibModule = TmdLibModule.create(b, .add, libOptions, target, optimize, listLibModule, treeLibModule);
-    const tmdLibModuleSmall = if (optimize == .small) tmdLibModule else TmdLibModule.create(b, .create, libOptions, target, .small, listLibModule, treeLibModule);
+    const tmdLibModule = b.addModule("tmd", .{
+        .root_source_file = b.path("library/tmd-core/tmd.zig"),
+        //.target = target,
+        //.optimize = optimize,
+    });
+    tmdLibModule.addImport("list", listLibModule);
+    tmdLibModule.addImport("tree", treeLibModule);
+    tmdLibModule.addOptions("compile_options", libOptions); // @import("compile_options");
 
     // test
 
@@ -199,7 +182,7 @@ pub fn build(b: *std.Build) !void {
         .target = wasmTarget,
         .optimize = wasmOptimize,
     });
-    wasmLibModule.addImport("tmd", tmdLibModuleSmall);
+    wasmLibModule.addImport("tmd", tmdLibModule);
 
     const wasm = b.addExecutable(.{
         .name = "tmd",
