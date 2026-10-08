@@ -7,6 +7,9 @@ pub fn build(b: *std.Build) !void {
     // options
 
     const compileOptions = try collectCompileOptions(b, optimize);
+    const libOptions = b.addOptions();
+    libOptions.addOption([]const u8, "version", compileOptions.version);
+    //libOptions.addOption(bool, "option1", compileOptions.option1);
 
     // list module
 
@@ -58,18 +61,31 @@ pub fn build(b: *std.Build) !void {
 
     // tmd module
 
-    const tmdLibModule = b.addModule("tmd", .{
-        .root_source_file = b.path("library/tmd-core/tmd.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    tmdLibModule.addImport("list", listLibModule);
-    tmdLibModule.addImport("tree", treeLibModule);
+    const TmdLibModule = struct {
+        fn create(
+            bd: *std.Build,
+            createOrAdd: enum { add, create },
+            stepOptions: *std.Build.Step.Options,
+            tgt: std.Build.ResolvedTarget,
+            opt: std.builtin.OptimizeMode,
+            listMod: *std.Build.Module,
+            treeMod: *std.Build.Module,
+        ) *std.Build.Module {
+            const modOptions: std.Build.Module.CreateOptions = .{
+                .root_source_file = bd.path("library/tmd-core/tmd.zig"),
+                .target = tgt,
+                .optimize = opt,
+            };
+            const m = if (createOrAdd == .create) bd.createModule(modOptions) else bd.addModule("tmd", modOptions);
+            m.addImport("list", listMod);
+            m.addImport("tree", treeMod);
+            m.addOptions("compile_options", stepOptions); // @import("compile_options");
+            return m;
+        }
+    };
 
-    const libOptions = b.addOptions();
-    libOptions.addOption([]const u8, "version", compileOptions.version);
-    libOptions.addOption(bool, "option1", compileOptions.option1);
-    tmdLibModule.addOptions("compile_options", libOptions); // @import("compile_options");
+    const tmdLibModule = TmdLibModule.create(b, .add, libOptions, target, optimize, listLibModule, treeLibModule);
+    const tmdLibModuleSmall = if (optimize == .small) tmdLibModule else TmdLibModule.create(b, .create, libOptions, target, .small, listLibModule, treeLibModule);
 
     // test
 
@@ -183,6 +199,7 @@ pub fn build(b: *std.Build) !void {
         .target = wasmTarget,
         .optimize = wasmOptimize,
     });
+    wasmLibModule.addImport("tmd", tmdLibModuleSmall);
 
     const wasm = b.addExecutable(.{
         .name = "tmd",
@@ -198,9 +215,6 @@ pub fn build(b: *std.Build) !void {
     // But why is the max_memory required to be set so large?
     wasm.max_memory = (1 << 24) + (1 << 21); // 18M
 
-    wasm.root_module.addImport("tmd", tmdLibModule);
-    wasm.root_module.addImport("list", listLibModule);
-    wasm.root_module.addImport("tree", treeLibModule);
     const installWasm = b.addInstallArtifact(wasm, .{ .dest_dir = .{ .override = .lib } });
 
     const wasmStep = b.step("wasm", "Build wasm lib");
