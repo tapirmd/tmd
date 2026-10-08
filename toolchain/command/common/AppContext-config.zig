@@ -34,7 +34,7 @@ pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !st
     const T = struct {
         fn confirmDirectoryConfigAndRoot(ctx: *AppContext, absDirPath: []const u8, isFirstPath: bool) !?ConfigsAndRoot {
             if (isFirstPath) {
-                if (builtin.mode == .Debug) {
+                if (builtin.mode == .debug) {
                     std.debug.assert(ctx._dirPathToConfigAndRootMap.get(absDirPath) == null);
                 }
             } else if (ctx._dirPathToConfigAndRootMap.get(absDirPath)) |info| {
@@ -167,7 +167,7 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
 
     try parseConfigOptions(ctx, configEx);
 
-    if (builtin.mode == .Debug and false) {
+    if (builtin.mode == .debug and false) {
         printConfigEx(configEx);
     }
 
@@ -199,24 +199,25 @@ fn fillTmdConfig(ctx: *AppContext, tmdDoc: *const tmd.Doc, config: *Config) !voi
 
     const structTypeInfo = @typeInfo(Config).@"struct";
 
-    inline for (structTypeInfo.fields) |structField| {
-        if (tmdConfig.stringValue(structField.name)) |opv| {
+    inline for (structTypeInfo.field_names, structTypeInfo.field_types) |fieldName, fieldType| {
+        if (tmdConfig.stringValue(fieldName)) |opv| {
             const optionValue = try ctx.arenaAllocator.dupe(u8, opv);
-            const tmdBlock = tmdDoc.blockByID(structField.name).?;
+            const tmdBlock = tmdDoc.blockByID(fieldName).?;
             const blockAttributes = tmdBlock.attributes.?;
             const class = blockAttributes.classes;
 
-            const UnionType = @typeInfo(structField.type).optional.child;
+            const UnionType = @typeInfo(fieldType).optional.child;
             const unionTypeInfo = @typeInfo(UnionType).@"union";
-            const unionTypeFields = unionTypeInfo.fields;
+            const uFieldNames = unionTypeInfo.field_names;
+            const uFieldTypes = unionTypeInfo.field_types;
 
             if (class.len == 0) {
-                if (unionTypeFields[0].type == []const u8) {
-                    @field(config, structField.name) = @unionInit(UnionType, unionTypeFields[0].name, optionValue);
+                if (uFieldTypes[0] == []const u8) {
+                    @field(config, fieldName) = @unionInit(UnionType, uFieldNames[0], optionValue);
                 }
-            } else inline for (unionTypeFields) |unionField| {
-                if ((unionField.type == []const u8) and std.mem.eql(u8, unionField.name, class)) {
-                    @field(config, structField.name) = @unionInit(UnionType, unionField.name, optionValue);
+            } else inline for (uFieldNames, uFieldTypes) |uFieldName, uFieldType| {
+                if ((uFieldType == []const u8) and std.mem.eql(u8, uFieldName, class)) {
+                    @field(config, fieldName) = @unionInit(UnionType, uFieldName, optionValue);
                 }
             }
         }
@@ -264,10 +265,10 @@ pub fn printTmdConfig(config: *const Config) void {
 pub fn mergeTmdConfig(_: *const AppContext, config: *Config, base: *const Config) void {
     const structTypeInfo = @typeInfo(Config).@"struct";
 
-    inline for (structTypeInfo.fields) |structField| {
-        if (@field(base, structField.name)) |unionValue| {
-            if (@field(config, structField.name) == null)
-                @field(config, structField.name) = unionValue;
+    inline for (structTypeInfo.field_names) |fieldName| {
+        if (@field(base, fieldName)) |unionValue| {
+            if (@field(config, fieldName) == null)
+                @field(config, fieldName) = unionValue;
         }
     }
 }

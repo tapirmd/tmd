@@ -779,7 +779,7 @@ pub const Extension = enum {
 };
 
 const maxExtLen = blk: {
-    const names = std.meta.fieldNames(Extension);
+    const names = @typeInfo(Extension).@"enum".field_names;
     var len: usize = 0;
     for (names) |name| {
         if (name.len > len) len = name.len;
@@ -800,7 +800,7 @@ pub fn extension(text: []const u8) ?Extension {
 }
 
 pub fn getExtensionInfo(ext: Extension) ExtensionInfo {
-    return extensionInfo[@intFromEnum(ext)];
+    return extensionInfo[@backingInt(ext)];
 }
 
 pub const ExtensionInfo = struct {
@@ -810,7 +810,7 @@ pub const ExtensionInfo = struct {
     isText: bool = false,
 };
 
-const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]ExtensionInfo = .{
+const extensionInfo: [@typeInfo(Extension).@"enum".field_names.len]ExtensionInfo = .{
     .{ .ext = .tmd, .mime = "text/tapir-markdown", .isText = true },
     //.{.ext = .md, .mime = "text/markdown", .isText = true},
 
@@ -835,7 +835,7 @@ const extensionInfo: [@typeInfo(Extension).@"enum".fields.len]ExtensionInfo = .{
 
 test "extensionInfo" {
     for (extensionInfo, 0..) |mt, i| {
-        try std.testing.expect(@intFromEnum(mt.ext) == i);
+        try std.testing.expect(@backingInt(mt.ext) == i);
     }
 }
 

@@ -98,7 +98,7 @@ test "bytesKindTable" {
 }
 
 pub fn debugPrint(ls: *LineScanner, opName: []const u8, customValue: u32) void {
-    if (builtin.mode != .Debug) return;
+    if (builtin.mode != .debug) return;
 
     std.debug.print("------- {s}, {}, {}\n", .{ opName, ls.cursorLineIndex, ls.cursor });
     std.debug.print("custom:  {}\n", .{customValue});

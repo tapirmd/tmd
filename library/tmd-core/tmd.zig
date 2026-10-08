@@ -31,7 +31,7 @@ pub const trimBlanks = @import("tmd_to_doc-line_scanner.zig").trim_blanks;
 //            std.debug.print("{s}, {s}, {}\n", .{msg, extraMsg, extraInt});
 //        }
 //    };
-//    break :blk if (builtin.mode == .Debug) T.logMessage else null;
+//    break :blk if (builtin.mode == .debug) T.logMessage else null;
 //};
 
 const std = @import("std");
@@ -654,7 +654,7 @@ pub const BlockType = union(enum) {
 
         // Note: the depth of the list is the same as its children
 
-        const Container = void;
+        pub const Container = void;
 
         pub fn typeName(self: @This()) []const u8 {
             return @tagName(self.listType);
@@ -673,7 +673,7 @@ pub const BlockType = union(enum) {
         list: *Block, // a .list
         nextSibling: ?*Block = null, // for .list.lastBullet, it is .list's sibling.
 
-        const Container = void;
+        pub const Container = void;
 
         pub fn isFirst(self: *const @This()) bool {
             return self.list.next().? == self.ownerBlock();
@@ -690,23 +690,23 @@ pub const BlockType = union(enum) {
     },
 
     table: struct {
-        const Container = void;
+        pub const Container = void;
         nextSibling: ?*Block = null,
     },
     quotation: struct {
-        const Container = void;
+        pub const Container = void;
         nextSibling: ?*Block = null,
     },
     callout: struct {
-        const Container = void;
+        pub const Container = void;
         nextSibling: ?*Block = null,
     },
     foldable: struct {
-        const Container = void;
+        pub const Container = void;
         nextSibling: ?*Block = null,
     },
     vanilla: struct {
-        const Container = void;
+        pub const Container = void;
         nextSibling: ?*Block = null,
     },
 
@@ -744,7 +744,7 @@ pub const BlockType = union(enum) {
         endLine: *Line = undefined,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
     },
 
     seperator: struct {
@@ -752,7 +752,7 @@ pub const BlockType = union(enum) {
         endLine: *Line = undefined,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
     },
 
     header: struct {
@@ -760,7 +760,7 @@ pub const BlockType = union(enum) {
         endLine: *Line = undefined,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
 
         pub fn level(self: @This(), tmdData: []const u8) u8 {
             const headerLine = self.startLine;
@@ -787,7 +787,7 @@ pub const BlockType = union(enum) {
         // hasContent: bool = false,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
     },
 
     linkdef: struct {
@@ -795,7 +795,7 @@ pub const BlockType = union(enum) {
         endLine: *Line = undefined,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
 
         pub fn isBare(self: @This()) bool {
             //return self.startLine == self.endLine and self.startLine.tokens().?.empty();
@@ -808,7 +808,7 @@ pub const BlockType = union(enum) {
         endLine: *Line = undefined,
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
     },
 
     code: struct {
@@ -820,7 +820,7 @@ pub const BlockType = union(enum) {
         //       and it can be also of .code or .codeBlockStart.
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
 
         pub fn attributes(self: @This()) CodeBlockAttibutes {
             if (self.startLine.extraInfo()) |info| {
@@ -880,7 +880,7 @@ pub const BlockType = union(enum) {
         //       It can be also of .data or .customBlockStart.
 
         // traits:
-        const Atom = void;
+        pub const Atom = void;
 
         pub fn attributes(self: @This()) CustomBlockAttibutes {
             if (self.startLine.extraInfo()) |info| {
@@ -923,24 +923,24 @@ pub const BlockType = union(enum) {
 
 fn isConst(Ptr: type) bool {
     return switch (@typeInfo(Ptr)) {
-        .pointer => |p| p.is_const,
+        .pointer => |p| p.attrs.@"const",
         else => @compileError("Ptr must be a pointer type."),
     };
 }
 
 fn voidOr(T: type) type {
-    const ValueType = if (builtin.mode == .Debug) T else void;
+    const ValueType = if (builtin.mode == .debug) T else void;
 
     return struct {
         _value: ValueType,
 
         pub fn value(self: @This()) T {
-            if (builtin.mode != .Debug) return 0;
+            if (builtin.mode != .debug) return 0;
             return self._value;
         }
 
         pub fn set(self: *@This(), v: T) void {
-            if (builtin.mode != .Debug) return;
+            if (builtin.mode != .debug) return;
             self._value = v;
         }
     };
@@ -1135,7 +1135,7 @@ pub const Line = struct {
 
     // Same as start(.none).
     fn startPos(self: *const @This()) DocSize {
-        if (builtin.mode == .Debug) return self._startAt.value();
+        if (builtin.mode == .debug) return self._startAt.value();
         return if (self.prev()) |prevLine| prevLine.endAt else 0;
     }
 
@@ -1422,7 +1422,7 @@ pub const Token = union(enum) {
         switch (self.*) {
             .linkInfo => {
                 if (self.prev()) |prexToken| {
-                    if (builtin.mode == .Debug) {
+                    if (builtin.mode == .debug) {
                         switch (prexToken.*) {
                             .spanMark => |m| std.debug.assert(m.markType == .hyperlink and m.more.open == true),
                             .leadingSpanMark => |m| std.debug.assert(m.more.markType == .media),
@@ -1434,7 +1434,7 @@ pub const Token = union(enum) {
             },
             .extra => {
                 if (self.next()) |nextToken| {
-                    if (builtin.mode == .Debug) {
+                    if (builtin.mode == .debug) {
                         std.debug.assert(nextToken.* == .lineTypeMark);
                     }
                     return nextToken.start();
@@ -1543,10 +1543,10 @@ pub const SpanMarkType = enum(u4) {
     supsub,
     code, // must be the last one (why? forget the reason)
 
-    pub const MarkCount = @typeInfo(@This()).@"enum".fields.len;
+    pub const MarkCount = @typeInfo(@This()).@"enum".field_names.len;
 
     pub fn asInt(self: @This()) u8 {
-        return @intFromEnum(self);
+        return @backingInt(self);
     }
 
     pub fn typeName(self: @This()) []const u8 {

@@ -355,7 +355,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const relPath = sourceAbsPath[project.path.len + 1 ..];
                     const ext = std.Io.Dir.path.extension(relPath);
                     const targetPath = try util.buildEpubFilePath(contentFolderName ++ "/xhtml/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     //try session.targetFileContents.put(targetPath, ""); // Don't
                     return .{ targetPath, true };
@@ -374,7 +374,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
         //    const ext = std.Io.Dir.path.extension(relPath);
         //    const targetPath = util.buildEpubFilePath("html/", relPath[0 .. relPath.len - ext.len], ".xhtml", session.arenaAllocator);
         //
-        //    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+        //    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
         //    //try session.targetFileContents.put(targetPath, ""); // Don't
         //
         //    return .{targetPath, true};
@@ -388,11 +388,11 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const info = try session.appContext.getBuiltinFileInfo(name);
 
                     const targetPath = try util.buildEpubFilePathWithContentHashBase64(folderName, name, info.content, session.arenaAllocator);
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try builder.zip.addFile(targetPath, info.content, compressIt);
 
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
                     try session.targetFileContents.put(targetPath, info.content);
                     return .{ targetPath, true };
                 },

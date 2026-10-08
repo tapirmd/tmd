@@ -34,7 +34,7 @@ pub fn tryToSetExplanationBlock(self: *BlockArranger, firstLevelHeaderBlock: *co
     std.debug.assert(block.nestingDepth == baseContext.nestingDepth + 1);
 
     if (block.type != .quotation) return;
-    if (builtin.mode == .Debug) if (block.next()) |s| {
+    if (builtin.mode == .debug) if (block.next()) |s| {
         switch (s.type) {
             .header => std.debug.assert(s == firstLevelHeaderBlock),
             .attributes => std.debug.assert(s.nextSibling() == firstLevelHeaderBlock),
@@ -46,7 +46,7 @@ pub fn tryToSetExplanationBlock(self: *BlockArranger, firstLevelHeaderBlock: *co
 
         //std.debug.print("b.type: {s}\n", .{@tagName(b.type)});
 
-        if (builtin.mode == .Debug) if (b.nextSibling()) |s| {
+        if (builtin.mode == .debug) if (b.nextSibling()) |s| {
             switch (s.type) {
                 .quotation => std.debug.assert(s == block),
                 .attributes => std.debug.assert(s.nextSibling() == block),
@@ -202,7 +202,7 @@ pub fn stackContainerBlock(self: *BlockArranger, block: *tmd.Block) !void {
 }
 
 fn assertBaseOpeningListCount(self: *BlockArranger) void {
-    if (builtin.mode == .Debug) {
+    if (builtin.mode == .debug) {
         var baseContext = &self.openingBaseBlocks[self.baseCount_1];
 
         var count: @TypeOf(baseContext.openingListCount) = 0;
@@ -401,7 +401,7 @@ fn clearListContextInBase(self: *BlockArranger, forClosingBase: bool) void {
 
 fn stackAsFirstInContainer(self: *BlockArranger, block: *tmd.Block) !void {
     const last = self.stackedBlocks[self.count_1];
-    if (builtin.mode == .Debug) std.debug.assert(last.isContainer());
+    if (builtin.mode == .debug) std.debug.assert(last.isContainer());
     std.debug.assert(last.nestingDepth == self.count_1);
 
     std.debug.assert(block.type != .blank);
@@ -417,7 +417,7 @@ fn stackAsFirstInContainer(self: *BlockArranger, block: *tmd.Block) !void {
 
 // block can an either atom or base block.
 pub fn stackAtomBlock(self: *BlockArranger, block: *tmd.Block, firstInContainer: bool) !void {
-    if (builtin.mode == .Debug) std.debug.assert(block.isAtom() or block.type == .base or block.type == .list);
+    if (builtin.mode == .debug) std.debug.assert(block.isAtom() or block.type == .base or block.type == .list);
     if (firstInContainer) {
         try self.stackAsFirstInContainer(block);
         return;

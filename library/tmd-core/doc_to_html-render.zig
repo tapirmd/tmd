@@ -973,7 +973,7 @@ pub const TmdRender = struct {
                 try self.renderTableBlocks_WithoutCells(w, tableBlock);
         } else try self.renderTableBlock_RowOriented(w, tableBlock, child);
 
-        if (false and builtin.mode == .Debug) {
+        if (false and builtin.mode == .debug) {
             if (columnOriented) {
                 if (child.nextSibling()) |sibling|
                     try self.renderTableBlock_RowOriented(w, tableBlock, sibling)
@@ -1405,7 +1405,7 @@ pub const TmdRender = struct {
                                 isNonBareSpoilerLine = true;
                             },
                             .undisplayed => {
-                                if (builtin.mode == .Debug and !m.more.isBare) {
+                                if (builtin.mode == .debug and !m.more.isBare) {
                                     const plainTextElement = tokenElement.next.?;
                                     const plainTextToken = &plainTextElement.value;
 

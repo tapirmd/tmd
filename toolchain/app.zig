@@ -87,8 +87,8 @@ fn listCommands(w: *std.Io.Writer) !void {
     , .{});
 
     const unionTypeInfo = @typeInfo(Command).@"union";
-    inline for (unionTypeInfo.fields) |unionField| {
-        if (@hasDecl(unionField.type, "notUserFaced")) continue;
+    inline for (unionTypeInfo.field_names, unionTypeInfo.field_types) |fieldName, fieldType| {
+        if (@hasDecl(fieldType, "notUserFaced")) continue;
 
         try w.print(
             \\  {s} {s}
@@ -96,7 +96,7 @@ fn listCommands(w: *std.Io.Writer) !void {
             \\
             \\
         ,
-            .{ unionField.name, unionField.type.argsDesc(), unionField.type.briefDesc() },
+            .{ fieldName, fieldType.argsDesc(), fieldType.briefDesc() },
         );
     }
 }
@@ -106,7 +106,7 @@ const Helper = struct {
         const unionTypeInfo = @typeInfo(Command).@"union";
 
         const command = switch (args.len) {
-            0 => unionTypeInfo.fields[unionTypeInfo.fields.len - 1].name,
+            0 => unionTypeInfo.field_names[unionTypeInfo.field_names.len - 1],
             1 => args[0],
             else => {
                 try ctx.stderr.print("Too many arguments.\n\n", .{});

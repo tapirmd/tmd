@@ -60,7 +60,7 @@ fn verifyBlockSiblings(tmdDoc: *const tmd.Doc) void {
 }
 
 pub fn verifyTmdDoc(tmdDoc: *const tmd.Doc) void {
-    if (builtin.mode != .Debug) return;
+    if (builtin.mode != .debug) return;
 
     verifyBlockSiblings(tmdDoc);
 }

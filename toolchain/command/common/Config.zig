@@ -94,7 +94,7 @@ pub const FilePath = union(enum) {
 
             var hasher = std.hash.Wyhash.init(0);
 
-            const tag: u8 = @intFromEnum(key);
+            const tag: u8 = @backingInt(key);
             hasher.update(std.mem.asBytes(&tag));
             const pathValue = key.path();
             hasher.update(pathValue);
@@ -105,8 +105,8 @@ pub const FilePath = union(enum) {
         pub fn eql(self: @This(), a: FilePath, b: FilePath) bool {
             _ = self;
 
-            const tag_a: u8 = @intFromEnum(a);
-            const tag_b: u8 = @intFromEnum(b);
+            const tag_a: u8 = @backingInt(a);
+            const tag_b: u8 = @backingInt(b);
             if (tag_a != tag_b) return false;
 
             const path_a = a.path();

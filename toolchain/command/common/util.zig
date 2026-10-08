@@ -245,7 +245,7 @@ pub fn buildEpubFilePath(prefix: []const u8, validatedPath: []const u8, suffix: 
 
 // prefix has already used posix seperator.
 pub fn buildEpubFilePathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
-    if (builtin.mode == .Debug and prefix.len > 0) {
+    if (builtin.mode == .debug and prefix.len > 0) {
         const c = prefix[prefix.len - 1];
         std.debug.assert(c == '/');
 
@@ -339,7 +339,7 @@ pub fn buildHashString(fileContent: []const u8, allocator: std.mem.Allocator) ![
 // folder and sep should be already lower-cased.
 // All other parts will be lowered case, so that the output is wholly lowered-case.
 pub fn buildAssetFilePath(folderEndingWithSep: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![]const u8 {
-    if (builtin.mode == .Debug and folderEndingWithSep.len > 0) {
+    if (builtin.mode == .debug and folderEndingWithSep.len > 0) {
         const c = folderEndingWithSep[folderEndingWithSep.len - 1];
         std.debug.assert(c == '/' or c == '\\');
 

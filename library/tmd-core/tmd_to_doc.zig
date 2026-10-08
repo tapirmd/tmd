@@ -31,7 +31,7 @@ pub fn parse_tmd(tmdData: []const u8, allocator: std.mem.Allocator) !tmd.Doc {
     };
     try docParser.parseAll();
 
-    if (builtin.mode == .Debug) tmdDoc.verify();
+    if (builtin.mode == .debug) tmdDoc.verify();
 
     return tmdDoc;
 }

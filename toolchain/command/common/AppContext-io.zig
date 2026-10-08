@@ -57,12 +57,12 @@ pub const ContentCacheKey = struct {
 
             if (key.contentOp) |op| {
                 hasher.update(std.mem.asBytes(&one));
-                const tag: u8 = @intFromEnum(op);
+                const tag: u8 = @backingInt(op);
                 hasher.update(std.mem.asBytes(&tag));
             } else hasher.update(std.mem.asBytes(&zero));
 
             {
-                const tag: u8 = @intFromEnum(key.filePath);
+                const tag: u8 = @backingInt(key.filePath);
                 hasher.update(std.mem.asBytes(&tag));
                 const path = key.filePath.path();
                 hasher.update(path);
@@ -75,8 +75,8 @@ pub const ContentCacheKey = struct {
             _ = self;
             if (a.contentOp != b.contentOp) return false;
 
-            const tag_a: u8 = @intFromEnum(a.filePath);
-            const tag_b: u8 = @intFromEnum(b.filePath);
+            const tag_a: u8 = @backingInt(a.filePath);
+            const tag_b: u8 = @backingInt(b.filePath);
             if (tag_a != tag_b) return false;
 
             const path_a = a.filePath.path();

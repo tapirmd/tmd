@@ -287,8 +287,8 @@ const TemplateFunctions = struct {
 
 pub fn collectTemplateFunctions(ctx: *AppContext) !void {
     const structTypeInfo = @typeInfo(TemplateFunctions).@"struct";
-    inline for (structTypeInfo.decls) |decl| {
-        try ctx._templateFunctions.put(decl.name, @ptrCast(@alignCast(&@field(TemplateFunctions, decl.name))));
+    inline for (structTypeInfo.decl_names) |declName| {
+        try ctx._templateFunctions.put(declName, @ptrCast(@alignCast(&@field(TemplateFunctions, declName))));
     }
 }
 

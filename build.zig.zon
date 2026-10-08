@@ -3,8 +3,13 @@
     .fingerprint = 0x3635a9355d440cbe,
     // Remember to also update the one in sidebar.tmd. (ToDo: auto sync).
     .version = "0.1.0-preview",
-    .dependencies = .{},
-    .minimum_zig_version = "0.15.2",
+    .dependencies = .{
+        .translate_c = .{
+            .url = "git+https://codeberg.org/ziglang/translate-c#875969d3493e245e01bf5d7860f792d8f3eb9ef5",
+            .hash = "translate_c-0.0.0-Q_BUWoFOBwAhz77Zd15HCVuhTKzdUKc94kezmCeJ7IC_",
+        },
+    },
+    .minimum_zig_version = "0.17.0",
 
     .paths = .{
         "",

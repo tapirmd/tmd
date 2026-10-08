@@ -61,7 +61,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                         return error.FileOutOfProject;
                     }
                     const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ "#", sourceAbsPath[project.path.len + 1 ..] });
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     //try session.targetFileContents.put(targetPath, ""); // Don't
                     return .{ targetPath, true };
@@ -75,7 +75,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const info = try session.appContext.getBuiltinFileInfo(name);
 
                     const targetPath = try util.buildEmbeddedImageHref(info.extension, info.content, session.arenaAllocator);
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try session.targetFileContents.put(targetPath, "");
                     return .{ targetPath, true };
@@ -106,7 +106,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
 
                     // ToDo: why buildHashString?
                     const targetPath = try util.buildHashString(info.content, session.arenaAllocator);
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try session.targetFileContents.put(targetPath, info.content);
                     return .{ targetPath, true };

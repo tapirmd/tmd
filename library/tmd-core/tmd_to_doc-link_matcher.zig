@@ -729,7 +729,7 @@ pub fn matchLinks(self: *const LinkMatcher) !void {
 
                     break AttributeParser.parseLinkURL(tmd.trimBlanks(str), false);
                 } else {
-                    if (builtin.mode == .Debug) {
+                    if (builtin.mode == .debug) {
                         std.debug.assert(AttributeParser.parseLinkURL(str, false).manner == .undetermined);
                     }
 

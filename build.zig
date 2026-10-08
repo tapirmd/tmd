@@ -145,15 +145,17 @@ pub fn build(b: *std.Build) !void {
 
     // toolchain dependencies
 
-    const miniz_c = b.addTranslateC(.{
-        .root_source_file = b.path("dependencies/miniz/miniz.h"),
+    const translate_c = b.dependency("translate_c", .{});
+    const Translator = @import("translate_c").Translator;
+    const miniz_c: Translator = .init(translate_c, .{
+        .c_source_file = b.path("dependencies/miniz/miniz.h"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
     miniz_c.addIncludePath(b.path("dependencies/miniz"));
 
-    toolchainCommand.root_module.addImport("miniz", miniz_c.createModule());
+    toolchainCommand.root_module.addImport("miniz", miniz_c.mod);
     //toolchainCommand.root_module.addIncludePath(b.path("dependencies/miniz"));
     toolchainCommand.root_module.addCSourceFiles(.{
         .root = b.path("dependencies/miniz"),
@@ -163,7 +165,7 @@ pub fn build(b: *std.Build) !void {
     // run toolchain cmd
 
     const runTmdCommand = b.addRunArtifact(toolchainCommand);
-    if (b.args) |args| runTmdCommand.addArgs(args);
+    runTmdCommand.addPassthruArgs();
 
     const runStep = b.step("run", "Run tmd command");
     runStep.dependOn(&runTmdCommand.step);
@@ -174,7 +176,7 @@ pub fn build(b: *std.Build) !void {
         .cpu_arch = .wasm32,
         .os_tag = .freestanding,
     });
-    const wasmOptimize: std.builtin.OptimizeMode = .ReleaseSmall;
+    const wasmOptimize: std.lang.Optimize = .small;
 
     const wasmLibModule = b.addModule("tmd-wasm", .{
         .root_source_file = b.path("library/tmd-wasm/wasm.zig"),
@@ -204,64 +206,28 @@ pub fn build(b: *std.Build) !void {
     const wasmStep = b.step("wasm", "Build wasm lib");
     wasmStep.dependOn(&installWasm.step);
 
+    // Used in below several places.
+    const file_injector = b.addExecutable(.{
+        .name = "file-injector",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tools/inject-file-content.zig"),
+            .target = b.graph.host,
+        }),
+    });
+
     // js
+    const jsLibFilename = "tmd-with-wasm.js";
 
-    // ToDo: write a replace-file-placeholder cmd
-    //       and use LazyPath, Build.Step.Run.captureStdOut and Build.addWriteFile
-    //       to unify/simplfy the GenerateJsLib and CompletePlayPage steps.
+    const wasm_injector = b.addRunArtifact(file_injector);
+    wasm_injector.addArg("base64");
+    wasm_injector.addFileArg(b.path("library/tmd-js/tmd-with-wasm-template.js"));
+    wasm_injector.addArg("<wasm-file-as-base64-string>");
+    wasm_injector.addFileArg(installWasm.emitted_bin.?);
+    const js_output_file = wasm_injector.addOutputFileArg2(jsLibFilename, .{});
+    wasm_injector.step.dependOn(&installWasm.step);
 
-    const GenerateJsLib = struct {
-        step: std.Build.Step,
-        jsLibPath: std.Build.LazyPath,
-        dest_sub_path: []const u8 = "tmd-with-wasm.js",
-        wasmInstallArtifact: *std.Build.Step.InstallArtifact,
-
-        pub fn create(theBuild: *std.Build, jsLibPath: std.Build.LazyPath, wasmInstall: *std.Build.Step.InstallArtifact) !*@This() {
-            const self = try theBuild.allocator.create(@This());
-            self.* = .{
-                .step = std.Build.Step.init(.{
-                    .id = .custom,
-                    .name = "generate JavaScript lib",
-                    .owner = theBuild,
-                    .makeFn = make,
-                }),
-                .jsLibPath = jsLibPath,
-                .wasmInstallArtifact = wasmInstall,
-            };
-            return self;
-        }
-
-        fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
-            const self: *@This() = @alignCast(@fieldParentPtr("step", step));
-
-            const needle = "<wasm-file-as-base64-string>";
-
-            const theBuild = step.owner;
-            var dir = try self.jsLibPath.getPath3(theBuild, null).openDir(theBuild.graph.io, "", .{});
-            defer dir.close(theBuild.graph.io);
-            const oldContent = try dir.readFileAlloc(theBuild.graph.io, "tmd-with-wasm-template.js", theBuild.allocator, .limited(1 << 19));
-            if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.Io.Dir.openDirAbsolute(theBuild.graph.io, theBuild.lib_dir, .{});
-                const wasmFileName = self.wasmInstallArtifact.dest_sub_path;
-                const wasmContent = try libDir.readFileAlloc(theBuild.graph.io, wasmFileName, theBuild.allocator, .limited(1 << 19));
-                const file = try libDir.createFile(theBuild.graph.io, self.dest_sub_path, .{ .truncate = true });
-                defer file.close(
-                    theBuild.graph.io,
-                );
-
-                var buffer: [4096]u8 = undefined;
-                var writer = file.writer(theBuild.graph.io, &buffer);
-                const w = &writer.interface;
-                try w.writeAll(oldContent[0..k]);
-                try std.base64.standard.Encoder.encodeWriter(w, wasmContent);
-                try w.writeAll(oldContent[k + needle.len ..]);
-                try w.flush();
-            } else return error.WasmNeedleNotFound;
-        }
-    };
-
-    const installJsLib = try GenerateJsLib.create(b, b.path("library/tmd-js"), installWasm);
-    installJsLib.step.dependOn(&installWasm.step);
+    const installJsLib = b.addInstallFileWithDir(js_output_file, .lib, jsLibFilename);
+    installJsLib.step.dependOn(&wasm_injector.step);
 
     const jsLibStep = b.step("js", "Build JavaScript lib");
     jsLibStep.dependOn(&installJsLib.step);
@@ -281,80 +247,28 @@ pub fn build(b: *std.Build) !void {
     buildWebsite.addArg("build");
     buildWebsite.addArg("documentation/pages");
 
-    const CompletePlayPage = struct {
-        step: std.Build.Step,
-        docPagesPath: std.Build.LazyPath,
-        jsLibInstallArtifact: *GenerateJsLib,
+    // complete play page
+    const play_page_path = b.path("documentation/pages/@tmd-build/pages/versions/latest/play.html");
 
-        pub fn create(theBuild: *std.Build, docPath: std.Build.LazyPath, jsLibInstall: *GenerateJsLib) !*@This() {
-            const self = try theBuild.allocator.create(@This());
-            self.* = .{
-                .step = std.Build.Step.init(.{
-                    .id = .custom,
-                    .name = "complete play page",
-                    .owner = theBuild,
-                    .makeFn = make,
-                }),
-                .docPagesPath = docPath,
-                .jsLibInstallArtifact = jsLibInstall,
-            };
-            return self;
-        }
+    const js_injector = b.addRunArtifact(file_injector);
+    js_injector.addArg("none");
+    js_injector.addFileArg(play_page_path);
+    js_injector.addArg("[js-lib-file]");
+    js_injector.addFileArg(js_output_file);
+    js_injector.addFileArg(play_page_path);
 
-        fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
-            const self: *@This() = @alignCast(@fieldParentPtr("step", step));
+    js_injector.step.dependOn(&buildWebsite.step);
 
-            const needle = "[js-lib-file]";
-
-            const jsLibFileName = self.jsLibInstallArtifact.dest_sub_path;
-            const theBuild = step.owner;
-            var dir = try self.docPagesPath.getPath3(theBuild, null).openDir(theBuild.graph.io, "", .{});
-            defer dir.close(theBuild.graph.io);
-            var outputDir = try dir.openDir(theBuild.graph.io, "@tmd-build", .{});
-            defer outputDir.close(theBuild.graph.io);
-            var outputPagesDir = try outputDir.openDir(theBuild.graph.io, "pages", .{});
-            defer outputPagesDir.close(theBuild.graph.io);
-            const playPagePath = try std.Io.Dir.path.join(theBuild.allocator, &.{ "versions", "latest", "play.html" });
-            const oldContent = try outputPagesDir.readFileAlloc(theBuild.graph.io, playPagePath, theBuild.allocator, .limited(1 << 19));
-            if (std.mem.indexOf(u8, oldContent, needle)) |k| {
-                const libDir = try std.Io.Dir.openDirAbsolute(theBuild.graph.io, theBuild.lib_dir, .{});
-                const jsLibContent = try libDir.readFileAlloc(theBuild.graph.io, jsLibFileName, theBuild.allocator, .limited(1 << 19));
-                const file = try outputPagesDir.createFile(theBuild.graph.io, playPagePath, .{ .truncate = true });
-                defer file.close(theBuild.graph.io);
-
-                var buffer: [4096]u8 = undefined;
-                var writer = file.writer(theBuild.graph.io, &buffer);
-                const w = &writer.interface;
-                try w.writeAll(oldContent[0..k]);
-                try w.writeAll(jsLibContent);
-                try w.writeAll(oldContent[k + needle.len ..]);
-                try w.flush();
-            } else return error.JsLibNeedleNotFound;
-        }
-    };
-
-    const websitePagesPath = b.path("documentation/pages");
-    const completePlayPage = try CompletePlayPage.create(b, websitePagesPath, installJsLib);
-    completePlayPage.step.dependOn(&buildWebsite.step);
+    // doc
 
     const buildDoc = b.step("doc", "Build documentation");
-    buildDoc.dependOn(&completePlayPage.step);
-
-    RequireOptimizeMode_ReleaseSmall.current = optimize;
-    // ToDo: it looks only the root steps (specified in "go build" commands)
-    //       will call their .makeFn functions. Dependency steps will not call.
-    //       So, here, set .makeFn for both of the two steps.
-    //       And it looks, the "make" methods of custom steps (like CompletePlayPage)
-    //       will always be called. So an alternative way is not add
-    //       RequireOptimizeMode custom step and let the "wasm" step depend on it.
-    buildDoc.makeFn = RequireOptimizeMode_ReleaseSmall.check;
-    wasmStep.makeFn = RequireOptimizeMode_ReleaseSmall.check;
+    buildDoc.dependOn(&js_injector.step);
 
     // fmt
 
     const fmtCode = b.addFmt(.{
         .paths = &.{
-            ".",
+            b.path("."),
         },
     });
     const fmtCodeAndDoc = b.step("fmt", "Format code and documentation");
@@ -369,13 +283,13 @@ const CompileOptions = struct {
     option1: bool = false,
 };
 
-fn collectCompileOptions(b: *std.Build, mode: std.builtin.OptimizeMode) !CompileOptions {
+fn collectCompileOptions(b: *std.Build, mode: std.lang.Optimize) !CompileOptions {
     var c = CompileOptions{
         .version = try retrieveVersionFromZon(b),
     };
 
     if (b.option(bool, "option1", "option 1")) |o| {
-        if (mode == .Debug) c.option1 = o else std.debug.print(
+        if (mode == .debug) c.option1 = o else std.debug.print(
             \\The "options1" definition is ignored, because it is only valid in Debug optimization mode.
             \\
         , .{});
@@ -383,21 +297,6 @@ fn collectCompileOptions(b: *std.Build, mode: std.builtin.OptimizeMode) !Compile
 
     return c;
 }
-
-const RequireOptimizeMode_ReleaseSmall = struct {
-    const required: std.builtin.OptimizeMode = .ReleaseSmall;
-    var current: std.builtin.OptimizeMode = undefined;
-
-    fn check(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
-        if (current == required) return;
-
-        std.debug.print(
-            \\The "{s}" step requires "{s}" optimization mode (-Doptimize={s}), but it is "{s}" now.
-            \\
-        , .{ step.name, @tagName(required), @tagName(required), @tagName(current) });
-        return error.InvalidOptimizeMode;
-    }
-};
 
 fn retrieveVersionFromZon(b: *std.Build) ![]const u8 {
     const zonContent = try std.Io.Dir.cwd().readFileAlloc(b.graph.io, "build.zig.zon", b.allocator, .limited(1 << 16));

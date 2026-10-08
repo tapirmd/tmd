@@ -64,7 +64,7 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const relPath = sourceAbsPath[project.path.len + 1 ..];
                     const ext = std.Io.Dir.path.extension(relPath);
                     const targetPath = try std.mem.concat(session.arenaAllocator, u8, &.{ relPath[0 .. relPath.len - ext.len], ".html" });
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     //try session.targetFileContents.put(targetPath, ""); // Don't
                     return .{ targetPath, true };
@@ -91,11 +91,11 @@ pub fn calTargetFilePath(builder: *@This(), filePath: Config.FilePath, filePurpo
                     const info = try session.appContext.getBuiltinFileInfo(name);
 
                     const targetPath = try util.buildAssetFilePath(folderName, name, info.content, session.arenaAllocator);
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
 
                     try util.writeFile(builder.session.appContext.io, builder.buildOutputPath, targetPath, info.content);
 
-                    if (builtin.mode == .Debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
+                    if (builtin.mode == .debug) std.debug.assert(session.targetFileContents.get(targetPath) == null);
                     try session.targetFileContents.put(targetPath, "");
                     return .{ targetPath, true };
                 },

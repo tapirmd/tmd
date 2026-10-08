@@ -145,7 +145,7 @@ pub fn RedBlack(comptime Value: type, comptime CompareNamespace: type) type {
             // otherwise it means duplication is found (so the insertion is not made).
             pub fn insert(t: *Tree, z: *Node) *Node {
                 // Done in the following while loop.
-                // if (builtin.mode == .Debug) {
+                // if (builtin.mode == .debug) {
                 //   std.debug.assert(t.search(z.value) != z);
                 // }
 
@@ -198,7 +198,7 @@ pub fn RedBlack(comptime Value: type, comptime CompareNamespace: type) type {
             // z is in t now. We can call the search method to ensure this.
             // If this can't be ensured, please use the delete method instead.
             pub fn deleteNode(t: *Tree, z: *Node) void {
-                if (builtin.mode == .Debug) {
+                if (builtin.mode == .debug) {
                     std.debug.assert(t.search(z.value) == z);
                 }
 
@@ -440,7 +440,7 @@ pub fn RedBlack(comptime Value: type, comptime CompareNamespace: type) type {
             }
 
             pub fn debugPrint(t: *Tree, comptime printValue: fn (Value) void) void {
-                if (builtin.mode != .Debug) return;
+                if (builtin.mode != .debug) return;
 
                 _debugPrint(t, t.root, 0, printValue);
             }

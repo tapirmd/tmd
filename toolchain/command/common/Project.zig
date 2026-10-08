@@ -357,7 +357,7 @@ pub fn BuildSession(BuilderType: type) type {
                 },
             };
 
-            if (builtin.mode == .Debug and false) {
+            if (builtin.mode == .debug and false) {
                 switch (filePath) {
                     .remote => |url| {
                         std.debug.print(
