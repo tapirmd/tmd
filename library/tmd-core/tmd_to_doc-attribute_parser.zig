@@ -126,7 +126,7 @@ pub fn parse_element_attributes(playload: []const u8) tmd.ElementAttibutes {
                     // classes can't contain periods, but can contain colons.
                     // (This is TMD specific. HTML4 allows periods in classes).
 
-                    // classes are seperated by semicolons.
+                    // classes are separated by semicolons.
 
                     // ToDo: support .class1 .class2?
 
@@ -153,7 +153,7 @@ pub fn parse_element_attributes(playload: []const u8) tmd.ElementAttibutes {
                 else => {
                     break; // break the loop (kvs is not supported now)
 
-                    // // key-value pairs are seperated by SPACE or TAB chars.
+                    // // key-value pairs are separated by SPACE or TAB chars.
                     // // Key parsing is the same as ID parsing.
                     // // Values containing SPACE and TAB chars must be quoted in `...` (the Go literal string form).
                     //

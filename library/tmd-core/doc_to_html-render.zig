@@ -545,9 +545,9 @@ pub const TmdRender = struct {
             },
             .attributes => {},
             .linkdef => {},
-            .seperator => {
+            .separator=> {
                 const tag = "hr";
-                const classes = "tmd-seperator";
+                const classes = "tmd-separator";
 
                 try fns.writeBareTag(w, tag, classes, block.attributes, self.options.identSuffix, true);
             },
@@ -695,7 +695,7 @@ pub const TmdRender = struct {
         while (true) {
             check: {
                 switch (child.type) {
-                    .attributes, .linkdef, .seperator => break :check,
+                    .attributes, .linkdef, .separator=> break :check,
                     .base => |base| if (base.attributes().undisplayed) break :check,
                     .header, .usual, .code, .custom => std.debug.assert(child.isAtom()),
                     .blank => unreachable,
@@ -735,7 +735,7 @@ pub const TmdRender = struct {
                 const rowSpan: u32, const colSpan: u32 = switch (child.type) {
                     .blank => break :handle,
                     .attributes, .linkdef => break :handle,
-                    .seperator => {
+                    .separator=> {
                         toChangeRow = true;
                         break :handle;
                     },
@@ -1088,7 +1088,7 @@ pub const TmdRender = struct {
             },
 
             // atom
-            .seperator, .header, .usual, .attributes, .linkdef, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
+            .separator, .header, .usual, .attributes, .linkdef, .blank, .code, .custom => try self.renderTmdCodeForAtomBlock(w, block, trimBoundaryLines),
         }
     }
 

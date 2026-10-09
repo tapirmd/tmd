@@ -230,7 +230,7 @@ ol.tmd-footnotes > li::marker {
   content: "[" counter(list-item) "]: ";
 }
 
-.tmd-seperator {
+.tmd-separator{
   background-color: #c7923c;
   height: 1px;
   border: none;

@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="utf-8">
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>{{{ page-title-in-head }}}</title>
-<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @tmd-favicon }}">
+<link rel="icon" href="data:image/jpeg;base64,{{ base64-encode @tmd-favicon }}" />
 <style>
 {{ embed-file-content @tmd-css-default }}
 
@@ -15,18 +15,13 @@ html {
   scrollbar-width: thin;
 }
 
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-}
-
 body {
 	min-height: 100vh;
 	display: flex;
 }
 
 nav {
+	margin: 0;
 	width: 216px;
 	font-size: smaller;
 	padding: 0 16px;
@@ -40,14 +35,6 @@ nav {
 nav a.tmd-current-page-url {
 	font-weight: bold;
 	text-decoration: none;
-}
-
-ul,ol,dd {
-	margin-left:1.5em;
-}
-
-p {
-	margin: 1em;
 }
 
 main {

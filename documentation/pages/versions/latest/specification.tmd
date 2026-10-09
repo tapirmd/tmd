@@ -47,7 +47,7 @@ A //**blank character sequence**// is defined as a sequence of blank characters
 and can contain at most one line end.
 If it contains a line end, it must end with the line end.
 
-A //**perceivable blank character sequence**// s defined as a blank character sequence that
+A //**perceivable blank character sequence**// is defined as a blank character sequence that
 satisfies at least one of the following conditions:
 *  it contains at least one whitespace character.
 *  it ends with a line end.
@@ -93,7 +93,7 @@ and an optional blank character sequence which is
 either before or after the punctuation mark characters.
 
 Generally, a plain-text token contains visible characters (including whitespace characters),
-but it may contain invislbe blank characters.
+but it may contain invisible blank characters.
 
 @@@ #block-types
 ###===== Overview of Block Types
@@ -106,7 +106,7 @@ TapirMD supports a variety of block types, categorized into three groups:
    -  usual blocks
    -  header blocks
    -  link-definition blocks
-   -  seperator blocks
+   -  separator blocks
    -  attribute blocks
    -  code blocks
    -  custom (data) blocks
@@ -117,12 +117,12 @@ TapirMD supports a variety of block types, categorized into three groups:
    both base blocks and predefined container blocks
    (with an exception that blank blocks can't be directly nested in
    non-item predefined container blocks).
-
+   ;;;
 *. predefined container blocks
    {
    -  (list) item blocks
    -  table blocks
-   -  quotation/grid blocks
+   -  quotation/explanation blocks
    -  callout blocks
    -  foldable blocks
    -  vanilla blocks
@@ -132,9 +132,9 @@ TapirMD supports a variety of block types, categorized into three groups:
    base and non-blank atom blocks,
    and must be directly nested within a base block.
    ;;;
-   Item blocks can directly nest base, non-blank atom atom, and other item blocks.
+   Item blocks can directly nest base, non-blank atom, and other item blocks.
    More details of item blocks will be described below.
-
+   ;;;
 *. base (container) blocks, including
    {
    -  explicit base blocks
@@ -163,7 +163,7 @@ Within a parent base block,
    but also item predefined container blocks at higher levels.
 -  first-level item predefined container blocks must be directly nested within their parent base block.
 -  non-first-level item predefined container blocks must be directly nested within
-   another item built-in block at a lower level.
+   another item predefined container block at a lower level.
 
 @@@ #line-kinds
 ###===== Data Lines and Tokenized Lines
@@ -172,9 +172,9 @@ Code and custom data blocks are explicitly defined by start and end boundary lin
 The lines between their boundary lines are referred to as //**data lines**//.
 
 The line end of a data line is always viewed as an ASCII Line Feed character,
-even if it is a sequene of ASCII Carriage Return character and An ASCII Line Feed character.
+even if it is a sequence of an ASCII Carriage Return character and an ASCII Line Feed character.
 
-Data lines are not tokenized. All
+Data lines are not tokenized.
 
 Data lines are guaranteed to contain no TapirMD marks.
 Other lines (non-data lines) are referred to as //**tokenized lines**//.
@@ -198,21 +198,21 @@ Blank blocks should be rendered as bare `<p>` elements in the HTML output.
 
 During the line-by-line parsing process,
 a non-item predefined container block starts at a tokenized line that begins with:
-*  an opitional blank token followed by
+*  an optional blank token followed by
 *  a //**predefined-container-leading mark token**// which
    -  begins with a one-character mark and
       +  ends with a perceivable blank character sequence or
       +  is followed by a line-end blank token.
 
 The presentation form of the non-item predefined container block
-depending on the predefined-container-leading mark token:
+depends on the predefined-container-leading mark token:
 -  If the token is `#`, then the block is a table block,
 -  If the token is `!`, then the block is a callout block,
 -  If the token is `?`, then the block is a foldable block,
--  If the token is `|`, then the block is a quotation or explaination block,
+-  If the token is `|`, then the block is a quotation or explanation block,
 -  If the token is `.`, then the block is a vanilla block.
 
-A non-item predefined container bloc will end
+A non-item predefined container block will end
 *  before a following another non-item predefined container block, or
 *  before its parent base block explicitly closes, or
 *  at the end of the containing document, or
@@ -231,11 +231,11 @@ For simplicity, we will refer to item predefined container blocks as //**item bl
 
 Item blocks share some common rules with other predefined container blocks.
 However, since TapirMD supports list nesting in a parent base block,
-the rules for item blocks are some different from the ones for non-item predefined container blocks.
+the rules for item blocks are a bit different from the ones for non-item predefined container blocks.
 
 During line-by-line parsing, an item block starts at a tokenized line
 which begins with
-*  an opitional blank token followed by
+*  an optional blank token followed by
 *  a one-character or two-character //**item predefined-container-leading mark token**// which
    -  ends with a perceivable blank character sequence, or
    -  is followed by a line-end blank token.
@@ -245,7 +245,7 @@ Item predefined-container-leading mark tokens may be
 -  `*.`, `+.`, `-.`, `~.` for ordered lists, and
 -  `=`, `=.` for definition lists.
 
-A sequence of consecutive sibling item blocks form a list.
+A sequence of consecutive sibling item blocks forms a list.
 All the item blocks in a list must share the same leading mark.
 The same leading mark is called the mark of the list.
 
@@ -314,7 +314,7 @@ at the same lines of predefined container blocks.
 
 During line-by-line parsing, when an atom starts or a base block opens,
 *  if the last block is a blank block,
-   then the atom block or base block, alongside with that blank block,
+   then the atom block or base block, alongside that blank block,
    is treated as the direct child of the parent base block.
 *  if the last block is a non-blank atom block,
    then the atom block or base block shares the same parent block
@@ -332,7 +332,7 @@ In the following sections, the rule descriptions for opening base blocks and
 starting atom blocks all ignore leading mark tokens of predefined container blocks.
 
 @@@ #explicit-base-blocks
-###===== Start and End of Explciit Base Blocks
+###===== Start and End of Explicit Base Blocks
 
 During line-by-line parsing, an explciit base block
 *  opens at a tokenized line beginning with a //**base-open-leading mark token**//,
@@ -345,7 +345,7 @@ During line-by-line parsing, an explciit base block
 On the open line of an explciit base block,
 multiple optional attribute tokens may follow the base-open-leading mark token,
 to set some attributes for the explciit base block.
-The optional tokens are seperated by whitespace characters,
+The optional tokens are separated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 %%
@@ -356,8 +356,8 @@ and they must be in the following order (from top to bottom) if present:
 
 Here,
 *  `%%` means the explciit base block is undisplayed (not rendered) in HTML output.
-   However, the internal of the explciit base block will still be parsed.
-*  `<< >> >< <>` are four text horizontal alignment tokens. At most one of them can present.
+   However, the explciit base block will still be parsed.
+*  `<< >> >< <>` are four text horizontal alignment tokens. At most one of them can be present.
    {
    -  `<<` means left-aligned,
    -  `>>` means right-aligned,
@@ -369,7 +369,7 @@ Here,
    It is only meaningful when the explciit base block is used as a table cell.
    It means the table cell is top aligned in vertical.
    By default, table cells are middle aligned in vertical.
-*  `..N:M ..N :M` are three table cell span count tokens. At most one of them can present.
+*  `..N:M ..N :M` are three table cell span count tokens. At most one of them can be present.
    They are only meaningful when the explciit base block is used as a table cell.
    `N` and `M` denote positive integers.
    -  `..N` means N cells span along the major axis of the innermost containing table.
@@ -386,18 +386,18 @@ Base blocks should be rendered as `<div>` elements in HTML output.
 @@@ #attribute-blocks
 ###===== Attribute Blocks
 
-A tokenized line is a //**attribute line**//
-if it begins with an //**attribute line leadng mark token**//, which
+A tokenized line is an //**attribute line**//
+if it begins with an //**attribute line leading mark token**//, which
 *  begins with three or more consecutive `@` characters
 *  and ends with an optional blank character sequence.
 
-A sequence of consecutive attribute lines form a //**attribute block**//.
+A sequence of consecutive attribute lines forms an //**attribute block**//.
 
 On an attribute line, multiple optional attribute tokens may follow
-the attribute line leadng mark token, to set some attributes
+the attribute line leading mark token, to set some attributes
 for the next sibling block of the containing attribute block,
 if the next sibling block exists.
-The optional tokens are seperated by whitespace characters,
+The optional tokens are separated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 #id
@@ -406,7 +406,8 @@ and they must be in the following order (from top to bottom) if present:
 
 Here,
 *  `#id` specifies a block ID (`id` can be any valid HTML4 ID identifier).
-*  `.class1;class2` specifies some classes (`class1` and `class2` can any valid HTML4 class name identifers).
+*  `.class1;class2` specifies some classes (`class1` and `class2` can
+   be any valid HTML4 class name identifiers).
 
 A TapirMD parser should try to parse as many attribute tokens as possible.
 The remaining un-parsed texts are ignored.
@@ -417,23 +418,20 @@ The remaining un-parsed texts are ignored.
 If an attribute is defined more than once in multiple lines in an attribute block,
 the first definition is chosen.
 
-If an attibute block has not a next sibling block but a previous sibling block,
+If an attribute block has not a next sibling block but a previous sibling block,
 then the previous sibling block will be wrapped in an (implicit) footer block,
-and the attributes defined in the attibute block are set on the footer block.
+and the attributes defined in the attribute block are set on the footer block.
 
-!  ### ToDo:
+!  ### Note:
    ;;; If an attribute block has no sibling blocks,
    then the attributes defined in the block are for the containing document.
    Such attirbute blocks should be placed at document beginning.
-
-The classes attributes are just a HTML things, but the ID attributes of blocks are used
-in TapirMD for various purposes.
 
 @@@ #usual-blocks
 ###===== Usual Blocks
 
 A tokenized line is a //**usual line**//
-if it begins with a //**usual block leadng mark token**//, which
+if it begins with a //**usual block leading mark token**//, which
 *  begins with three or more consecutive `;` characters
 *  and ends with an optional blank character sequence.
 
@@ -476,13 +474,13 @@ Multiple optional plain usual lines can follow a header line and also belong to
 the same header block starting at the header line.
 
 A header block
-*  is first-level if its header block leading mark token contains only `#` charactors.
-*  is second-level if its header block leading mark token contains `=` charactors.
-*  is third-level if its header block leading mark token contains `-` charactors.
+*  is first-level if its header block leading mark token contains only `#` characters.
+*  is second-level if its header block leading mark token contains `=` characters.
+*  is third-level if its header block leading mark token contains `-` characters.
 
 A header block is called a //**bare header block**// if it only contains
 one non-blank token (its header block leading mark token).
-Bare header blocks are not trreated as headers in the containing document.
+Bare header blocks are not treated as headers in the containing document.
 Bare header blocks are rendered as a TOC (table of contents) block in HTML output.
 Because of this, bare header blocks are also called TOC blocks.
 Generally, a TapirMD document should contain only at most one bare header block.
@@ -504,7 +502,7 @@ A third-level TOC block (bare header block) lists first-level, second-level and 
 A second-level TOC block only lists first-level and second-level TOC headers.
 A first-level TOC block only lists first-level TOC headers.
 
-Note that first-level header blocks have differnt semantics
+Note that first-level header blocks have different semantics
 when they are the first non-attribute children of predefined container blocks.
 
 @@@ #inline-marks
@@ -552,14 +550,14 @@ Here is the list of all line-leading mark tokens supported now.
    ### //mark-escaping token
    ;;; ^`!!`
    {
-   Within the containig line (called an //**mark-escaped line**//),
+   Within the containing line (called an //**mark-escaped line**//),
    the text following the perceivable blank token is guaranteed to not contain other mark tokens.
    }
    ----------------
    ### //spoiler token
    ;;; ^`??`
    {
-   Within the containig line (called a //**spolier line**//),
+   Within the containing line (called a //**spoiler line**//),
    the text following the perceivable blank token is hidden in generated HTML.
    Note,
    -  the text is also mark-escaped.
@@ -573,7 +571,7 @@ Here is the list of all line-leading mark tokens supported now.
        \\ ^`<<`
        \\ ^`>>`
    {
-   Within the containig line (called a //**media-embedding line**//),
+   Within the containing line (called a //**media-embedding line**//),
    the text following the perceivable blank token is also mark-escaped.
    Currently, the text must be a valid image URI, whether relative or absolute.
 
@@ -593,7 +591,7 @@ Here is the list of all line-leading mark tokens supported now.
    *  `.jpeg
 
    !  ### NOTE:
-      ;;; The image URI validation rules might be adjuested with more details later.
+      ;;; The image URI validation rules might be adjusted with more details later.
 
    Media-embedding tokens belong to content tokens.
    }
@@ -607,7 +605,7 @@ Here is the list of all line-leading mark tokens supported now.
    ### //undisplayed token
    ;;; ^`%%`
    {
-   Within the containig line (called a //**undisplayed line**//),
+   Within the containing line (called ab //**undisplayed line**//),
    the text following the perceivable blank token is mark-escaped
    and is undisplayed in HTML output.
    }
@@ -657,7 +655,7 @@ Content tokens include
 @@@ #style-marks
 ###----- Style mark tokens
 
-Each style mark token type is asccociated with a specified ASCII punctuation character.
+Each style mark token type is associated with a specified ASCII punctuation character.
 The character is called the //**mark character**// of that style type.
 
 Style mark tokens have opening and closing semantics.
@@ -771,7 +769,7 @@ A not-empty hyperlink span will be rendered as a hyperlink in HTML output.
 *  If the hyperlink span contains only one content token,
    that token is used as the text of the hyperlink.
 *  If the hyperlink span contains multiple content tokens and if the last content token
-   is a valid URL (see blow), then the content tokens except the last one
+   is a valid URL (see below), then the content tokens except the last one
    are used as the text of the hyperlink.
 *  Otherwise, all content tokens in the hyperlink span are used as the link text of the hyperlink.
 
@@ -801,7 +799,7 @@ A content token is a valid URL if its text
 If a hyperlink span only contains a `#fragment` token,
 then the hyperlink span is viewed as a footnote reference.
 The corresponding footnote is defined in the block specified with ID as `fragment`.
-Generally, footnote definition blocks should be placed in an explcit base block
+Generally, footnote definition blocks should be placed in an explicit base block
 which is commented out.
 
 Footnote blocks will be always rendered at the end of HTML output.
@@ -847,7 +845,7 @@ How matching texts are generated:
 *  All content tokens of a hyperlink span are combined into a single text.
    All content tokens of a link-definition block, except the last one,
    are combined into a single text.
-*  If a __line-end space__ is bewteen two combined content tokens, it is viewed as
+*  If a __line-end space__ is between two combined content tokens, it is viewed as
    a ASCII Space character and also combined.
 *  All leading and trailing blank characters of final combined single texts are trimmed.
    Successive middle whitespace characters are collapsed into one ASCII Space character (Unicode: U+0020).
@@ -888,17 +886,17 @@ cases happens:
    If it turns out that making the rules overly complex is necessary to achieve perfection,
    then the rules will have been made imperfect for their intended purpose.
 
-@@@ #seperator-blocks
-###===== Seperator Blocks
+@@@ #separator -blocks
+###===== Separator‌ Blocks
 
-A tokenized line is a //**seperator line**//
-if it begins with a //**seperator leadng mark token**//, which
+A tokenized line is a //**separator line**//
+if it begins with a //**separator leading mark token**//, which
 comprises three or more consecutive `-` characters followed by a line-end blank token.
 
-Each seperator line forms a //**seperator block**//.
+Each separator line forms a //**separator block**//.
 
-Generally, a seperator block should be rendered as horizontal rule (the `<hr>` element).
-However, please note that seperator blocks directly nested in table blocks have alternative semantics.
+Generally, a separator block should be rendered as horizontal rule (the `<hr>` element).
+However, please note that separator blocks directly nested in table blocks have alternative semantics.
 
 @@@ #code-blocks
 ###===== Code Blocks
@@ -925,7 +923,7 @@ especially programming language code snippets.
 On the start boundary line of a code block,
 multiple optional attribute tokens may follow the code-block-leading mark token,
 to set some attributes for the code block.
-The optional tokens are seperated by whitespace characters,
+The optional tokens are separated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 %%
@@ -943,7 +941,7 @@ The remaining un-parsed texts are ignored.
 On the end boundary line of a code block,
 multiple optional tokens may follow the code block end leading mark token,
 to stream the TapirMD source to the code block.
-The optional tokens are seperated by perceivable blank tokens,
+The optional tokens are separated by perceivable blank tokens,
 and they must be in the following order (from top to bottom) if present:
 '''
 <<
@@ -951,7 +949,7 @@ and they must be in the following order (from top to bottom) if present:
 '''
 
 Here,
-*  `<<` just implies the streaming directtion.
+*  `<<` just implies the streaming direction.
 *  `#id` specifies the block to be streamed.
 
 A TapirMD parser should try to parse as many attribute tokens as possible.
@@ -978,12 +976,12 @@ During line-by-line parsing, a custom block
 
 The lines except boundary lines in a custom block are // data lines //.
 
-The main purepose of custom blocks is to extend TapirMD by supporting user data blocks.
+The main purpose of custom blocks is to extend TapirMD by supporting user data blocks.
 
 On the start boundary line of a custom block,
 multiple optional attribute tokens may follow the custom-block-leading mark token,
 to set some attributes for the custom block.
-The optional tokens are seperated by whitespace characters,
+The optional tokens are separated by whitespace characters,
 and they must be in the following order (from top to bottom) if present:
 '''
 %%
@@ -996,7 +994,7 @@ Here,
 *  `content-type` means the content type of the custom block.
    It is used to identify which custom block generator will be used to generate HTML
    the custom block.
-*  `arguments-of-custom-block-generator` will be passed to the identified ustom block generator
+*  `arguments-of-custom-block-generator` will be passed to the identified custom block generator
    during HTML generation for the custom block.
 
 A TapirMD parser should try to parse as many attribute tokens as possible.
@@ -1161,10 +1159,10 @@ of table blocks can be either base blocks or any atom blocks.
    -----------
    ### link-definition blocks
    {
-   Link-definition blocks blocks in table blocks have no table-specific semantics.
+   Link-definition blocks in table blocks have no table-specific semantics.
    }
    -----------
-   ### seperator blocks
+   ### separator blocks
    ;;; delimiters of table rows or columns
    {
    The child blocks in a table block are divided into multiple block groups
@@ -1287,7 +1285,7 @@ The vertical text alignment of table cells is always middle.
 Quotation and explanation blocks start with the same mark: `|`.
 If the first non-attribute child block of a container block starting with `|`
 is a first-level header block, then the container block
-is a explanation container block; otherwise, it is a quoration block.
+is a explanation container block; otherwise, it is a quotation block.
 
 ?  ### (a quotation block example)
    {
@@ -1409,7 +1407,7 @@ the first-level header block is rendered as the always-visible title of the fold
       ?  ### Why TapirMD?
          {
 
-         The main purpose of TapirMD is to intvent a powerful markup language
+         The main purpose of TapirMD is to invent a powerful markup language
          which is both readable and easily extensible.
 
          I believe TapirMD will boost my technical writing productivity.
@@ -1438,7 +1436,7 @@ then the first-level header block is rendered with a specific header style.
       const std = @import("std");
 
       pub fn main() void {
-          std.debug.print("Zig is fast as lighting.\n", .{});
+          std.debug.print("Zig is fast as lightning.\n", .{});
       }
          '''
       }
@@ -1489,7 +1487,7 @@ _ (underscore)
 ,
 '''
 
-The following punctuation character sequencs are potential atom block leading marks.
+The following punctuation character sequences are potential atom block leading marks.
 They should be escaped when they appear at usual line beginning if they are used as general texts.
 '''
 +++

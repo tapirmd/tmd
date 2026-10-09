@@ -224,7 +224,7 @@ test _validatePathIntoBuffer {
 //    return .{ urlToValidate, false };
 //}
 
-// validatedPath uses OS specified seperator.
+// validatedPath uses OS specified separator.
 pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Allocator) []const u8 {
     if (std.Io.Dir.path.sep == std.Io.Dir.path.sep_posix) return validatedPath;
 
@@ -233,8 +233,8 @@ pub fn validatedPathToPosixPath(validatedPath: []const u8, allocator: std.mem.Al
     return dup;
 }
 
-// prefix and suffix have already used posix seperator.
-// validatedPath uses OS specified seperator.
+// prefix and suffix have already used posix separator.
+// validatedPath uses OS specified separator.
 pub fn buildEpubFilePath(prefix: []const u8, validatedPath: []const u8, suffix: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
     const out = try std.mem.concatWithSentinel(allocator, u8, &.{ prefix, validatedPath, suffix }, 0);
     if (std.Io.Dir.path.sep != std.Io.Dir.path.sep_posix) {
@@ -243,7 +243,7 @@ pub fn buildEpubFilePath(prefix: []const u8, validatedPath: []const u8, suffix: 
     return out;
 }
 
-// prefix has already used posix seperator.
+// prefix has already used posix separator.
 pub fn buildEpubFilePathWithContentHashBase64(prefix: []const u8, fileBasename: []const u8, fileContent: []const u8, allocator: std.mem.Allocator) ![:0]u8 {
     if (builtin.mode == .debug and prefix.len > 0) {
         const c = prefix[prefix.len - 1];

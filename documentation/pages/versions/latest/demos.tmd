@@ -360,6 +360,6 @@ pub fn main() void {
 
    `` ! This is not a **callout box**.
 
-   `` %% This is not a //undisplayed line//.
+   `` %% This is not an //undisplayed line//.
    }
 

@@ -747,7 +747,7 @@ pub const BlockType = union(enum) {
         pub const Atom = void;
     },
 
-    seperator: struct {
+    separator: struct {
         startLine: *Line = undefined,
         endLine: *Line = undefined,
 
@@ -966,7 +966,7 @@ pub const Line = struct {
         blank,
         usual,
         header,
-        seperator,
+        separator,
         linkdef,
         attributes,
 

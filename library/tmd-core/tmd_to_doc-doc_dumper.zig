@@ -57,7 +57,7 @@ pub fn dumpTmdDoc(tmdDoc: *const tmd.Doc) void {
                 .blank,
                 .usual,
                 .header,
-                .seperator,
+                .separator,
                 .attributes,
                 .linkdef,
                 .baseBlockOpen,

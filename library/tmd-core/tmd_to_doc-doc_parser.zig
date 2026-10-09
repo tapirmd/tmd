@@ -530,7 +530,7 @@ fn parse(parser: *DocParser) !void {
                         if (lineScanner.lineEnd == null) break :handle;
                     }
 
-                    line.type = .seperator;
+                    line.type = .separator;
                     (try parser.createTokenForLine(line)).* = .{
                         .lineTypeMark = .{
                             .start = @intCast(leadingBlankEnd),
@@ -541,7 +541,7 @@ fn parse(parser: *DocParser) !void {
 
                     const lineBlock = try parser.createAndPushBlockElement();
                     lineBlock.type = .{
-                        .seperator = .{
+                        .separator= .{
                             .startLine = line,
                         },
                     };

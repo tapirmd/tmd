@@ -48,7 +48,7 @@ test "block types" {
         \\        still section
         \\ ---
         \\
-    , &.{ .header, .usual, .blank, .attributes, .code, .usual, .custom, .header, .seperator }));
+    , &.{ .header, .usual, .blank, .attributes, .code, .usual, .custom, .header, .separator}));
 
     try std.testing.expect(try BlockTypeChecker.check(
         \\ * aaa
@@ -81,5 +81,5 @@ test "block types" {
         \\   ;;; cell (2,1)
         \\   ;;; cell (2,2)
         \\
-    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .usual, .item, .usual, .vanilla, .usual, .list, .item, .usual, .blank, .quotation, .usual, .foldable, .header, .usual, .callout, .usual, .base, .usual, .table, .usual, .usual, .seperator, .usual, .usual }));
+    , &.{ .list, .item, .usual, .list, .item, .usual, .item, .usual, .usual, .item, .usual, .vanilla, .usual, .list, .item, .usual, .blank, .quotation, .usual, .foldable, .header, .usual, .callout, .usual, .base, .usual, .table, .usual, .usual, .separator, .usual, .usual }));
 }
