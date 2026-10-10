@@ -25,101 +25,21 @@ pub const ConfigEx = struct {
     };
 };
 
-pub fn getDirectoryConfigAndRoot(ctx1: *AppContext, absDirPath1: []const u8) !struct { *ConfigEx, []const u8, *ConfigEx } {
-    if (ctx1._dirPathToConfigAndRootMap.get(absDirPath1)) |info| return .{ info.configEx, info.rootPath, info.rootConfigEx };
+pub fn getTmdConfigEx(ctx: *AppContext, absPath: []const u8, isDir: bool) !*ConfigEx {
+    if (isDir) return &ctx._defaultConfigEx;
 
-    // ToDo: let this function return this type.
-    const ConfigsAndRoot = @TypeOf(ctx1._dirPathToConfigAndRootMap.get(absDirPath1).?); // yes, not crash.
-
-    const T = struct {
-        fn confirmDirectoryConfigAndRoot(ctx: *AppContext, absDirPath: []const u8, isFirstPath: bool) !?ConfigsAndRoot {
-            if (isFirstPath) {
-                if (builtin.mode == .debug) {
-                    std.debug.assert(ctx._dirPathToConfigAndRootMap.get(absDirPath) == null);
-                }
-            } else if (ctx._dirPathToConfigAndRootMap.get(absDirPath)) |info| {
-                if (info.configEx == &ctx._defaultConfigEx) return null else return info;
-            }
-
-            const workspaceConfigEx = blk: {
-                var pa: util.PathAllocator = .{};
-                const workspaceFilePath = util.resolveRealPath2Alloc(ctx.io, absDirPath, "tmd.workspace", false, pa.allocator()) catch |err| {
-                    if (err != error.FileNotFound) return err;
-                    break :blk null;
-                };
-                //defer ctx.allocator.free(workspaceFilePath);
-                break :blk try ctx.loadTmdConfigEx(workspaceFilePath);
-            };
-
-            const projectConfigEx = blk: {
-                var pa: util.PathAllocator = .{};
-                const projectFilePath = util.resolveRealPath2Alloc(ctx.io, absDirPath, "tmd.project", false, pa.allocator()) catch |err| {
-                    if (err != error.FileNotFound) return err;
-                    break :blk null;
-                };
-                //defer ctx.allocator.free(projectFilePath);
-                break :blk try ctx.loadTmdConfigEx(projectFilePath);
-            };
-
-            const values = if (workspaceConfigEx) |workspaceEx| blk: {
-                ctx.mergeTmdConfig(&workspaceEx.basic, &ctx._defaultConfigEx.basic);
-                const rootPath = std.Io.Dir.path.dirname(workspaceEx.path).?;
-                if (projectConfigEx) |projectEx| {
-                    ctx.mergeTmdConfig(&projectEx.basic, &workspaceEx.basic);
-                    break :blk .{ projectEx, rootPath, workspaceEx };
-                }
-
-                break :blk .{ workspaceEx, rootPath, workspaceEx };
-            } else if (std.Io.Dir.path.dirname(absDirPath)) |parentDir| blk: {
-                if (try confirmDirectoryConfigAndRoot(ctx, parentDir, false)) |info| {
-                    if (projectConfigEx) |projectEx| {
-                        ctx.mergeTmdConfig(&projectEx.basic, &info.rootConfigEx.basic);
-                        break :blk .{ projectEx, info.rootPath, info.rootConfigEx };
-                    }
-
-                    break :blk .{ info.configEx, info.rootPath, info.rootConfigEx };
-                }
-                if (projectConfigEx) |projectEx| {
-                    ctx.mergeTmdConfig(&projectEx.basic, &ctx._defaultConfigEx.basic);
-                    break :blk .{ projectEx, absDirPath, projectEx };
-                }
-
-                break :blk null;
-            } else if (projectConfigEx) |projectEx| blk: {
-                ctx.mergeTmdConfig(&projectEx.basic, &ctx._defaultConfigEx.basic);
-                break :blk .{ projectEx, absDirPath, projectEx };
-            } else null;
-
-            if (values) |info| {
-                const configEx, const rootPath, const rootConfigEx = info;
-
-                const configsAndRoot: ConfigsAndRoot = .{ .configEx = configEx, .rootPath = rootPath, .rootConfigEx = rootConfigEx };
-                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
-                try ctx._dirPathToConfigAndRootMap.put(dirPath, configsAndRoot);
-                return configsAndRoot;
-            } else if (isFirstPath) {
-                std.debug.assert(workspaceConfigEx == null and projectConfigEx == null);
-
-                const configEx = &ctx._defaultConfigEx;
-
-                const dirPath = try ctx.arenaAllocator.dupe(u8, absDirPath);
-                const configsAndRoot: ConfigsAndRoot = .{ .configEx = configEx, .rootPath = dirPath, .rootConfigEx = configEx };
-                try ctx._dirPathToConfigAndRootMap.put(dirPath, configsAndRoot);
-                return configsAndRoot;
-            } else return null;
-        }
-    };
-
-    const info = (try T.confirmDirectoryConfigAndRoot(ctx1, absDirPath1, true)).?;
-    return .{ info.configEx, info.rootPath, info.rootConfigEx };
+    return ctx.loadTmdConfigEx(absPath);
 }
 
+// absFilePath should be an existing file path.
 pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
     var arenaAllocator: std.heap.ArenaAllocator = .init(ctx.allocator);
     defer arenaAllocator.deinit();
 
     var loadedFilesInSession: std.BufSet = .init(arenaAllocator.allocator());
     // defer loadedFilesInSession.deinit();
+
+    std.debug.print("========= absFilePath: {s}\n", .{absFilePath});
 
     return loadTmdConfigInternal(ctx, absFilePath, &loadedFilesInSession);
 }
@@ -136,13 +56,13 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     const configFilePath = try ctx.arenaAllocator.dupe(u8, absFilePath);
     //errdefer ctx.arenaAllocator.free(configFilePath);
 
-    // This line modifies the memory of another hash map.
+    //var configEx = ctx._configPathToExMap.getPtr(configFilePath).?;
+    // List element addresses will never change, but std map element addresses may change.
     const element = try ctx._configExList.createElement(ctx.arenaAllocator, true);
     const configEx = &element.value;
     configEx.* = .{ .path = configFilePath };
     try ctx._configPathToExMap.put(configFilePath, configEx);
 
-    //var configEx = ctx._configPathToExMap.getPtr(configFilePath).?;
     {
         const fileContent = try util.readFile(ctx.io, null, configFilePath, .{ .alloc = .{ .allocator = ctx.allocator, .maxFileSize = Config.maxConfigFileSize } }, ctx.stderr);
         defer ctx.allocator.free(fileContent);

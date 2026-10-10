@@ -10,17 +10,17 @@ const bufferSize = maxTmdFileSize * 4;
 
 pub const AstDumper = struct {
     pub fn argsDesc() []const u8 {
-        return "a-tmd-file";
+        return "TmdFile";
     }
 
     pub fn briefDesc() []const u8 {
-        return "Dump the AST structure of .tmd file.";
+        return "Dump the AST structure of a .tmd file.";
     }
 
     pub fn completeDesc() []const u8 {
         return
         \\The 'dump-ast' command only accepts exact one argument,
-        \\which should be a TapirMD doc.
+        \\which should be a TapirMD file.
         ;
     }
 

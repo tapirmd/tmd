@@ -4,7 +4,7 @@ const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
 const util = @import("util.zig");
 
-pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { invalid: void, registered: *Project, new: *Project } {
+pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { registered: *Project, new: *Project } {
     const path = blk: {
         var pa: util.PathAllocator = .{};
         const path = try util.resolvePathFromAbsDirPathAlloc(".", dirOrConfigPath, true, pa.allocator());
@@ -14,58 +14,35 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
 
     const isDir = blk: {
         const stat = std.Io.Dir.cwd().statFile(ctx.io, path, .{}) catch |err| {
-            if (err == error.IsDir) // for Windows
-                break :blk true;
-
-            try ctx.stderr.print("Path ({s}) is invalid. Stat error: {s}.\n", .{ path, @errorName(err) });
-            try ctx.stderr.flush();
-            return .invalid;
+            if (err == error.IsDir) break :blk true; // for Windows
+            return err;
         };
 
         break :blk switch (stat.kind) {
             .directory => true,
             .file => false,
-            else => {
-                try ctx.stderr.print("Path ({s}) is invalid. Unsupported kind: {s}.\n", .{ dirOrConfigPath, @tagName(stat.kind) });
-                try ctx.stderr.flush();
-                return .invalid;
-            },
+            else => return error.UnsupportedPathKind,
         };
     };
 
     const projectDir, const configPath = if (isDir) blk: {
-        const configPath = util.resolveRealPath2Alloc(ctx.io, path, "tmd.project", false, ctx.arenaAllocator) catch {
+        const configPath = util.resolveRealPath2Alloc(ctx.io, path, "tmd.project", false, ctx.arenaAllocator) catch |err| {
+            if (err == error.FileNotFound) return err;
             break :blk .{ path, path };
         };
         break :blk .{ path, configPath };
-    } else blk: {
-        const filename = std.Io.Dir.path.basename(path);
-        const extension = std.Io.Dir.path.extension(path);
-        //try ctx.stderr.print("filename: {s}, extension: {s}\n", .{filename, extension});
-        //try ctx.stderr.flush();
-        if (std.mem.startsWith(u8, filename, "tmd.project") and extension.len + 3 == filename.len) break :blk .{ std.Io.Dir.path.dirname(path).?, path };
-        try ctx.stderr.print("Project config file ({s}) is invalid. It should start with 'tmd.project' and its base name should be 'tmd'.\n", .{filename});
-        try ctx.stderr.flush();
-        return .invalid;
-    };
+    } else .{ std.Io.Dir.path.dirname(path).?, path };
 
     if (ctx._configPathToProjectMap.get(configPath)) |project| {
         return .{ .registered = project };
     }
 
-    const projectDefaultConfigEx, const workspacePath, const workspaceConfigEx = try ctx.getDirectoryConfigAndRoot(projectDir);
-    const projectConfigEx = if (projectDir.len == configPath.len) projectDefaultConfigEx else blk: {
-        const configEx = try ctx.loadTmdConfigEx(configPath);
-        const baseEx = if (workspacePath.len == projectDir.len) &ctx._defaultConfigEx else workspaceConfigEx;
-        ctx.mergeTmdConfig(&configEx.basic, &baseEx.basic);
-        break :blk configEx;
-    };
+    const projectConfigEx = try ctx.getTmdConfigEx(configPath, projectDir.len == configPath.len);
 
     const project = try ctx.arenaAllocator.create(Project);
     project.* = .{
         .path = projectDir,
         .configEx = projectConfigEx,
-        .workspacePath = workspacePath,
     };
 
     try ctx._configPathToProjectMap.put(configPath, project);

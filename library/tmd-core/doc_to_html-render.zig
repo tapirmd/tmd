@@ -545,7 +545,7 @@ pub const TmdRender = struct {
             },
             .attributes => {},
             .linkdef => {},
-            .separator=> {
+            .separator => {
                 const tag = "hr";
                 const classes = "tmd-separator";
 
@@ -695,7 +695,7 @@ pub const TmdRender = struct {
         while (true) {
             check: {
                 switch (child.type) {
-                    .attributes, .linkdef, .separator=> break :check,
+                    .attributes, .linkdef, .separator => break :check,
                     .base => |base| if (base.attributes().undisplayed) break :check,
                     .header, .usual, .code, .custom => std.debug.assert(child.isAtom()),
                     .blank => unreachable,
@@ -735,7 +735,7 @@ pub const TmdRender = struct {
                 const rowSpan: u32, const colSpan: u32 = switch (child.type) {
                     .blank => break :handle,
                     .attributes, .linkdef => break :handle,
-                    .separator=> {
+                    .separator => {
                         toChangeRow = true;
                         break :handle;
                     },

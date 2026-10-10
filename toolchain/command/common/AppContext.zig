@@ -62,7 +62,7 @@ pub fn deinit(ctx: *AppContext) void {
 }
 
 pub const ConfigEx = @import("AppContext-config.zig").ConfigEx;
-pub const getDirectoryConfigAndRoot = @import("AppContext-config.zig").getDirectoryConfigAndRoot;
+pub const getTmdConfigEx = @import("AppContext-config.zig").getTmdConfigEx;
 pub const loadTmdConfigEx = @import("AppContext-config.zig").loadTmdConfigEx;
 pub const printTmdConfig = @import("AppContext-config.zig").printTmdConfig;
 pub const mergeTmdConfig = @import("AppContext-config.zig").mergeTmdConfig;

@@ -48,7 +48,7 @@ test "block types" {
         \\        still section
         \\ ---
         \\
-    , &.{ .header, .usual, .blank, .attributes, .code, .usual, .custom, .header, .separator}));
+    , &.{ .header, .usual, .blank, .attributes, .code, .usual, .custom, .header, .separator }));
 
     try std.testing.expect(try BlockTypeChecker.check(
         \\ * aaa

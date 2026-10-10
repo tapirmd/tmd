@@ -541,7 +541,7 @@ fn parse(parser: *DocParser) !void {
 
                     const lineBlock = try parser.createAndPushBlockElement();
                     lineBlock.type = .{
-                        .separator= .{
+                        .separator = .{
                             .startLine = line,
                         },
                     };

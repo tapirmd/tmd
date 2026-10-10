@@ -24,7 +24,7 @@ pub fn targetPathSep() u8 {
 }
 
 pub fn buildNameSuffix() []const u8 {
-    return "";
+    return "-website";
 }
 
 pub fn init(session: *BuildSession) !@This() {

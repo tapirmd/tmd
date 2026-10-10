@@ -77,13 +77,12 @@ fn build(ctx: *AppContext, args: []const []const u8, BuilderType: anytype) !void
         break :blk default;
     };
     for (paths) |path| {
-        const result = try ctx.regOrGetProject(path);
-
+        const result = ctx.regOrGetProject(path) catch |err| {
+            try ctx.stderr.print("Path ({s}) is invalid. Error: {s}.\n", .{ path, @errorName(err) });
+            try ctx.stderr.flush();
+            return std.process.exit(1);
+        };
         switch (result) {
-            .invalid => {
-                //try ctx.stderr.print("Path ({s}) is not valid project path.\n", .{path});
-                //try ctx.stderr.flush();
-            },
             .registered => {},
             .new => |project| try project.build(ctx, BuilderType),
         }

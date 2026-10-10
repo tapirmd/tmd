@@ -8,26 +8,48 @@ const config = @import("Config.zig");
 const util = @import("util.zig");
 
 pub const RelativePathWriter = struct {
-    allocatorToFreePath: ?std.mem.Allocator,
-    path: []const u8,
+    pub const Path = union(enum) {
+        withSentinel: struct {
+            a: std.mem.Allocator,
+            p: [:0]const u8,
+        },
+        noSentinel: struct {
+            a: std.mem.Allocator,
+            p: []const u8,
+        },
+        noAlloc: []const u8,
+
+        fn path(self: *const @This()) []const u8 {
+            return switch (self.*) {
+                .withSentinel => |info| info.p,
+                .noSentinel => |info| info.p,
+                .noAlloc => |p| p,
+            };
+        }
+    };
+
+    path: Path,
     pathSep: ?u8,
     relativeTo: []const u8,
     relativeToSep: u8,
     fragment: []const u8,
 
     pub fn gen(self: *const RelativePathWriter, w: *std.Io.Writer) !void {
-        defer if (self.allocatorToFreePath) |a| a.free(self.path);
+        defer switch (self.path) {
+            .withSentinel => |info| info.a.free(info.p),
+            .noSentinel => |info| info.a.free(info.p),
+            .noAlloc => {},
+        };
 
-        try writeRelativeUrl(w, self.path, self.pathSep, self.relativeTo, self.relativeToSep);
+        try writeRelativeUrl(w, self.path.path(), self.pathSep, self.relativeTo, self.relativeToSep);
 
         if (self.fragment.len > 0) {
             try tmd.writeUrlAttributeValue(w, self.fragment, false);
         }
     }
 
-    pub fn asGenetator(self: *RelativePathWriter, a: ?std.mem.Allocator, path: []const u8, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
+    pub fn asGenetator(self: *RelativePathWriter, path: Path, pathSep: ?u8, relativeTo: []const u8, relativeToSep: u8, fragment: []const u8) tmd.Generator {
         self.* = .{
-            .allocatorToFreePath = a,
             .path = path,
             .pathSep = pathSep,
             .relativeTo = relativeTo,
@@ -257,7 +279,7 @@ pub const BlockGeneratorCallbackOwner = struct {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
 
         const url = link.url.?;
-        const a, const targetPath, const fragment = switch (url.manner) {
+        const targetPath: RelativePathWriter.Path, const fragment = switch (url.manner) {
             .relative => |v| blk: {
                 if (v.extension) |ext| switch (ext) {
                     .tmd => {
@@ -271,16 +293,16 @@ pub const BlockGeneratorCallbackOwner = struct {
                         isCurrentPage.* = util.eqlFilePathsWithoutExtension(realPath, self.currentPageSourceFilePath);
 
                         const absPath = try util.replaceExtension(realPath, ".html", self.appContext.allocator);
-                        break :blk .{ self.appContext.allocator, absPath, url.fragment };
+                        break :blk .{ .{ .noSentinel = .{ .a = self.appContext.allocator, .p = absPath } }, url.fragment };
                     },
                     .txt, .html, .htm, .xhtml, .css, .js, .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         const absPath = try util.resolveRealPathAlloc(self.appContext.io, filePath, false, self.appContext.allocator);
-                        break :blk .{ self.appContext.allocator, absPath, "" };
+                        break :blk .{ .{ .withSentinel = .{ .a = self.appContext.allocator, .p = absPath } }, "" };
                     },
                 } else if (url.base.len == 0) { // should be always?
-                    break :blk .{ null, self.currentPageSourceFilePath, url.fragment };
+                    break :blk .{ .{ .noAlloc = self.currentPageSourceFilePath }, url.fragment };
                 }
 
                 return @as(?tmd.Generator, null);
@@ -291,7 +313,6 @@ pub const BlockGeneratorCallbackOwner = struct {
         // ToDo: standalone-html build needs different handling.
 
         return self.mutableData.relativePathWriter.asGenetator(
-            a,
             targetPath,
             std.Io.Dir.path.sep,
             self.currentPageSourceFilePath,
@@ -304,14 +325,14 @@ pub const BlockGeneratorCallbackOwner = struct {
         const self: *const @This() = @ptrCast(@alignCast(callbackContext));
 
         const url = link.url.?;
-        const targetPath = switch (url.manner) {
+        const targetPath: RelativePathWriter.Path = switch (url.manner) {
             .relative => |v| blk: {
                 if (v.extension) |ext| switch (ext) {
                     .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                         var pa: util.PathAllocator = .{};
                         const filePath = try util.resolvePathFromFilePathAlloc(self.tmdDocSourceFilePath, url.base, true, pa.allocator());
                         const absPath = try util.resolveRealPathAlloc(self.appContext.io, filePath, false, self.appContext.allocator);
-                        break :blk absPath;
+                        break :blk .{ .withSentinel = .{ .a = self.appContext.allocator, .p = absPath } };
                     },
                     else => {},
                 };
@@ -322,7 +343,6 @@ pub const BlockGeneratorCallbackOwner = struct {
         };
 
         return self.mutableData.relativePathWriter.asGenetator(
-            self.appContext.allocator,
             targetPath,
             std.Io.Dir.path.sep,
             self.currentPageSourceFilePath,

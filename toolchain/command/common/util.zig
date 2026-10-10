@@ -95,7 +95,7 @@ pub fn isFileInDir(filePath: []const u8, dir: []const u8) bool {
 // If pathToResolve is relative, then it is relative to dirPath.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPath2Alloc(io: std.Io, dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPath2Alloc(io: std.Io, dirPath: []const u8, pathToResolve: []const u8, needValidatePath: bool, allocator: std.mem.Allocator) ![:0]u8 {
     var dir = try std.Io.Dir.cwd().openDir(io, dirPath, .{});
     defer dir.close(io);
 
@@ -112,7 +112,7 @@ pub fn resolveRealPath2Alloc(io: std.Io, dirPath: []const u8, pathToResolve: []c
 // If pathToResolve is relative, then it is relative to cwd.
 // This function errors if the resolved path doesn't exist.
 // The result is an absolute path.
-pub fn resolveRealPathAlloc(io: std.Io, pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![]u8 {
+pub fn resolveRealPathAlloc(io: std.Io, pathToResolve: []const u8, needValidate: bool, allocator: std.mem.Allocator) ![:0]u8 {
     if (needValidate) {
         var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
         const validPathToResolve = try validatePathIntoBuffer(pathToResolve, buffer[0..]);

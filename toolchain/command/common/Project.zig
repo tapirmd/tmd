@@ -27,10 +27,6 @@ path: []const u8,
 // if default config is not found and no non-default config is specified.
 configEx: *AppContext.ConfigEx,
 
-// If tmd.workspace file is not found in self+ancestor directories,
-// then .workspacePath == .path.
-workspacePath: []const u8,
-
 pub fn dirname(project: *const Project) []const u8 {
     const basename = std.Io.Dir.path.basename(project.path);
     return if (basename.len > 0) basename else "untitled";
@@ -169,15 +165,6 @@ pub fn BuildSession(BuilderType: type) type {
 
             var buffer: [std.Io.Dir.max_path_bytes]u8 = undefined;
             var w: std.Io.Writer = .fixed(&buffer);
-
-            try w.writeAll(project.workspacePath);
-            try w.writeByte(std.Io.Dir.path.sep);
-            try w.writeAll(AppContext.buildOutputDirname);
-            try w.writeByte(std.Io.Dir.path.sep);
-            if (project.path.len != project.workspacePath.len) {
-                try w.writeAll("@projects");
-                try w.writeByte(std.Io.Dir.path.sep);
-            }
             try w.writeAll(project.dirname());
             if (session.projectVersion.len > 0) {
                 try w.writeByte('-');
@@ -185,7 +172,10 @@ pub fn BuildSession(BuilderType: type) type {
             }
             try w.writeAll(buildNameSuffix);
 
-            session.buildOutputPath = try session.arenaAllocator.dupe(u8, w.buffered());
+            session.buildOutputPath = try std.Io.Dir.path.join(session.arenaAllocator, &.{
+                AppContext.buildOutputDirname,
+                w.buffered(),
+            });
 
             //std.debug.print("session.buildOutputPath = {s}\n", .{session.buildOutputPath});
         }
@@ -595,7 +585,8 @@ pub fn BuildSession(BuilderType: type) type {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
                 const url = link.url.?;
-                const targetPath, const fragment = switch (url.manner) {
+                const RelativePathWriter = @TypeOf(handler.mutableData.relativePathWriter);
+                const targetPath: RelativePathWriter.Path, const fragment = switch (url.manner) {
                     .relative => |v| blk: {
                         if (v.extension) |ext| switch (ext) {
                             .tmd => {
@@ -607,7 +598,7 @@ pub fn BuildSession(BuilderType: type) type {
 
                                 isCurrentPage.* = std.mem.eql(u8, targetPath, handler.tmdDocInfo.targetFilePath);
 
-                                break :blk .{ targetPath, url.fragment };
+                                break :blk .{ .{ .noAlloc = targetPath }, url.fragment };
                             },
                             .txt, .html, .htm, .xhtml, .css, .js => {
                                 try handler.session.appContext.stderr.print("Liking to .html/.htm/.xhtml/.css/.js files is not supported now: {s}\n", .{url.base});
@@ -618,10 +609,10 @@ pub fn BuildSession(BuilderType: type) type {
                             .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                                 var pa: util.PathAllocator = .{};
                                 const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
-                                break :blk .{ try handler.session.tryToRegisterFile(.{ .local = absPath }, .images), "" };
+                                break :blk .{ .{ .noAlloc = try handler.session.tryToRegisterFile(.{ .local = absPath }, .images) }, "" };
                             },
                         } else if (url.base.len == 0) { // should be always?
-                            break :blk .{ handler.tmdDocInfo.targetFilePath, url.fragment };
+                            break :blk .{ .{ .noAlloc = handler.tmdDocInfo.targetFilePath }, url.fragment };
                         }
 
                         return @as(?tmd.Generator, null);
@@ -632,7 +623,6 @@ pub fn BuildSession(BuilderType: type) type {
                 // ToDo: standalone-html build needs different handling.
 
                 return handler.mutableData.relativePathWriter.asGenetator(
-                    null,
                     targetPath,
                     targetPathSep,
                     handler.tmdDocInfo.targetFilePath,
@@ -645,13 +635,14 @@ pub fn BuildSession(BuilderType: type) type {
                 const handler: *const @This() = @ptrCast(@alignCast(ctx));
 
                 const url = link.url.?;
-                const targetPath = switch (url.manner) {
+                const RelativePathWriter = @TypeOf(handler.mutableData.relativePathWriter);
+                const targetPath: RelativePathWriter.Path = switch (url.manner) {
                     .relative => |v| blk: {
                         if (v.extension) |ext| switch (ext) {
                             .png, .gif, .jpg, .jpeg, .ico, .svg, .webp, .avif, .apng => {
                                 var pa: util.PathAllocator = .{};
                                 const absPath = try util.resolvePathFromFilePathAlloc(handler.tmdDocInfo.sourceFilePath, url.base, true, pa.allocator());
-                                break :blk try handler.session.tryToRegisterFile(.{ .local = absPath }, .images);
+                                break :blk .{ .noAlloc = try handler.session.tryToRegisterFile(.{ .local = absPath }, .images) };
                             },
                             else => {},
                         };
@@ -662,7 +653,6 @@ pub fn BuildSession(BuilderType: type) type {
                 };
 
                 return handler.mutableData.relativePathWriter.asGenetator(
-                    null,
                     targetPath,
                     targetPathSep,
                     handler.tmdDocInfo.targetFilePath,
