@@ -123,7 +123,7 @@ fn genHtml(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext, fullPage: 
 
     const dirPath = std.Io.Dir.path.dirname(absFilePath) orelse unreachable;
 
-    const configEx = try ctx.getTmdConfigEx(dirPath, true);
+    const configEx = try ctx.getTmdConfigEx(dirPath, true, .website);
 
     // load file
 

@@ -209,7 +209,7 @@ pub const ExternalBlockGenerator = struct {
         }
     }
 
-    pub fn makeGenerator(self: *ExternalBlockGenerator, configEx: *const AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, io: std.Io) ?tmd.Generator {
+    pub fn makeGenerator(self: *ExternalBlockGenerator, configEx: *AppContext.ConfigEx, doc: *const tmd.Doc, custom: *const tmd.BlockType.Custom, io: std.Io) ?tmd.Generator {
         const generators = (configEx.basic.@"custom-block-generators" orelse return null)._parsed;
         const attrs = custom.attributes();
         const generator = generators.getPtr(attrs.contentType) orelse return null;
@@ -254,7 +254,7 @@ pub const BlockGeneratorCallbackOwner = struct {
     tmdDoc: *const tmd.Doc, // just use its data (right?)
     tmdDocSourceFilePath: []const u8,
     currentPageSourceFilePath: []const u8,
-    configEx: *const AppContext.ConfigEx,
+    configEx: *AppContext.ConfigEx,
     mutableData: *MutableData,
 
     pub fn makeTmdGenOptions(self: *const @This()) tmd.GenOptions {

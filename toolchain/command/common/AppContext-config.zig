@@ -7,6 +7,7 @@ const list = @import("list");
 const AppContext = @import("AppContext.zig");
 const Config = @import("Config.zig");
 const DocTemplate = @import("DocTemplate.zig");
+const Project = @import("Project.zig");
 const util = @import("util.zig");
 
 pub const ConfigEx = struct {
@@ -25,10 +26,16 @@ pub const ConfigEx = struct {
     };
 };
 
-pub fn getTmdConfigEx(ctx: *AppContext, absPath: []const u8, isDir: bool) !*ConfigEx {
-    if (isDir) return &ctx._defaultConfigEx;
+pub fn getTmdConfigEx(ctx: *AppContext, absPath: []const u8, isDir: bool, comptime buildTarget: std.meta.FieldEnum(Project.BuildTarget)) !*ConfigEx {
+    if (isDir) return getDefaultConfig(ctx, buildTarget);
 
-    return ctx.loadTmdConfigEx(absPath);
+    const configEx = try ctx.loadTmdConfigEx(absPath);
+    if (configEx.basic.@"based-on" == null) {
+        const defaultEx = try getDefaultConfig(ctx, buildTarget);
+        ctx.mergeTmdConfig(&configEx.basic, &defaultEx.basic);
+        configEx.basic.@"based-on" = .{ .path = "" };
+    }
+    return configEx;
 }
 
 // absFilePath should be an existing file path.
@@ -39,7 +46,7 @@ pub fn loadTmdConfigEx(ctx: *AppContext, absFilePath: []const u8) !*ConfigEx {
     var loadedFilesInSession: std.BufSet = .init(arenaAllocator.allocator());
     // defer loadedFilesInSession.deinit();
 
-    std.debug.print("========= absFilePath: {s}\n", .{absFilePath});
+    //std.debug.print("========= absFilePath: {s}\n", .{absFilePath});
 
     return loadTmdConfigInternal(ctx, absFilePath, &loadedFilesInSession);
 }
@@ -96,12 +103,25 @@ fn loadTmdConfigInternal(ctx: *AppContext, absFilePath: []const u8, loadedFilesI
     return configEx;
 }
 
-const defaultConfigContent = @embedFile("tmd.settings-default");
+const defaultConfigContents: [std.meta.fieldNames(Project.BuildTarget).len][]const u8 = .{
+    @embedFile("tmd.config-website"),
+    @embedFile("tmd.config-epub"),
+    @embedFile("tmd.config-standalone-html"),
+};
 
-pub fn parseDefaultConfig(ctx: *AppContext) !void {
-    try ctx.parseAndFillConfig(&ctx._defaultConfigEx.basic, defaultConfigContent);
-    try parseConfigOptions(ctx, &ctx._defaultConfigEx);
-    ctx._defaultConfigEx.parsedCommandArgs = .init(ctx.arenaAllocator);
+pub fn getDefaultConfig(ctx: *AppContext, comptime buildTarget: std.meta.FieldEnum(Project.BuildTarget)) !*ConfigEx {
+    const k = @backingInt(buildTarget);
+
+    if (ctx._defaultConfigExes[k] == null) {
+        ctx._defaultConfigExes[k] = .{};
+        const ex = &ctx._defaultConfigExes[k].?;
+
+        try ctx.parseAndFillConfig(&ex.basic, defaultConfigContents[k]);
+        try parseConfigOptions(ctx, ex);
+        ex.parsedCommandArgs = .init(ctx.arenaAllocator);
+    }
+
+    return &ctx._defaultConfigExes[k].?;
 }
 
 pub fn parseAndFillConfig(ctx: *AppContext, config: *Config, configContent: []const u8) !void {

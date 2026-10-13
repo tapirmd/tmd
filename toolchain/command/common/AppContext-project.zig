@@ -4,7 +4,7 @@ const AppContext = @import("AppContext.zig");
 const Project = @import("Project.zig");
 const util = @import("util.zig");
 
-pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enum) { registered: *Project, new: *Project } {
+pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8, comptime buildTarget: std.meta.FieldEnum(Project.BuildTarget)) !union(enum) { registered: *Project, new: *Project } {
     const path = blk: {
         var pa: util.PathAllocator = .{};
         const path = try util.resolvePathFromAbsDirPathAlloc(".", dirOrConfigPath, true, pa.allocator());
@@ -27,7 +27,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
 
     const projectDir, const configPath = if (isDir) blk: {
         const configPath = util.resolveRealPath2Alloc(ctx.io, path, "tmd.project", false, ctx.arenaAllocator) catch |err| {
-            if (err == error.FileNotFound) return err;
+            if (err != error.FileNotFound) return err;
             break :blk .{ path, path };
         };
         break :blk .{ path, configPath };
@@ -37,7 +37,7 @@ pub fn regOrGetProject(ctx: *AppContext, dirOrConfigPath: []const u8) !union(enu
         return .{ .registered = project };
     }
 
-    const projectConfigEx = try ctx.getTmdConfigEx(configPath, projectDir.len == configPath.len);
+    const projectConfigEx = try ctx.getTmdConfigEx(configPath, projectDir.len == configPath.len, buildTarget);
 
     const project = try ctx.arenaAllocator.create(Project);
     project.* = .{

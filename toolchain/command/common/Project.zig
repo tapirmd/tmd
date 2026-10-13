@@ -56,7 +56,15 @@ pub fn coverImagePath(project: *const Project) ?[]const u8 {
     return null;
 }
 
-pub fn build(project: *const Project, ctx: *AppContext, BuilderType: type) !void {
+pub const BuildTarget = union(enum) {
+    website: StaticWebsiteBuilder,
+    epub: EpubBuilder,
+    @"standalone-html": StandaloneHtmlBuilder,
+};
+
+pub fn build(project: *const Project, ctx: *AppContext, comptime buildTarget: std.meta.FieldEnum(BuildTarget)) !void {
+    const BuilderType: type = @FieldType(BuildTarget, @tagName(buildTarget));
+
     var session: BuildSession(BuilderType) = .init(project, ctx);
     defer session.deinit();
     try session.initMore(BuilderType.buildNameSuffix());

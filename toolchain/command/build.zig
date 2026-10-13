@@ -25,7 +25,7 @@ pub const StaticWebsiteBuilder = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.StaticWebsiteBuilder);
+        try build(ctx, args, .website);
     }
 };
 
@@ -46,7 +46,7 @@ pub const EpubBuilder = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.EpubBuilder);
+        try build(ctx, args, .epub);
     }
 };
 
@@ -67,24 +67,24 @@ pub const StandaloneHtmlBuilder = struct {
     }
 
     pub fn process(ctx: *AppContext, args: []const []const u8) !void {
-        try build(ctx, args, Project.StandaloneHtmlBuilder);
+        try build(ctx, args, .@"standalone-html");
     }
 };
 
-fn build(ctx: *AppContext, args: []const []const u8, BuilderType: anytype) !void {
+fn build(ctx: *AppContext, args: []const []const u8, buildTarget: @EnumLiteral()) !void {
     const paths = if (args.len > 0) args else blk: {
         const default: []const []const u8 = &.{"."};
         break :blk default;
     };
     for (paths) |path| {
-        const result = ctx.regOrGetProject(path) catch |err| {
+        const result = ctx.regOrGetProject(path, buildTarget) catch |err| {
             try ctx.stderr.print("Path ({s}) is invalid. Error: {s}.\n", .{ path, @errorName(err) });
             try ctx.stderr.flush();
             return std.process.exit(1);
         };
         switch (result) {
             .registered => {},
-            .new => |project| try project.build(ctx, BuilderType),
+            .new => |project| try project.build(ctx, buildTarget),
         }
     }
 }

@@ -15,7 +15,7 @@ stderr: *std.Io.Writer,
 _arenaAllocator: std.heap.ArenaAllocator,
 arenaAllocator: std.mem.Allocator = undefined,
 
-_defaultConfigEx: ConfigEx = .{},
+_defaultConfigExes: [std.meta.fieldNames(Project.BuildTarget).len]?ConfigEx = @splat(null),
 _configPathToProjectMap: std.StringHashMap(*Project) = undefined,
 _configExList: list.List(ConfigEx) = .{}, // use this list to make sure the addresses of ConfigEx will never change.
 _configPathToExMap: std.StringHashMap(*ConfigEx) = undefined,
@@ -54,7 +54,7 @@ pub fn initMore(ctx: *AppContext) !void {
 
     ctx._cachedContents = .init(ctx.arenaAllocator);
 
-    try @import("AppContext-config.zig").parseDefaultConfig(ctx);
+    // try @import("AppContext-config.zig").parseDefaultConfig(ctx);
 }
 
 pub fn deinit(ctx: *AppContext) void {
