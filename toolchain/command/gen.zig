@@ -47,12 +47,14 @@ pub const Generator = struct {
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.Io.Dir.path.extension(entry.filePath), ".tmd")) continue;
 
-            //std.debug.print("> [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+            //try ctx.stdout.print("> [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+            //try ctx.stdout.flush();
 
             try genHtmlSnippet(entry, buffer, ctx);
             n += 1;
         }
-        if (n == 1) std.debug.print("1 file is generated.\n", .{}) else std.debug.print("{} files are generated.\n", .{n});
+        if (n == 1) try ctx.stdout.print("1 file is generated.\n", .{}) else try ctx.stdout.print("{} files are generated.\n", .{n});
+        try ctx.stdout.flush();
     }
 
     fn genHtmlSnippet(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {
@@ -92,12 +94,14 @@ pub const FullPageGenerator = struct {
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.Io.Dir.path.extension(entry.filePath), ".tmd")) continue;
 
-            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.flush();
 
             try genFullPage(entry, buffer, ctx);
             n += 1;
         }
-        if (n == 1) std.debug.print("1 file is generated.\n", .{}) else std.debug.print("{} files are generated.\n", .{n});
+        if (n == 1) try ctx.stdout.print("1 file is generated.\n", .{}) else try ctx.stdout.print("{} files are generated.\n", .{n});
+        try ctx.stdout.flush();
     }
 
     fn genFullPage(entry: FileIterator.Entry, buffer: []u8, ctx: *AppContext) !void {

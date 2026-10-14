@@ -10,19 +10,19 @@ __
 
 __Home`` index.tmd __ | __Blog`` blog/all.tmd __ | __@zigo_101`` https://x.com/zigo_101 __
 
-*  __The specification`` versions/latest/specification.tmd __
-*  __Demos`` versions/latest/demos.tmd __
-*  __FAQ`` versions/latest/faq.tmd __
+*  __The specification`` versions/tip/specification.tmd __
+*  __Demos`` versions/tip/demos.tmd __
+*  __FAQ`` versions/tip/faq.tmd __
 
-*  __Play it online`` versions/latest/play.tmd __
-*  __Official libraries`` versions/latest/libraries.tmd __ (//:: Zig, WASM, JavaScript, Go :://)
+*  __Play it online`` versions/tip/play.tmd __
+*  __Official libraries`` versions/tip/libraries.tmd __ (//:: Zig, WASM, JavaScript, Go :://)
 *  The official toolchain
-   ~  __Installation`` versions/latest/installation.tmd __
-   ~  __Tutorials`` versions/latest/tutorials.tmd __
-   ~  __Configure manual`` versions/latest/configure.tmd __
-   ~  __Simple template`` versions/latest/template.tmd __
+   ~  __Installation`` versions/tip/installation.tmd __
+   ~  __Tutorials`` versions/tip/tutorials.tmd __
+   ~  __Configure manual`` versions/tip/configure.tmd __
+   ~  __Simple template`` versions/tip/template.tmd __
 
 
-*  __TapirMD users`` versions/latest/users.tmd __
+*  __TapirMD users`` versions/tip/users.tmd __
 
 

@@ -42,7 +42,8 @@ pub const Formatter = struct {
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
-            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.flush();
 
             try fmtTmdFile(entry, buffer, ctx);
         }
@@ -121,7 +122,8 @@ pub const FormatTester = struct {
         while (try fi.next()) |entry| {
             if (!std.mem.eql(u8, std.fs.path.extension(entry.filePath), ".tmd")) continue;
 
-            //std.debug.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.print("> [{s}] {s}\n", .{entry.dirPath, entry.filePath});
+            //try ctx.stdout.flush();
 
             try fmtTestFile(entry, buffer, ctx);
         }
@@ -148,7 +150,8 @@ pub const FormatTester = struct {
             try tmdDoc.writeTMD(&w, false);
             const newContent = w.buffered();
             if (!std.mem.eql(u8, tmdContent, newContent)) {
-                std.debug.print("test#1 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                try ctx.stderr.print("test#1 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                try ctx.stderr.flush();
                 return;
             }
         }
@@ -176,7 +179,8 @@ pub const FormatTester = struct {
             try newTmdDoc.writeTMD(&w, true);
             const newNewTmdContent = w.buffered();
             if (!std.mem.eql(u8, newNewTmdContent, newTmdContent)) {
-                std.debug.print("test#2 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                try ctx.stderr.print("test#2 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                try ctx.stderr.flush();
                 return;
             }
             //remainingBuffer = remainingBuffer[newNewTmdContent.len..];
@@ -202,8 +206,9 @@ pub const FormatTester = struct {
             //remainingBuffer = remainingBuffer[newHtml.len..];
 
             if (!std.mem.eql(u8, html, newHtml)) {
-                std.debug.print("test#3 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
-                //std.debug.print("\n--------\n{s}\n------------\n{s}\n", .{ html, newHtml });
+                try ctx.stderr.print("test#3 failed: [{s}] {s}\n", .{ entry.dirPath, entry.filePath });
+                //try ctx.stderr.print("\n--------\n{s}\n------------\n{s}\n", .{ html, newHtml });
+                try ctx.stderr.flush();
                 return;
             }
         }

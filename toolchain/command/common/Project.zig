@@ -82,7 +82,8 @@ pub fn build(project: *const Project, ctx: *AppContext, comptime buildTarget: st
 
     try session.builder.build();
 
-    std.debug.print("Done. Output path: {s}\n", .{session.buildOutputPath});
+    try ctx.stdout.print("Done. Output path: {s}\n", .{session.buildOutputPath});
+    try ctx.stdout.flush();
 }
 
 pub const FilePurpose = enum {

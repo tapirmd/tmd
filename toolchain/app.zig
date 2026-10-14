@@ -42,39 +42,49 @@ pub fn main(init: std.process.Init) !void {
     var stderr_writer = std.Io.File.stdout().writer(init.io, &stderr_buffer);
     const stderr = &stderr_writer.interface;
 
-    const args = try init.minimal.args.toSlice(init.arena.allocator());
+    var args = try init.minimal.args.toSlice(init.arena.allocator());
     std.debug.assert(args.len > 0);
 
-    if (args.len <= 1) {
-        try stdout.print(
-            \\TapirMD toolchain v{s}
-            \\
-        , .{tmd.version});
-        try listCommands(stdout);
-        try stdout.flush();
+    // NOTE: The tmd command doesn't support any option arguments now.
+    // The undoucumented --quiet option is used in build.zig only.
 
-        return;
-    }
+    if (args.len <= 1) return printHelp(stdout);
+    const quietMode = std.mem.eql(u8, args[1], "--quiet");
+    if (quietMode) args = args[2..];
+    if (args.len == 0) return printHelp(stdout);
 
-    if (std.meta.stringToEnum(std.meta.FieldEnum(Command), args[1])) |cmd| {
-        var appContext = AppContext.init(init.io, init.gpa, stdout, stderr);
+    const command = args[0];
+    if (std.meta.stringToEnum(std.meta.FieldEnum(Command), command)) |cmd| {
+        var discarding_writer: std.Io.Writer.Discarding = .init(&.{});
+        const discarding = &discarding_writer.writer;
+
+        var appContext = AppContext.init(init.io, init.gpa, if (quietMode) discarding else stdout, stderr);
         defer appContext.deinit();
         try appContext.initMore();
 
         switch (cmd) {
             inline else => |tag| {
                 const CommandType = @FieldType(Command, @tagName(tag));
-                try CommandType.process(&appContext, args[2..]);
+                try CommandType.process(&appContext, args[1..]);
             },
         }
     } else {
-        try stderr.print("Unknown command: {s}\n", .{args[1]});
+        try stderr.print("Unknown command: {s}\n", .{command});
         try listCommands(stderr);
         try stderr.flush();
 
         std.process.exit(1);
         unreachable;
     }
+}
+
+fn printHelp(w: *std.Io.Writer) !void {
+    try w.print(
+        \\TapirMD toolchain v{s}
+        \\
+    , .{tmd.version});
+    try listCommands(w);
+    try w.flush();
 }
 
 // Note: it doesn't flush.

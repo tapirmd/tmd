@@ -21,7 +21,7 @@ TapirMD hasn't yet reached version 1.0.0 (or even 0.1.0).
 At this stage, building from source is the only way to run
 the offcial TapirMD commands locally.
 
-*. Install __Zig__, if haven't. The latest minor version is recommended.
+*. Install __Zig__, if haven't. The tip version (master) is recommended.
 
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.

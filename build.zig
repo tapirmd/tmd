@@ -135,6 +135,7 @@ pub fn build(b: *std.Build) !void {
     toolchainCommand.root_module.addImport("tmd", tmdLibModule);
     toolchainCommand.root_module.addImport("list", listLibModule);
     toolchainCommand.root_module.addImport("tree", treeLibModule);
+
     const installToolchain = b.addInstallArtifact(toolchainCommand, .{});
 
     const toolchainStep = b.step("toolchain", "Build toolchain");
@@ -204,7 +205,7 @@ pub fn build(b: *std.Build) !void {
     wasmStep.dependOn(&installWasm.step);
 
     // Used in below several places.
-    const file_injector = b.addExecutable(.{
+    const fileInjector = b.addExecutable(.{
         .name = "file-injector",
         .root_module = b.createModule(.{
             .root_source_file = b.path("tools/inject-file-content.zig"),
@@ -215,16 +216,17 @@ pub fn build(b: *std.Build) !void {
     // js
     const jsLibFilename = "tmd-with-wasm.js";
 
-    const wasm_injector = b.addRunArtifact(file_injector);
-    wasm_injector.addArg("base64");
-    wasm_injector.addFileArg(b.path("library/tmd-js/tmd-with-wasm-template.js"));
-    wasm_injector.addArg("<wasm-file-as-base64-string>");
-    wasm_injector.addFileArg(installWasm.emitted_bin.?);
-    const js_output_file = wasm_injector.addOutputFileArg2(jsLibFilename, .{});
-    wasm_injector.step.dependOn(&installWasm.step);
+    const injectWasmIntoJs = b.addRunArtifact(fileInjector);
+    injectWasmIntoJs.step.dependOn(&installWasm.step);
 
-    const installJsLib = b.addInstallFileWithDir(js_output_file, .lib, jsLibFilename);
-    installJsLib.step.dependOn(&wasm_injector.step);
+    injectWasmIntoJs.addArg("base64");
+    injectWasmIntoJs.addFileArg(b.path("library/tmd-js/tmd-with-wasm-template.js"));
+    injectWasmIntoJs.addArg("<wasm-file-as-base64-string>");
+    injectWasmIntoJs.addFileArg(installWasm.emitted_bin.?);
+    const jsOutputFile = injectWasmIntoJs.addOutputFileArg2(jsLibFilename, .{});
+
+    const installJsLib = b.addInstallFileWithDir(jsOutputFile, .lib, jsLibFilename);
+    installJsLib.step.dependOn(&injectWasmIntoJs.step);
 
     const jsLibStep = b.step("js", "Build JavaScript lib");
     jsLibStep.dependOn(&installJsLib.step);
@@ -232,34 +234,46 @@ pub fn build(b: *std.Build) !void {
     // documentation fmt
 
     const fmtDoc = b.addRunArtifact(toolchainCommand);
+    fmtDoc.addArg("--quiet");
     fmtDoc.setCwd(b.path("."));
     fmtDoc.addArg("fmt");
     fmtDoc.addArg("documentation/pages");
 
     // documentation gen
 
+    const createDocmentationCacheDir = b.addWriteFiles();
+    const docmentationCacheDir = createDocmentationCacheDir.getDirectory();
+
     const buildWebsite = b.addRunArtifact(toolchainCommand);
-    buildWebsite.step.dependOn(&installJsLib.step);
-    buildWebsite.setCwd(b.path("."));
+    buildWebsite.addArg("--quiet");
+    buildWebsite.setCwd(docmentationCacheDir);
     buildWebsite.addArg("build");
-    buildWebsite.addArg("documentation/pages");
+    buildWebsite.addDirectoryArg2(b.path("documentation/pages"), .{});
 
     // complete play page
-    const play_page_path = b.path("documentation/pages/@tmd-build/pages/versions/latest/play.html");
+    const playPagePath = docmentationCacheDir.path(b, "@tmd-build/pages-website/versions/tip/play.html");
 
-    const js_injector = b.addRunArtifact(file_injector);
-    js_injector.addArg("none");
-    js_injector.addFileArg(play_page_path);
-    js_injector.addArg("[js-lib-file]");
-    js_injector.addFileArg(js_output_file);
-    js_injector.addFileArg(play_page_path);
+    const injectJsIntoPlayPage = b.addRunArtifact(fileInjector);
+    injectJsIntoPlayPage.step.dependOn(&installJsLib.step);
+    injectJsIntoPlayPage.step.dependOn(&buildWebsite.step);
 
-    js_injector.step.dependOn(&buildWebsite.step);
+    injectJsIntoPlayPage.addArg("none");
+    injectJsIntoPlayPage.addFileArg(playPagePath);
+    injectJsIntoPlayPage.addArg("[js-lib-file]");
+    injectJsIntoPlayPage.addFileArg(jsOutputFile);
+    injectJsIntoPlayPage.addFileArg(playPagePath);
 
     // doc
 
+    const installDocumentation = b.addInstallDirectory(.{
+        .source_dir = docmentationCacheDir.path(b, "@tmd-build/pages-website"),
+        .install_dir = .prefix,
+        .install_subdir = "documentation",
+    });
+    installDocumentation.step.dependOn(&injectJsIntoPlayPage.step);
+
     const buildDoc = b.step("doc", "Build documentation");
-    buildDoc.dependOn(&js_injector.step);
+    buildDoc.dependOn(&installDocumentation.step);
 
     // fmt
 

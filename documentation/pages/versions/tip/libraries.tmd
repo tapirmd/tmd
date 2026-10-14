@@ -56,7 +56,7 @@ Here is __an example Zig project__ which uses the TapirMD Zig library.
 
 The steps to build the TapirMD WASM library:
 
-*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+*. Install __Zig__, if haven't. The tip version (master) version is recommended.
 
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.
@@ -116,7 +116,7 @@ Currently, the official TapirMD JavaScript library can be only used in browser e
 
 The steps to build the TapirMD JavaScript library:
 
-*. Install __Zig__, if haven't. The latest version tip (master) version is recommended.
+*. Install __Zig__, if haven't. The tip version (master) version is recommended.
 
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.

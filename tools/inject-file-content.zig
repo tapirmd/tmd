@@ -1,6 +1,9 @@
 const std = @import("std");
 
 pub fn main(init: std.process.Init) !void {
+    //errdefer std.debug.print("==== 000\n", .{});
+    //defer std.debug.print("==== 999\n", .{});
+
     const gpa = init.gpa;
     const io = init.io;
 
@@ -29,6 +32,8 @@ pub fn main(init: std.process.Init) !void {
 
     const cwd = std.Io.Dir.cwd();
 
+    //std.debug.print("==== input_path: {s}\n", .{ input_path });
+
     const input = try cwd.readFileAlloc(io, input_path, gpa, .unlimited);
     defer gpa.free(input);
 
@@ -48,5 +53,7 @@ pub fn main(init: std.process.Init) !void {
 
         try w.writeAll(input[k + placeholder.len ..]);
         try w.flush();
-    } else return error.PlaceholderNotFound;
+    } else {
+        return error.PlaceholderNotFound;
+    }
 }
