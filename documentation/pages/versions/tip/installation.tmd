@@ -8,6 +8,7 @@ You can also try TapirMD formatting syntax __online__.
 
     === online` play.tmd
 
+@@@ #installation
 ###====== Installation steps
 
     === Git ` https://git-scm.com/downloads
@@ -17,11 +18,11 @@ You can also try TapirMD formatting syntax __online__.
     === the go-tmd project ` https://github.com/go101/tmd
     === download its source code ` https://github.com/tapirmd/tmd/tags
 
-TapirMD hasn't yet reached version 1.0.0 (or even 0.1.0).
+TapirMD hasn't yet reached version 1.0.0.
 At this stage, building from source is the only way to run
 the offcial TapirMD commands locally.
 
-*. Install __Zig__, if haven't. The tip version (master) is recommended.
+*. Install __Zig__, if haven't. Currently, Zig v0.17 is recommended.
 
 *. Get the source code of __the TapirMD project__.
    You can clone it (install __Git__ if needed) or __download its source code__.
@@ -42,16 +43,27 @@ the offcial TapirMD commands locally.
    ;;;
    Or you can just build a debug version:
    '''
-   zig build
+   zig build -Doptimize=ReleaseSafe --re
    '''
    The debug version will print more readable information when problems are encountered.
    As the toolchain is still in its early development phase, bugs are inevitable.
    Bug reports are seriously welcome __ here`` https://github.com/tapirmd/tmd/issues __.
 
-*. (Optional), copy the `tmd` binary file to a directory configured
+*. Copy the `tmd` binary file to a directory configured
    in the `PATH` enviroment variable, or add the path of
    the `bin` folder to the `PATH` enviroment variable,
    so that you can run the `tmd` command anywhere.
+   ;;;
+   You can also specify the `--prefix PATH` option to install the `tmd` command
+   in the `PATH/bin` directory.
+
+*. WASM and JavaScript libraries are built with the following commands:
+   '''
+   zig build wasm
+   zig build js
+   '''
+   The library files will be generated in the `lib` folder
+   under the project local `zig-out` folder.
 
 ###====== Use the toolchain
 
@@ -83,7 +95,7 @@ the offcial TapirMD commands locally.
    within the current directory:
 
 *  Run the following commands to build a TapirMD project located at the specified directory
-   and output target files in `@tmd-build` folder in the workspace directory of the project.
+   and generate output files in `@tmd-build` sub-folder in the current directory.
    '''
     tmd build project-dir
     tmd build project-config-file

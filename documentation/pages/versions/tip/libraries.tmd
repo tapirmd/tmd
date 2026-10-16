@@ -49,25 +49,9 @@ Here is __an example Zig project__ which uses the TapirMD Zig library.
 @@@ #wasm-lib
 ###-------- The WASM library
 
-    === Git ` https://git-scm.com/downloads
-    === Zig ` https://ziglang.org/download/
-    === the TapirMD project ` https://github.com/tapirmd/tmd
-    === download its source code ` https://github.com/tapirmd/tmd/tags
+Follow __ the steps __ to build the WASM library.
 
-The steps to build the TapirMD WASM library:
-
-*. Install __Zig__, if haven't. The tip version (master) version is recommended.
-
-*. Get the source code of __the TapirMD project__.
-   You can clone it (install __Git__ if needed) or __download its source code__.
-
-*. Open your terminal or command prompt, and change directory to the TapirMD project folder,
-   then run
-   '''
-   zig build -Doptimize=ReleaseSmall wasm
-   '''
-   If the build is successful, the output `tmd.wasm` binary file will be located in
-   the `lib` folder under the project local `zig-out` folder.
+    === the steps :: installation.tmd#installation
 
 The output `tmd.wasm` binary file can be used in various languages.
 The official TapirMD __JavaScript__ and __Go__ libraries are both built upon WASM.
@@ -112,22 +96,11 @@ JavaScript and Go libraries (see below).
 @@@ #js-lib
 ###-------- The JavaScript library
 
+Follow __ the steps __ to build the JavaScript library.
+If the build is successful, the output `tmd-with-wasm.js` file will be located in
+the `lib` folder under the project local `zig-out` folder.
+
 Currently, the official TapirMD JavaScript library can be only used in browser environments.
-
-The steps to build the TapirMD JavaScript library:
-
-*. Install __Zig__, if haven't. The tip version (master) version is recommended.
-
-*. Get the source code of __the TapirMD project__.
-   You can clone it (install __Git__ if needed) or __download its source code__.
-
-*. Open your terminal or command prompt, and change directory to the TapirMD project folder,
-   then run
-   '''
-   zig build -Doptimize=ReleaseSmall js
-   '''
-   If the build is successful, the output `tmd-with-wasm.js` file will be located in
-   the `lib` folder under the project local `zig-out` folder.
 
 Please read the source code of the __online play page__ to get how to use the JavaScript library.
 

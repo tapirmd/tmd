@@ -1,9 +1,6 @@
 
 ### TapirMD (Tapir's Markup Doc) Specification
 
-* ### :: render mode
-  @@@ #content
-  {
 TapirMD is a powerful, next-generation markup language that
 simplifies content creation.
 Inspired by Markdown's straightforward syntax, it offers
@@ -585,7 +582,7 @@ Here is the list of all line-leading mark tokens supported now.
    the specified media should be displayed using these CSS properties: `
    height: 1em;
    vertical-align: middle;
-   `.
+   `; otherwise, the specified media should be displayed unscaled in the center of a block.
 
    A text is a valid image URI if it ends with the following extensions (ignore case):
    *  `.png`
@@ -1536,7 +1533,4 @@ converted to multiple formats beyond HTML, including EPUB and others.
 CJK is a short form standing for Chinese, Japanese, and Korean.
 
 } footnotes
-  }
-* ### :: source mode
-  '''
-  ''' << #content
+

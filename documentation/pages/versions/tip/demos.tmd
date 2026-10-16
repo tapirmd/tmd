@@ -68,7 +68,11 @@ For detailed explanations, please refer to __the specification__.
    \\ several times.
    \\ The following is an image.
 
+   << ../../static/image/tmd-v1.png
+
    && ../../static/image/tmd-v1.png
+
+   >> ../../static/image/tmd-v1.png
 
    Line-height image: ``
    && ../../static/image/tmd-v1.png

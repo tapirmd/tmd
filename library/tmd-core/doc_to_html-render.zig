@@ -1425,21 +1425,15 @@ pub const TmdRender = struct {
                                     inline .general, .tocSectionItem => true,
                                 };
 
-                                const char = self.doc.bytesAtPos(token.start());
-                                const extraClasses = switch (char) {
-                                    '>' => " tmd-float-right",
-                                    '<' => " tmd-float-left",
-                                    '&' => "",
-                                    else => unreachable,
-                                };
-
-                                const isInline = extraClasses.len == 0 and (inHeader or block.more.hasNonMediaContentTokens);
-
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
                                 std.debug.assert(linkInfoToken.* == .linkInfo);
 
                                 if (renderIt) writeMedia: {
+                                    const char = self.doc.bytesAtPos(token.start());
+
+                                    const isInline = inHeader or block.more.hasNonMediaContentTokens;
+
                                     try w.writeAll("<img");
 
                                     const link = linkInfoToken.linkInfo.link;
@@ -1465,11 +1459,14 @@ pub const TmdRender = struct {
                                         },
                                     }
 
-                                    if (isInline) {
-                                        try w.print("\" class=\"tmd-inline-media{s}\"/>", .{ extraClasses });
-                                    } else {
-                                        try w.print("\" class=\"tmd-media{s}\"/>", .{ extraClasses });
-                                    }
+                                    const classes = switch (char) {
+                                        '<' => if (isInline) "tmd-float-left" else "tmd-media-left",
+                                        '>' => if (isInline) "tmd-float-right" else "tmd-media-right",
+                                        '&' => if (isInline) "tmd-media-inline" else "tmd-media-center",
+                                        else => unreachable,
+                                    };
+
+                                    try w.print("\" class=\"{s}\"/>", .{classes});
                                 }
 
                                 std.debug.assert(linkInfoElement.next.?.value == .plainText);

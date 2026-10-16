@@ -292,6 +292,29 @@ header.tmd-with-subtitle h1 {
   display: flow-root;
 }
 
+.tmd-media-left {
+  display: block;
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.tmd-media-right {
+  display: block;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.tmd-media-center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.tmd-media-inline {
+  height: 1em;
+  vertical-align: middle;
+}
+
 .tmd-float-left {
   float: left;
   margin: 12px 12px 12px 2px;
@@ -391,14 +414,6 @@ header.tmd-with-subtitle h1 {
 
 .tmd-keep-whitespaces {
   white-space: break-spaces;
-}
-
-.tmd-inline-media {
-  height: 1em;
-  vertical-align: middle;
-}
-
-.tmd-media {
 }
 
 .tmd-align-left {
