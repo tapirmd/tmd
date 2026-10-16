@@ -10,11 +10,6 @@
 {{ embed-file-content @tmd-css-default }}
 
 
-html {
-  scrollbar-color: #c7923c #f5cc8c;
-  scrollbar-width: thin;
-}
-
 body {
     margin: 0;
 	min-height: 100vh;
@@ -36,6 +31,10 @@ nav {
 nav a.tmd-current-page-url {
 	font-weight: bold;
 	text-decoration: none;
+}
+
+nav ul,ol {
+	padding-left: 1.8em;
 }
 
 main {

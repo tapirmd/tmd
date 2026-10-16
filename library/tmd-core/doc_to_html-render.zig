@@ -383,7 +383,7 @@ pub const TmdRender = struct {
                             .{ tabInfo.orderId, self.options.autoIdentSuffix, tabInfo.orderId, tabInfo.nextItemOrderId, self.options.autoIdentSuffix },
                         );
 
-                        if (listItem.isFirst()) try w.writeAll(" checked");
+                        if (listItem.isFirst()) try w.writeAll(" checked=\"checked\"");
                         try w.writeAll("/>\n");
 
                         const headerTag = "label";
@@ -567,10 +567,11 @@ pub const TmdRender = struct {
                 else
                     false;
                 if (writeBlank) {
-                    const blankTag = "p";
+                    const tag = "p";
                     const blankClasses = "";
 
-                    try fns.writeBareTag(w, blankTag, blankClasses, null, self.options.identSuffix, true);
+                    try fns.writeOpenTag(w, tag, blankClasses, null, self.options.identSuffix, false);
+                    try fns.writeCloseTag(w, tag, true);
                 }
 
                 const tag = "div";
@@ -1424,7 +1425,15 @@ pub const TmdRender = struct {
                                     inline .general, .tocSectionItem => true,
                                 };
 
-                                const isInline = inHeader or block.more.hasNonMediaContentTokens;
+                                const char = self.doc.bytesAtPos(token.start());
+                                const extraClasses = switch (char) {
+                                    '>' => " tmd-float-right",
+                                    '<' => " tmd-float-left",
+                                    '&' => "",
+                                    else => unreachable,
+                                };
+
+                                const isInline = extraClasses.len == 0 and (inHeader or block.more.hasNonMediaContentTokens);
 
                                 const linkInfoElement = tokenElement.next.?;
                                 const linkInfoToken = &linkInfoElement.value;
@@ -1432,14 +1441,6 @@ pub const TmdRender = struct {
 
                                 if (renderIt) writeMedia: {
                                     try w.writeAll("<img");
-
-                                    const char = self.doc.bytesAtPos(token.start());
-                                    switch (char) {
-                                        '>' => try w.writeAll(" class=\"tmd-float-right\""),
-                                        '<' => try w.writeAll(" class=\"tmd-float-left\""),
-                                        '&' => {},
-                                        else => unreachable,
-                                    }
 
                                     const link = linkInfoToken.linkInfo.link;
                                     const url = link.url orelse unreachable;
@@ -1465,9 +1466,9 @@ pub const TmdRender = struct {
                                     }
 
                                     if (isInline) {
-                                        try w.writeAll("\" class=\"tmd-inline-media\"/>");
+                                        try w.print("\" class=\"tmd-inline-media{s}\"/>", .{ extraClasses });
                                     } else {
-                                        try w.writeAll("\" class=\"tmd-media\"/>");
+                                        try w.print("\" class=\"tmd-media{s}\"/>", .{ extraClasses });
                                     }
                                 }
 

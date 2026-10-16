@@ -1,4 +1,9 @@
 
+html {
+  scrollbar-color: #c7923c #f5cc8c;
+  scrollbar-width: thin;
+}
+
 body {
   padding: 0px 20px;
   font-size: 18px;

@@ -1,6 +1,9 @@
 
 ### TapirMD (Tapir's Markup Doc) Specification
 
+* ### :: render mode
+  @@@ #content
+  {
 TapirMD is a powerful, next-generation markup language that
 simplifies content creation.
 Inspired by Markdown's straightforward syntax, it offers
@@ -1533,4 +1536,7 @@ converted to multiple formats beyond HTML, including EPUB and others.
 CJK is a short form standing for Chinese, Japanese, and Korean.
 
 } footnotes
-
+  }
+* ### :: source mode
+  '''
+  ''' << #content

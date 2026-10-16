@@ -1,7 +1,9 @@
 
 ##### The Homepage of TapirMD
 
-
+* ### :: render mode
+  @@@ #content
+  {
 TapirMD is a powerful markup language which supports rich inline styling
 and a wide range of common block types.
 It also addresses many other frequently requested features
@@ -13,23 +15,28 @@ In addition to its primary goal of being powerful,
 TapirMD pursues several other key objectives:
 
 *  Ambiguity-Free: Strictly specified syntax.
-*  Readability-Focused: Minimal syntax noise; line indentations have no semantic meaning.
+*  Readability-Focused: Minimal syntax noise;
+   line indentations have no semantic meaning.
 *  Extensible: Supports custom blocks and URL logic.
 *  Fast: Efficient single-pass parsing and rendering.
 *  No JS Required: Fully functional without JavaScript dependencies
 
-For more information on TapirMD's features, explore the __ demos __ or consult __ the full specification __.
+For more information on TapirMD's features, explore the __ demos __
+or consult __ the full specification __.
 
 TapirMD provides __ an official toolchain __ that supports building
-TapirMD-based projects and __ libraries __ in several programming languages.
+TapirMD-based projects.
+Several __ libraries __ in different programming languages are also provided.
 
 You can also try TapirMD __ online __.
 
-    === demos ` versions/tip/demos.tmd
-    === the full specification ` versions/tip/specification.tmd
-    === ... toolchain ` versions/tip/toolchain.tmd
-    === libraries ` versions/tip/libraries.tmd
-    === online ` versions/tip/play.tmd
-
-
+    === demos :: versions/tip/demos.tmd
+    === the full specification :: versions/tip/specification.tmd
+    === ... toolchain :: versions/tip/toolchain.tmd
+    === libraries :: versions/tip/libraries.tmd
+    === online :: versions/tip/play.tmd
+  }
+* ### :: source mode
+  '''
+  ''' << #content
 
