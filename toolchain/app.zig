@@ -50,7 +50,7 @@ pub fn main(init: std.process.Init) !void {
 
     if (args.len <= 1) return printHelp(stdout);
     const quietMode = std.mem.eql(u8, args[1], "--quiet");
-    if (quietMode) args = args[2..];
+    args = if (quietMode) args[2..] else args[1..];
     if (args.len == 0) return printHelp(stdout);
 
     const command = args[0];
